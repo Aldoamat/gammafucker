@@ -1,0 +1,4 @@
+# Netlify pubblica la cartella dist/ (generata da: node release.mjs build)
+[build]
+  publish = "dist"
+  command = ""
