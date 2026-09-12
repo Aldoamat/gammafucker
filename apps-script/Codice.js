@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v19 ──
+// ── SPETTACOLI APP SCRIPT v20 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -1203,7 +1203,7 @@ function leggiRubrica(refresh) {
       var tels = (p.phoneNumbers || []).map(function(x){ return String(x.value || '').trim(); }).filter(Boolean);
       var org = (p.organizations && p.organizations[0] && p.organizations[0].name) || '';
       if (!emails.length && !tels.length) return;
-      out.push({ nome: nome || emails[0], email: emails[0] || '', tel: tels[0] || '', emails: emails, tels: tels, org: org });
+      out.push({ nome: String(nome || org || emails[0] || tels[0] || ''), email: emails[0] || '', tel: tels[0] || '', emails: emails, tels: tels, org: org });
     });
     token = res.nextPageToken;
   } while (token);
@@ -1217,12 +1217,12 @@ function leggiRubrica(refresh) {
         var emails = (p.emailAddresses || []).map(function(x){ return String(x.value || '').trim(); }).filter(Boolean);
         if (!emails.length) return;
         if (out.some(function(o){ return o.emails.indexOf(emails[0]) >= 0; })) return;
-        out.push({ nome: nome || emails[0], email: emails[0], tel: '', emails: emails, tels: [], org: '', altro: true });
+        out.push({ nome: String(nome || emails[0]), email: emails[0], tel: '', emails: emails, tels: [], org: '', altro: true });
       });
       tok2 = r2.nextPageToken;
     } while (tok2);
   } catch(e) { Logger.log('OtherContacts: ' + e.message); }
-  out.sort(function(a, b){ return a.nome.localeCompare(b.nome, 'it'); });
+  out.sort(function(a, b){ return String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); });
   // cache a pezzi (limite 100 KB per chiave)
   var json = JSON.stringify(out), n = 0;
   for (var k = 0; k < json.length; k += 90000) cache.put('rubrica_' + (n++), json.substring(k, k + 90000), 21600);

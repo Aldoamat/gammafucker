@@ -229,7 +229,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v34</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v35</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -2412,7 +2412,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v19 ──
+  return `// ── SPETTACOLI APP SCRIPT v20 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -3617,7 +3617,7 @@ function leggiRubrica(refresh) {
       var tels = (p.phoneNumbers || []).map(function(x){ return String(x.value || '').trim(); }).filter(Boolean);
       var org = (p.organizations && p.organizations[0] && p.organizations[0].name) || '';
       if (!emails.length && !tels.length) return;
-      out.push({ nome: nome || emails[0], email: emails[0] || '', tel: tels[0] || '', emails: emails, tels: tels, org: org });
+      out.push({ nome: String(nome || org || emails[0] || tels[0] || ''), email: emails[0] || '', tel: tels[0] || '', emails: emails, tels: tels, org: org });
     });
     token = res.nextPageToken;
   } while (token);
@@ -3631,12 +3631,12 @@ function leggiRubrica(refresh) {
         var emails = (p.emailAddresses || []).map(function(x){ return String(x.value || '').trim(); }).filter(Boolean);
         if (!emails.length) return;
         if (out.some(function(o){ return o.emails.indexOf(emails[0]) >= 0; })) return;
-        out.push({ nome: nome || emails[0], email: emails[0], tel: '', emails: emails, tels: [], org: '', altro: true });
+        out.push({ nome: String(nome || emails[0]), email: emails[0], tel: '', emails: emails, tels: [], org: '', altro: true });
       });
       tok2 = r2.nextPageToken;
     } while (tok2);
   } catch(e) { Logger.log('OtherContacts: ' + e.message); }
-  out.sort(function(a, b){ return a.nome.localeCompare(b.nome, 'it'); });
+  out.sort(function(a, b){ return String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); });
   // cache a pezzi (limite 100 KB per chiave)
   var json = JSON.stringify(out), n = 0;
   for (var k = 0; k < json.length; k += 90000) cache.put('rubrica_' + (n++), json.substring(k, k + 90000), 21600);
@@ -5857,7 +5857,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v34</span>
+    <span>Report generato da GammaFucker v35</span>
   </div>
   </body></html>`;
 
@@ -5963,7 +5963,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v34</span>
+    <span>Report generato da GammaFucker v35</span>
   </div>
   </body></html>`;
 
@@ -6038,7 +6038,7 @@ function generaReportStagione(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v34</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v35</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
