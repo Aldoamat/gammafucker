@@ -215,6 +215,12 @@ textarea{resize:none;height:68px;font-size:13px;}
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
+.rb-wrap{position:relative;}
+.rb-dd{position:absolute;left:0;right:0;top:100%;z-index:50;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.45);max-height:220px;overflow-y:auto;margin-top:2px;}
+.rb-it{padding:7px 10px;cursor:pointer;border-top:1px solid var(--border);font-size:12px;line-height:1.3;}
+.rb-it:first-child{border-top:none;}
+.rb-it:hover,.rb-it.sel{background:rgba(124,58,237,.18);}
+.rb-it small{display:block;color:var(--text3);font-size:10px;}
 </style>
 </head>
 <body>
@@ -223,7 +229,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v33</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v34</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -497,11 +503,16 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
 
   <div class="fc">
     <div class="fct">📋 DB Aziende di Servizio</div>
-    <p style="font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.5;">Archivio aziende con contatti — disponibili come menu a tendina nelle schede spazio.</p>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.5;">Archivio aziende con contatti — disponibili come menu a tendina nelle schede spazio. Nome, telefono ed email si possono prendere dalla rubrica Google scrivendo nel campo nome.</p>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+      <button class="btn btn-o btn-sm" onclick="caricaRubrica(true)">🔄 Aggiorna rubrica</button>
+      <span id="rubrica-stato" style="font-size:10px;color:var(--text3);"></span>
+    </div>
+    <input type="file" id="az-upload-file" multiple style="display:none;" onchange="caricaFileAzienda(this.files)">
     <div id="cfg-aziende-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
     <div style="display:flex;flex-direction:column;gap:6px;">
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <input id="cfg-az-nome" type="text" placeholder="Nome azienda" style="flex:2;min-width:140px;">
+        <span class="rb-wrap" style="flex:2;min-width:140px;display:block;"><input id="cfg-az-nome" type="text" placeholder="Nome azienda (cerca in rubrica)" autocomplete="off" style="width:100%;box-sizing:border-box;"></span>
         <input id="cfg-az-tel" type="tel" placeholder="Telefono" style="flex:1;min-width:100px;">
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -893,7 +904,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
   <div class="modal" style="max-width:480px;max-height:85vh;overflow-y:auto;padding:20px;">
     <div class="mtitle">📧 Scheda Info Spazio: <span id="spazio-info-title" style="color:var(--accent);"></span></div>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <div class="field"><label>👤 Referente (nome)</label><input type="text" id="si-referente-nome" placeholder="Mario Rossi"></div>
+      <div class="field rb-wrap"><label>👤 Referente (nome) <span style="color:var(--text3);font-weight:normal;">— scrivi per cercare in rubrica</span></label><input type="text" id="si-referente-nome" placeholder="Mario Rossi" autocomplete="off"></div>
       <div class="field"><label>📧 Email referente</label><input type="email" id="si-referente-email" placeholder="mario@teatro.it"></div>
       <div class="field"><label>📱 Telefono referente</label><input type="tel" id="si-referente-tel" placeholder="333 1234567"></div>
       <div class="field"><label>🚚 Tipologia di scarico</label><input type="text" id="si-scarico" placeholder="es. Via laterale, mezzo max 3.5t"></div>
@@ -906,11 +917,16 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
       </div>
       <div class="field"><label>📝 Note aggiuntive</label><textarea id="si-note" placeholder="Altre informazioni utili..." rows="3"></textarea></div>
       <div>
-        <div style="font-size:11px;color:var(--text2);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;">📎 Documenti Dropbox</div>
+        <div style="font-size:11px;color:var(--text2);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;">📎 Documenti</div>
         <div id="si-links-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
+          <button class="btn btn-o btn-sm" id="si-upload-btn" onclick="document.getElementById('si-upload-file').click()">📁 Carica file (planimetrie, schede, foto)</button>
+          <input type="file" id="si-upload-file" multiple style="display:none;" onchange="caricaFileSpazio(this.files)">
+          <span id="si-upload-stato" style="font-size:10px;color:var(--text3);"></span>
+        </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <input id="si-new-link-label" type="text" placeholder="Etichetta (es. Planimetria palco)" style="flex:1;min-width:130px;">
-          <input id="si-new-link-url" type="url" placeholder="https://dropbox.com/..." style="flex:2;min-width:160px;">
+          <input id="si-new-link-label" type="text" placeholder="Etichetta" style="flex:1;min-width:110px;">
+          <input id="si-new-link-url" type="url" placeholder="oppure link esterno (Dropbox, ecc.)" style="flex:2;min-width:160px;">
           <button class="btn btn-o btn-sm" onclick="aggiungiLinkSpazio()">+</button>
         </div>
       </div>
@@ -920,7 +936,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
         <div style="display:flex;flex-direction:column;gap:4px;">
           <input id="si-new-ditta-servizio" type="text" placeholder="Servizio (es. Facchinaggio, Luci)" style="width:100%;box-sizing:border-box;">
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <input id="si-new-ditta-nome" type="text" placeholder="Nome ditta" list="azienda-datalist" style="flex:1;min-width:120px;" oninput="_onAziendaSelected()">
+            <span class="rb-wrap" style="flex:1;min-width:120px;display:block;"><input id="si-new-ditta-nome" type="text" placeholder="Nome ditta (cerca in aziende e rubrica)" autocomplete="off" style="width:100%;box-sizing:border-box;" oninput="_onAziendaSelected()"></span>
             <input id="si-new-ditta-tel" type="tel" placeholder="Telefono" style="flex:1;min-width:100px;">
             <input id="si-new-ditta-email" type="email" placeholder="Email" style="flex:1;min-width:120px;">
             <button class="btn btn-o btn-sm" onclick="aggiungiDittaSpazio()">+</button>
@@ -1175,6 +1191,7 @@ function init(){
   aziendeDB = ld('aziendeDB', []);
   buildCfgAziendeList();
   _buildAziendaDatalist();
+  _initRubrica();
   // Attiva chip settimana corrente all'apertura
   document.getElementById('chip-week').className='stato-chip active-week';
   document.getElementById('chip-all').className='stato-chip';
@@ -1284,6 +1301,125 @@ function onCittaChange(){
   (teatriDB[c]||[]).forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;s.appendChild(o);});
   if(!c)s.innerHTML='<option>—</option>';
 }
+// ════════════════════ RUBRICA GOOGLE (ricerca contatti) ════════════════════
+// rubrica: [{nome,email,tel,emails,tels,org}] letta dal backend (People API), cache locale 6h
+let rubrica = ld('rubrica', []);
+async function caricaRubrica(forza=false){
+  const url = ld('sheetsUrl',''); if(!url) return;
+  const ts = ld('rubricaTs', 0);
+  if(!forza && rubrica.length && Date.now()-ts < 6*3600*1000) { _rubricaStato(); return; }
+  const st = document.getElementById('rubrica-stato'); if(st) st.textContent='⏳ carico rubrica…';
+  try{
+    const res = await fetch(url+'?action=rubrica'+(forza?'&refresh=1':'')+'&t='+Date.now());
+    const j = await res.json();
+    if(j.error) throw new Error(j.error);
+    rubrica = j.rubrica||[]; sv('rubrica', rubrica); sv('rubricaTs', Date.now());
+    _rubricaStato(); if(forza) toast('✓ Rubrica: '+rubrica.length+' contatti');
+  }catch(e){ if(st) st.textContent='rubrica non disponibile: '+e.message; }
+}
+function _rubricaStato(){ const st=document.getElementById('rubrica-stato'); if(st) st.textContent = rubrica.length ? rubrica.length+' contatti in rubrica' : 'rubrica vuota'; }
+function _initRubrica(){
+  setTimeout(()=>caricaRubrica(false), 3500);
+  attachRubrica('si-referente-nome', c=>{ _setVal('si-referente-email', c.email); _setVal('si-referente-tel', c.tel); }, {aziende:false});
+  attachRubrica('si-new-ditta-nome', c=>{ _setVal('si-new-ditta-tel', c.tel); _setVal('si-new-ditta-email', c.email); if(c.servizi && !document.getElementById('si-new-ditta-servizio').value) document.getElementById('si-new-ditta-servizio').value=c.servizi.split(',')[0].trim(); }, {aziende:true});
+  attachRubrica('cfg-az-nome', c=>{ _setVal('cfg-az-tel', c.tel); _setVal('cfg-az-email', c.email); }, {aziende:false});
+}
+function _setVal(id,v){ const el=document.getElementById(id); if(el && v) el.value=v; }
+function _norm(t){ return String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+// Ricerca: nome, email, organizzazione. Il nome resta modificabile dopo la scelta.
+function cercaRubrica(q, opts={}){
+  q=_norm(q).trim(); if(q.length<2) return [];
+  const parole=q.split(/\s+/);
+  const src=[];
+  if(opts.aziende) aziendeDB.forEach(a=>src.push({nome:a.nome, email:a.email||'', tel:a.tel||'', org:'azienda', servizi:a.servizi||'', _az:true}));
+  rubrica.forEach(c=>src.push(c));
+  const hit=[];
+  for(const c of src){
+    const hay=_norm(c.nome+' '+(c.email||'')+' '+(c.org||''));
+    if(parole.every(p=>hay.includes(p))) { hit.push(c); if(hit.length>=8) break; }
+  }
+  return hit;
+}
+function attachRubrica(inputId, onPick, opts={}){
+  const inp=document.getElementById(inputId); if(!inp) return;
+  const wrap=inp.closest('.rb-wrap')||inp.parentElement;
+  let dd=null, sel=-1, items=[];
+  const close=()=>{ if(dd){dd.remove();dd=null;} sel=-1; items=[]; };
+  const render=()=>{
+    close();
+    items=cercaRubrica(inp.value, opts); if(!items.length) return;
+    dd=document.createElement('div'); dd.className='rb-dd';
+    dd.innerHTML=items.map((c,i)=>`<div class="rb-it" data-i="${i}"><b>${c._az?'🏢 ':'👤 '}${c.nome}</b>${c.org&&!c._az?' <span style="color:var(--text3);">· '+c.org+'</span>':''}<small>${[c.email,c.tel].filter(Boolean).join(' · ')||'—'}</small></div>`).join('');
+    dd.addEventListener('mousedown', e=>{ const it=e.target.closest('.rb-it'); if(!it) return; e.preventDefault(); pick(+it.dataset.i); });
+    wrap.appendChild(dd);
+  };
+  const pick=i=>{ const c=items[i]; if(!c) return; inp.value=c.nome; onPick(c); close(); inp.dispatchEvent(new Event('change')); };
+  inp.addEventListener('input', render);
+  inp.addEventListener('focus', ()=>{ if(inp.value.length>=2) render(); });
+  inp.addEventListener('blur', ()=>setTimeout(close,150));
+  inp.addEventListener('keydown', e=>{
+    if(!dd) return;
+    if(e.key==='ArrowDown'){ e.preventDefault(); sel=Math.min(sel+1,items.length-1); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); sel=Math.max(sel-1,0); }
+    else if(e.key==='Enter'){ if(sel>=0){ e.preventDefault(); pick(sel); } return; }
+    else if(e.key==='Escape'){ close(); return; }
+    else return;
+    dd.querySelectorAll('.rb-it').forEach((el,i)=>el.classList.toggle('sel',i===sel));
+  });
+}
+
+// ════════════════════ DOCUMENTI: upload su Drive ════════════════════
+const UPLOAD_MAX_MB = 25;
+function _fileToB64(file){ return new Promise((ok,ko)=>{ const r=new FileReader(); r.onload=()=>ok(String(r.result).split(',')[1]); r.onerror=ko; r.readAsDataURL(file); }); }
+async function caricaDocumento(file, cartella){
+  const url = ld('sheetsUrl',''); if(!url) throw new Error('Configura Sheets URL');
+  if(file.size > UPLOAD_MAX_MB*1024*1024) throw new Error(file.name+' supera '+UPLOAD_MAX_MB+' MB');
+  const b64 = await _fileToB64(file);
+  const res = await fetch(url, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({action:'uploadFile', cartella, nome:file.name, mime:file.type||'application/octet-stream', b64})});
+  const j = await res.json(); if(j.error) throw new Error(j.error);
+  return j; // {url,id,nome,cartella}
+}
+async function caricaFileSpazio(files){
+  if(!files||!files.length) return;
+  const st=document.getElementById('si-upload-stato'), btn=document.getElementById('si-upload-btn');
+  const [citta,teatro]=_spazioInfoKey.split('||');
+  btn.disabled=true;
+  let n=0;
+  for(const f of Array.from(files)){
+    st.textContent='⏳ carico '+f.name+'…';
+    try{
+      const r = await caricaDocumento(f, 'Spazi/'+citta+' - '+teatro);
+      const d = spazioInfo[_spazioInfoKey] || {};
+      const links = [...(d.links||[]), {label: f.name.replace(/\.[^.]+$/,''), url: r.url}];
+      spazioInfo[_spazioInfoKey] = {...d, links}; sv('spazioInfo', spazioInfo); _buildLinksList(links); n++;
+    }catch(e){ toast('Errore '+f.name+': '+e.message, true); }
+  }
+  st.textContent = n ? '✓ '+n+' file su Drive' : ''; btn.disabled=false;
+  document.getElementById('si-upload-file').value='';
+  if(n && ld('sheetsUrl','')) setTimeout(()=>pushConfig(true), 300);
+}
+let _azUploadId = null;
+async function caricaFileAzienda(files){
+  if(!files||!files.length||!_azUploadId) return;
+  const a = aziendeDB.find(x=>x.id===_azUploadId); if(!a) return;
+  let n=0;
+  for(const f of Array.from(files)){
+    toast('⏳ carico '+f.name+'…');
+    try{
+      const r = await caricaDocumento(f, 'Fornitori/'+a.nome);
+      a.docs = [...(a.docs||[]), {label: f.name.replace(/\.[^.]+$/,''), url: r.url}]; n++;
+    }catch(e){ toast('Errore '+f.name+': '+e.message, true); }
+  }
+  sv('aziendeDB', aziendeDB); buildCfgAziendeList();
+  document.getElementById('az-upload-file').value='';
+  if(n){ toast('✓ '+n+' documento/i su Drive per '+a.nome); if(ld('sheetsUrl','')) setTimeout(()=>pushConfig(true), 300); }
+}
+function rimuoviDocAzienda(id, i){
+  const a = aziendeDB.find(x=>x.id===id); if(!a||!a.docs) return;
+  a.docs.splice(i,1); sv('aziendeDB', aziendeDB); buildCfgAziendeList();
+  if(ld('sheetsUrl','')) setTimeout(()=>pushConfig(true), 300);
+}
+
 // ════════════════════ DB AZIENDE DI SERVIZIO ════════════════════
 // aziendeDB: [{id, nome, tel, email, servizi}]
 let aziendeDB = ld('aziendeDB', []);
@@ -1329,7 +1465,9 @@ function buildCfgAziendeList(){
       <div style="flex:1;">
         <div style="font-size:13px;font-weight:700;">🏢 ${a.nome}</div>
         <div style="font-size:10px;color:var(--text3);">${a.servizi||''}${a.tel?' · '+a.tel:''}${a.email?' · '+a.email:''}</div>
+        ${(a.docs&&a.docs.length)?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">${a.docs.map((d,i)=>`<a href="${d.url}" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;color:#60a5fa;border-color:rgba(96,165,250,.3);font-size:10px;padding:2px 7px;">📎 ${d.label}</a><button onclick="rimuoviDocAzienda(${a.id},${i})" title="rimuovi" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:10px;padding:0 2px;">✕</button>`).join('')}</div>`:''}
       </div>
+      <button onclick="_azUploadId=${a.id};document.getElementById('az-upload-file').click()" title="Carica listino/documento" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:14px;">📁</button>
       <button onclick="rimuoviAzienda(${a.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">🗑</button>
     </div>`).join('');
 }
@@ -2274,7 +2412,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v18 ──
+  return `// ── SPETTACOLI APP SCRIPT v19 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -2390,6 +2528,11 @@ function doPost(e) {
       lock.releaseLock();
       return resp('sent');
     }
+    if (body.action === 'uploadFile') {
+      lock.releaseLock();
+      var ru; try { ru = caricaDocumento(body.cartella, body.nome, body.mime, body.b64); } catch(errU) { ru = { error: errU.message }; }
+      return ContentService.createTextOutput(JSON.stringify(ru)).setMimeType(ContentService.MimeType.JSON);
+    }
     if (body.action === 'leggiScheda') {
       lock.releaseLock();   // la lettura dura anche un minuto: non bloccare le sync dei colleghi
       var rs; try { rs = leggiSchedaThread(body.link, body.fonte); } catch(errL) { rs = { error: errL.message }; }
@@ -2464,7 +2607,11 @@ function doGet(e) {
     if(cb) return ContentService.createTextOutput(cb+'('+payload+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
     return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
   }
-if(action === 'proposte') {
+  if(action === 'rubrica') {
+    try { return ContentService.createTextOutput(JSON.stringify({rubrica: leggiRubrica(e.parameter.refresh === '1')})).setMimeType(ContentService.MimeType.JSON); }
+    catch(err) { return ContentService.createTextOutput(JSON.stringify({error: err.message})).setMimeType(ContentService.MimeType.JSON); }
+  }
+  if(action === 'proposte') {
     try {
       var shP = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Proposte');
       if(!shP) return ContentService.createTextOutput(JSON.stringify({proposte:[]})).setMimeType(ContentService.MimeType.JSON);
@@ -3447,6 +3594,72 @@ function _analizzaScheda(KEY, elenco, k) {
 }
 
 function testSchede() { Logger.log(scansionaSchede()); }
+
+// ════════════════════ RUBRICA (Contatti Google) ════════════════════
+// Legge i contatti dell'account del foglio tramite People API (servizio avanzato
+// "People" in appsscript.json). Cache 6 ore; ?refresh=1 la salta.
+function leggiRubrica(refresh) {
+  var cache = CacheService.getScriptCache();
+  if (!refresh) {
+    var parts = [], i = 0, chunk;
+    while ((chunk = cache.get('rubrica_' + i)) !== null) { parts.push(chunk); i++; }
+    if (parts.length) return JSON.parse(parts.join(''));
+  }
+  var out = [], token = null;
+  do {
+    var res = People.People.Connections.list('people/me', {
+      personFields: 'names,emailAddresses,phoneNumbers,organizations',
+      pageSize: 1000, pageToken: token, sortOrder: 'FIRST_NAME_ASCENDING'
+    });
+    (res.connections || []).forEach(function(p) {
+      var nome = (p.names && p.names[0] && p.names[0].displayName) || '';
+      var emails = (p.emailAddresses || []).map(function(x){ return String(x.value || '').trim(); }).filter(Boolean);
+      var tels = (p.phoneNumbers || []).map(function(x){ return String(x.value || '').trim(); }).filter(Boolean);
+      var org = (p.organizations && p.organizations[0] && p.organizations[0].name) || '';
+      if (!emails.length && !tels.length) return;
+      out.push({ nome: nome || emails[0], email: emails[0] || '', tel: tels[0] || '', emails: emails, tels: tels, org: org });
+    });
+    token = res.nextPageToken;
+  } while (token);
+  // "Altri contatti": persone a cui hai scritto senza salvarle in rubrica
+  try {
+    var tok2 = null;
+    do {
+      var r2 = People.OtherContacts.list({ readMask: 'names,emailAddresses,phoneNumbers', pageSize: 1000, pageToken: tok2 });
+      (r2.otherContacts || []).forEach(function(p) {
+        var nome = (p.names && p.names[0] && p.names[0].displayName) || '';
+        var emails = (p.emailAddresses || []).map(function(x){ return String(x.value || '').trim(); }).filter(Boolean);
+        if (!emails.length) return;
+        if (out.some(function(o){ return o.emails.indexOf(emails[0]) >= 0; })) return;
+        out.push({ nome: nome || emails[0], email: emails[0], tel: '', emails: emails, tels: [], org: '', altro: true });
+      });
+      tok2 = r2.nextPageToken;
+    } while (tok2);
+  } catch(e) { Logger.log('OtherContacts: ' + e.message); }
+  out.sort(function(a, b){ return a.nome.localeCompare(b.nome, 'it'); });
+  // cache a pezzi (limite 100 KB per chiave)
+  var json = JSON.stringify(out), n = 0;
+  for (var k = 0; k < json.length; k += 90000) cache.put('rubrica_' + (n++), json.substring(k, k + 90000), 21600);
+  return out;
+}
+function testRubrica() { var r = leggiRubrica(true); Logger.log(r.length + ' contatti; primo: ' + JSON.stringify(r[0])); }
+
+// ════════════════════ DOCUMENTI (upload su Drive) ════════════════════
+// Salva un file in "GammaFucker Documenti/<cartella>" con link di sola lettura
+// per chi ha il link. Sostituisce il copia-incolla dei link Dropbox.
+var DOC_CARTELLA = 'GammaFucker Documenti';
+function caricaDocumento(cartella, nome, mime, b64) {
+  if (!nome || !b64) return { error: 'file mancante' };
+  var it = DriveApp.getFoldersByName(DOC_CARTELLA);
+  var root = it.hasNext() ? it.next() : DriveApp.createFolder(DOC_CARTELLA);
+  var sub = String(cartella || 'Varie').replace(/[\\\\/:*?"<>|]/g, ' ').trim().substring(0, 80) || 'Varie';
+  var it2 = root.getFoldersByName(sub);
+  var folder = it2.hasNext() ? it2.next() : root.createFolder(sub);
+  var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime || 'application/octet-stream', nome);
+  var f = folder.createFile(blob);
+  try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {}
+  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: sub };
+}
 `;
 }
 function copiaScript(){
@@ -5644,7 +5857,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v33</span>
+    <span>Report generato da GammaFucker v34</span>
   </div>
   </body></html>`;
 
@@ -5750,7 +5963,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v33</span>
+    <span>Report generato da GammaFucker v34</span>
   </div>
   </body></html>`;
 
@@ -5825,7 +6038,7 @@ function generaReportStagione(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v33</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v34</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');

@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v18 ──
+// ── SPETTACOLI APP SCRIPT v19 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -114,6 +114,11 @@ function doPost(e) {
       lock.releaseLock();
       return resp('sent');
     }
+    if (body.action === 'uploadFile') {
+      lock.releaseLock();
+      var ru; try { ru = caricaDocumento(body.cartella, body.nome, body.mime, body.b64); } catch(errU) { ru = { error: errU.message }; }
+      return ContentService.createTextOutput(JSON.stringify(ru)).setMimeType(ContentService.MimeType.JSON);
+    }
     if (body.action === 'leggiScheda') {
       lock.releaseLock();   // la lettura dura anche un minuto: non bloccare le sync dei colleghi
       var rs; try { rs = leggiSchedaThread(body.link, body.fonte); } catch(errL) { rs = { error: errL.message }; }
@@ -188,7 +193,11 @@ function doGet(e) {
     if(cb) return ContentService.createTextOutput(cb+'('+payload+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
     return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
   }
-if(action === 'proposte') {
+  if(action === 'rubrica') {
+    try { return ContentService.createTextOutput(JSON.stringify({rubrica: leggiRubrica(e.parameter.refresh === '1')})).setMimeType(ContentService.MimeType.JSON); }
+    catch(err) { return ContentService.createTextOutput(JSON.stringify({error: err.message})).setMimeType(ContentService.MimeType.JSON); }
+  }
+  if(action === 'proposte') {
     try {
       var shP = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Proposte');
       if(!shP) return ContentService.createTextOutput(JSON.stringify({proposte:[]})).setMimeType(ContentService.MimeType.JSON);
@@ -1171,3 +1180,69 @@ function _analizzaScheda(KEY, elenco, k) {
 }
 
 function testSchede() { Logger.log(scansionaSchede()); }
+
+// ════════════════════ RUBRICA (Contatti Google) ════════════════════
+// Legge i contatti dell'account del foglio tramite People API (servizio avanzato
+// "People" in appsscript.json). Cache 6 ore; ?refresh=1 la salta.
+function leggiRubrica(refresh) {
+  var cache = CacheService.getScriptCache();
+  if (!refresh) {
+    var parts = [], i = 0, chunk;
+    while ((chunk = cache.get('rubrica_' + i)) !== null) { parts.push(chunk); i++; }
+    if (parts.length) return JSON.parse(parts.join(''));
+  }
+  var out = [], token = null;
+  do {
+    var res = People.People.Connections.list('people/me', {
+      personFields: 'names,emailAddresses,phoneNumbers,organizations',
+      pageSize: 1000, pageToken: token, sortOrder: 'FIRST_NAME_ASCENDING'
+    });
+    (res.connections || []).forEach(function(p) {
+      var nome = (p.names && p.names[0] && p.names[0].displayName) || '';
+      var emails = (p.emailAddresses || []).map(function(x){ return String(x.value || '').trim(); }).filter(Boolean);
+      var tels = (p.phoneNumbers || []).map(function(x){ return String(x.value || '').trim(); }).filter(Boolean);
+      var org = (p.organizations && p.organizations[0] && p.organizations[0].name) || '';
+      if (!emails.length && !tels.length) return;
+      out.push({ nome: nome || emails[0], email: emails[0] || '', tel: tels[0] || '', emails: emails, tels: tels, org: org });
+    });
+    token = res.nextPageToken;
+  } while (token);
+  // "Altri contatti": persone a cui hai scritto senza salvarle in rubrica
+  try {
+    var tok2 = null;
+    do {
+      var r2 = People.OtherContacts.list({ readMask: 'names,emailAddresses,phoneNumbers', pageSize: 1000, pageToken: tok2 });
+      (r2.otherContacts || []).forEach(function(p) {
+        var nome = (p.names && p.names[0] && p.names[0].displayName) || '';
+        var emails = (p.emailAddresses || []).map(function(x){ return String(x.value || '').trim(); }).filter(Boolean);
+        if (!emails.length) return;
+        if (out.some(function(o){ return o.emails.indexOf(emails[0]) >= 0; })) return;
+        out.push({ nome: nome || emails[0], email: emails[0], tel: '', emails: emails, tels: [], org: '', altro: true });
+      });
+      tok2 = r2.nextPageToken;
+    } while (tok2);
+  } catch(e) { Logger.log('OtherContacts: ' + e.message); }
+  out.sort(function(a, b){ return a.nome.localeCompare(b.nome, 'it'); });
+  // cache a pezzi (limite 100 KB per chiave)
+  var json = JSON.stringify(out), n = 0;
+  for (var k = 0; k < json.length; k += 90000) cache.put('rubrica_' + (n++), json.substring(k, k + 90000), 21600);
+  return out;
+}
+function testRubrica() { var r = leggiRubrica(true); Logger.log(r.length + ' contatti; primo: ' + JSON.stringify(r[0])); }
+
+// ════════════════════ DOCUMENTI (upload su Drive) ════════════════════
+// Salva un file in "GammaFucker Documenti/<cartella>" con link di sola lettura
+// per chi ha il link. Sostituisce il copia-incolla dei link Dropbox.
+var DOC_CARTELLA = 'GammaFucker Documenti';
+function caricaDocumento(cartella, nome, mime, b64) {
+  if (!nome || !b64) return { error: 'file mancante' };
+  var it = DriveApp.getFoldersByName(DOC_CARTELLA);
+  var root = it.hasNext() ? it.next() : DriveApp.createFolder(DOC_CARTELLA);
+  var sub = String(cartella || 'Varie').replace(/[\\/:*?"<>|]/g, ' ').trim().substring(0, 80) || 'Varie';
+  var it2 = root.getFoldersByName(sub);
+  var folder = it2.hasNext() ? it2.next() : root.createFolder(sub);
+  var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime || 'application/octet-stream', nome);
+  var f = folder.createFile(blob);
+  try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {}
+  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: sub };
+}
