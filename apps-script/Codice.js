@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v20 ──
+// ── SPETTACOLI APP SCRIPT v22 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -114,6 +114,11 @@ function doPost(e) {
       lock.releaseLock();
       return resp('sent');
     }
+    if (body.action === 'applicaAnagrafica') {
+      var ra; try { ra = applicaAnagrafica(body.remaps); } catch(errA) { ra = { error: errA.message }; }
+      lock.releaseLock();
+      return ContentService.createTextOutput(JSON.stringify(ra)).setMimeType(ContentService.MimeType.JSON);
+    }
     if (body.action === 'uploadFile') {
       lock.releaseLock();
       var ru; try { ru = caricaDocumento(body.cartella, body.nome, body.mime, body.b64); } catch(errU) { ru = { error: errU.message }; }
@@ -193,6 +198,10 @@ function doGet(e) {
     if(cb) return ContentService.createTextOutput(cb+'('+payload+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
     return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
   }
+  if(action === 'auditAnagrafica') {
+    try { return ContentService.createTextOutput(JSON.stringify(auditAnagrafica())).setMimeType(ContentService.MimeType.JSON); }
+    catch(err) { return ContentService.createTextOutput(JSON.stringify({error: err.message})).setMimeType(ContentService.MimeType.JSON); }
+  }
   if(action === 'rubrica') {
     try { return ContentService.createTextOutput(JSON.stringify({rubrica: leggiRubrica(e.parameter.refresh === '1')})).setMimeType(ContentService.MimeType.JSON); }
     catch(err) { return ContentService.createTextOutput(JSON.stringify({error: err.message})).setMimeType(ContentService.MimeType.JSON); }
@@ -253,7 +262,9 @@ function doGet(e) {
         dittaDB: JSON.parse(props.getProperty('dittaDB')||'[]'),
         collaboratori: JSON.parse(props.getProperty('collaboratori')||'[]'),
         spazioInfo: JSON.parse(props.getProperty('spazioInfo')||'{}'),
-        aziendeDB: JSON.parse(props.getProperty('aziendeDB')||'[]')
+        aziendeDB: JSON.parse(props.getProperty('aziendeDB')||'[]'),
+        anagraficaVer: parseInt(props.getProperty('anagraficaVer')||'0'),
+        anagraficaRemaps: JSON.parse(props.getProperty('anagraficaRemaps')||'[]')
       });
       return ContentService.createTextOutput(result).setMimeType(ContentService.MimeType.JSON);
     } catch(err) {
@@ -1245,4 +1256,198 @@ function caricaDocumento(cartella, nome, mime, b64) {
   var f = folder.createFile(blob);
   try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {}
   return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: sub };
+}
+
+// ════════════════════ ANAGRAFICA: verifica e unificazione ════════════════════
+// Diagnosi (GET ?action=auditAnagrafica) e applicazione (POST applicaAnagrafica).
+// Ogni rinomina applicata viene registrata in un "giornale" (anagraficaRemaps, con
+// versione crescente) che il pull consegna alle app: ogni dispositivo la applica ai
+// propri dati locali, così la normalizzazione non viene annullata dai merge local-wins.
+var NON_TEATRI_RE = /^(AUDITORIUM|CHIESA|SALA|PINACOTECA|VILLA|ROTONDA|RIDOTTO|CINETEATRO|CINEMA|ARENA|PALAZZO|CORTILE|PIAZZA|PALAS|PALASPORT|CASTELLO|ABBAZIA|MUSEO|BIBLIOTECA|CENTRO|SPAZIO|GIARDIN)/;
+function _canonTeatro(t) {
+  var n = String(t || '').trim().toUpperCase().replace(/\s+/g, ' ');
+  if (!n || NON_TEATRI_RE.test(n)) return n;
+  return 'TEATRO ' + n.replace(/^TEATRO\s+/, '');
+}
+function _keyManif(m) {
+  // chiave di raggruppamento: maiuscolo, via anni, "EDIZIONE", punteggiatura, spazi
+  return String(m || '').toUpperCase().replace(/\b(19|20)\d\d(\s*[\/\-]\s*(19|20)?\d\d)?\b/g, '')
+    .replace(/\b(EDIZIONE|ED\.?|STAGIONE)\b/g, '').replace(/[^A-Z0-9]/g, '');
+}
+
+function auditAnagrafica() {
+  var props = PropertiesService.getScriptProperties();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('Spettacoli');
+  var rows = sh ? sh.getDataRange().getValues() : [[]];
+  var hdr = rows[0].map(function(h){ return String(h).trim().toUpperCase(); });
+  var iC = hdr.indexOf('CITTA'), iT = hdr.indexOf('TEATRO'), iM = hdr.indexOf('MANIFESTAZIONE');
+  var tdb = JSON.parse(props.getProperty('teatriDB') || '{}');
+  var manif = JSON.parse(props.getProperty('manifCustom') || '[]');
+
+  var usiM = {}, usiT = {};
+  for (var r = 1; r < rows.length; r++) {
+    var m = String(rows[r][iM] || '').trim(); if (m) usiM[m] = (usiM[m] || 0) + 1;
+    var c = String(rows[r][iC] || '').trim().toUpperCase(), t = String(rows[r][iT] || '').trim().toUpperCase();
+    if (c) usiT[c + '|' + t] = (usiT[c + '|' + t] || 0) + 1;
+  }
+
+  // ── manifestazioni: gruppi per chiave, o per prefisso (APP / APP ASCOLI) ──
+  var nomi = Object.keys(usiM);
+  manif.forEach(function(m){ if (nomi.indexOf(m) < 0) nomi.push(m); });
+  var byKey = {};
+  nomi.forEach(function(n){ var k = _keyManif(n); if (!k) return; (byKey[k] = byKey[k] || []).push(n); });
+  var keys = Object.keys(byKey);
+  // unisci chiavi in relazione di prefisso (una parola almeno di 3 lettere)
+  var parent = {}; keys.forEach(function(k){ parent[k] = k; });
+  function find(k){ while (parent[k] !== k) k = parent[k]; return k; }
+  for (var i = 0; i < keys.length; i++) for (var j = i + 1; j < keys.length; j++) {
+    var a = keys[i], b = keys[j];
+    if (a.length >= 3 && b.length >= 3 && (a.indexOf(b) === 0 || b.indexOf(a) === 0)) parent[find(a)] = find(b);
+  }
+  var cluster = {};
+  keys.forEach(function(k){ var root = find(k); (cluster[root] = cluster[root] || []).push.apply(cluster[root], byKey[k]); });
+  var gruppiManif = [];
+  Object.keys(cluster).forEach(function(root) {
+    var vs = cluster[root]; if (vs.length < 2) return;
+    var varianti = vs.map(function(n){ return { nome: n, usi: usiM[n] || 0, inLista: manif.indexOf(n) >= 0 }; })
+                     .sort(function(x, y){ return (y.usi - x.usi) || (x.nome.length - y.nome.length); });
+    // canonico proposto: il più usato; a parità il più corto (senza anno)
+    var can = varianti[0].nome;
+    var senzaAnno = varianti.filter(function(v){ return !/(19|20)\d\d/.test(v.nome); });
+    if (senzaAnno.length) can = senzaAnno.sort(function(x, y){ return (y.usi - x.usi) || (x.nome.length - y.nome.length); })[0].nome;
+    gruppiManif.push({ canonico: can, varianti: varianti });
+  });
+  var manifTutte = nomi.map(function(n){ return { nome: n, usi: usiM[n] || 0, inLista: manif.indexOf(n) >= 0 }; })
+                       .sort(function(x, y){ return y.usi - x.usi; });
+
+  // ── teatri: per città, gruppi di varianti dello stesso spazio ──
+  // "MUSE", "TEATRO MUSE", "TEATRO DELLE MUSE" → un gruppo; canonico = forma "TEATRO …"
+  // già esistente più usata, altrimenti la forma canonica della variante più lunga.
+  function core(t){ return _canonTeatro(t).replace(/^TEATRO\s+/, '').replace(/\b(DEL|DELLA|DELLE|DEI|DEGLI|DELLO|DI|D')\b/g, ' ').replace(/\s+/g, ' ').trim(); }
+  var gruppiTeatri = [];
+  Object.keys(tdb).sort().forEach(function(citta) {
+    var lista = (tdb[citta] || []).map(function(t){ return { nome: t, can: _canonTeatro(t), core: core(t), usi: usiT[citta.toUpperCase() + '|' + String(t).toUpperCase()] || 0 }; });
+    var par = lista.map(function(_, i){ return i; });
+    function f(i){ while (par[i] !== i) i = par[i]; return i; }
+    for (var a = 0; a < lista.length; a++) for (var b = a + 1; b < lista.length; b++) {
+      var A = lista[a], B = lista[b];
+      if (NON_TEATRI_RE.test(A.can) !== NON_TEATRI_RE.test(B.can)) continue;
+      var same = A.can === B.can || (A.core.length >= 4 && B.core.length >= 4 && (new RegExp('(^| )' + A.core.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '( |$)').test(B.core) || new RegExp('(^| )' + B.core.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '( |$)').test(A.core)));
+      if (same) par[f(a)] = f(b);
+    }
+    var gr = {};
+    lista.forEach(function(x, i){ (gr[f(i)] = gr[f(i)] || []).push(x); });
+    Object.keys(gr).forEach(function(k) {
+      var vs = gr[k];
+      var giaCanoniche = vs.filter(function(v){ return v.nome === v.can; });
+      var nonConformi = vs.filter(function(v){ return v.nome !== v.can; });
+      if (vs.length < 2 && !nonConformi.length) return;   // già a posto
+      var can;
+      if (giaCanoniche.length) can = giaCanoniche.sort(function(x, y){ return (y.usi - x.usi) || (y.nome.length - x.nome.length); })[0].can;
+      else can = vs.slice().sort(function(x, y){ return (y.nome.length - x.nome.length) || (y.usi - x.usi); })[0].can;
+      gruppiTeatri.push({ citta: citta, canonico: can, varianti: vs.sort(function(x, y){ return y.usi - x.usi; }).map(function(v){ return { nome: v.nome, usi: v.usi }; }) });
+    });
+  });
+  // città simili (prefisso / senza apostrofi)
+  var cittaSospette = [];
+  var cs = Object.keys(tdb);
+  function nc(s){ return s.toUpperCase().replace(/[^A-Z]/g, ''); }
+  for (var p = 0; p < cs.length; p++) for (var q = p + 1; q < cs.length; q++) {
+    var A = nc(cs[p]), B = nc(cs[q]);
+    if (A === B || A.indexOf(B) === 0 || B.indexOf(A) === 0) {
+      var uA = 0, uB = 0; Object.keys(usiT).forEach(function(k){ if (k.split('|')[0] === cs[p].toUpperCase()) uA += usiT[k]; if (k.split('|')[0] === cs[q].toUpperCase()) uB += usiT[k]; });
+      cittaSospette.push({ a: cs[p], usiA: uA, b: cs[q], usiB: uB, teatriA: (tdb[cs[p]]||[]).length, teatriB: (tdb[cs[q]]||[]).length });
+    }
+  }
+  // usati negli spettacoli ma assenti in anagrafica
+  var orfani = [];
+  Object.keys(usiT).forEach(function(k) {
+    var pp = k.split('|'); var c = pp[0], t = pp[1];
+    var lista = (tdb[c] || []).map(function(x){ return String(x).toUpperCase(); });
+    if (!tdb[c] || (t && lista.indexOf(t) < 0)) orfani.push({ citta: c, teatro: t, usi: usiT[k], cittaNota: !!tdb[c] });
+  });
+  orfani.sort(function(x, y){ return y.usi - x.usi; });
+
+  return {
+    manifestazioni: manifTutte, gruppiManif: gruppiManif,
+    gruppiTeatri: gruppiTeatri, cittaSospette: cittaSospette, orfani: orfani,
+    totSpettacoli: rows.length - 1, anagraficaVer: parseInt(props.getProperty('anagraficaVer') || '0')
+  };
+}
+
+// remaps: [{tipo:'manif', da, a} | {tipo:'teatro', citta, da, a} | {tipo:'citta', da, a} | {tipo:'aggiungiTeatro', citta, teatro}]
+function applicaAnagrafica(remaps) {
+  if (!remaps || !remaps.length) return { error: 'niente da applicare' };
+  var props = PropertiesService.getScriptProperties();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var tdb = JSON.parse(props.getProperty('teatriDB') || '{}');
+  var manif = JSON.parse(props.getProperty('manifCustom') || '[]');
+  var si = JSON.parse(props.getProperty('spazioInfo') || '{}');
+  var U = function(s){ return String(s || '').trim().toUpperCase().replace(/\s+/g, ' '); };
+  var mapM = {}, mapC = {}, mapT = {}, aggiunte = [];
+  remaps.forEach(function(x) {
+    if (x.tipo === 'manif' && x.da && x.a && x.da !== x.a) mapM[String(x.da).trim()] = String(x.a).trim();
+    else if (x.tipo === 'citta' && x.da && x.a && U(x.da) !== U(x.a)) mapC[U(x.da)] = U(x.a);
+    else if (x.tipo === 'teatro' && x.citta && x.da && x.a && U(x.da) !== U(x.a)) mapT[U(x.citta) + '|' + U(x.da)] = U(x.a);
+    else if (x.tipo === 'aggiungiTeatro' && x.citta) aggiunte.push({ citta: U(x.citta), teatro: U(x.teatro) });
+  });
+  function fixCitta(c){ var u = U(c); return mapC[u] || u; }
+  function fixTeatro(c, t){ var u = U(t); var m = mapT[U(c) + '|' + u]; return m || u; }   // usa la città ORIGINALE come chiave
+
+  var nRighe = 0;
+  ['Spettacoli', 'Proposte'].forEach(function(nome) {
+    var sh = ss.getSheetByName(nome); if (!sh) return;
+    var rng = sh.getDataRange(), rows = rng.getValues();
+    var hdr = rows[0].map(function(h){ return String(h).trim().toUpperCase(); });
+    var iC = hdr.indexOf('CITTA'), iT = hdr.indexOf(nome === 'Spettacoli' ? 'TEATRO' : 'SPAZIO'), iM = hdr.indexOf('MANIFESTAZIONE');
+    var mod = false;
+    for (var r = 1; r < rows.length; r++) {
+      var ch = false;
+      if (iM >= 0) { var m = String(rows[r][iM] || '').trim(); if (m && mapM[m] && mapM[m] !== m) { rows[r][iM] = mapM[m]; ch = true; } }
+      if (iC >= 0 && rows[r][iC]) {
+        var oc = rows[r][iC], ot = iT >= 0 ? rows[r][iT] : '';
+        var nc2 = fixCitta(oc), nt = iT >= 0 ? fixTeatro(oc, ot) : ot;
+        if (nc2 !== String(oc)) { rows[r][iC] = nc2; ch = true; }
+        if (iT >= 0 && nt !== String(ot)) { rows[r][iT] = nt; ch = true; }
+      }
+      if (ch) { nRighe++; mod = true; }
+    }
+    if (mod) rng.setValues(rows);
+  });
+
+  // teatriDB
+  var nuovo = {};
+  Object.keys(tdb).forEach(function(c) {
+    var nc3 = fixCitta(c);
+    (tdb[c] || []).forEach(function(t) { var nt = fixTeatro(c, t); if (!nt) return; (nuovo[nc3] = nuovo[nc3] || []); if (nuovo[nc3].indexOf(nt) < 0) nuovo[nc3].push(nt); });
+    if (!nuovo[nc3]) nuovo[nc3] = [];
+  });
+  aggiunte.forEach(function(a){ (nuovo[a.citta] = nuovo[a.citta] || []); if (a.teatro && nuovo[a.citta].indexOf(a.teatro) < 0) nuovo[a.citta].push(a.teatro); });
+  Object.keys(nuovo).forEach(function(c){ nuovo[c].sort(); });
+  // manifCustom
+  var nm = [];
+  manif.forEach(function(m){ var v = mapM[m] || m; if (nm.indexOf(v) < 0) nm.push(v); });
+  Object.keys(mapM).forEach(function(k){ if (nm.indexOf(mapM[k]) < 0) nm.push(mapM[k]); });
+  nm.sort();
+  // spazioInfo
+  var nsi = {};
+  Object.keys(si).forEach(function(k) {
+    var pp = k.split('||'); var nk = fixCitta(pp[0]) + '||' + fixTeatro(pp[0], pp[1] || '');
+    if (nsi[nk] && nk !== k) { // fondi: tieni i campi compilati
+      var a = nsi[nk], b = si[k]; Object.keys(b).forEach(function(f){ if (!a[f] || (Array.isArray(a[f]) && !a[f].length)) a[f] = b[f]; });
+    } else nsi[nk] = si[k];
+  });
+
+  var ver = parseInt(props.getProperty('anagraficaVer') || '0') + 1;
+  var giornale = JSON.parse(props.getProperty('anagraficaRemaps') || '[]');
+  remaps.forEach(function(x){ x.ver = ver; giornale.push(x); });
+  if (giornale.length > 300) giornale = giornale.slice(-300);
+  props.setProperty('teatriDB', JSON.stringify(nuovo));
+  props.setProperty('manifCustom', JSON.stringify(nm));
+  props.setProperty('spazioInfo', JSON.stringify(nsi));
+  props.setProperty('anagraficaRemaps', JSON.stringify(giornale));
+  props.setProperty('anagraficaVer', String(ver));
+  props.setProperty('lastModified', String(Date.now()));
+  return { ok: true, righe: nRighe, ver: ver, teatriDB: nuovo, manifCustom: nm, spazioInfo: nsi };
 }
