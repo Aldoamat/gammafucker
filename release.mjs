@@ -7,7 +7,8 @@
 //                                 prepara dist/ per Netlify. Nessun deploy.
 //  node release.mjs deploy      → git commit + push (Netlify pubblica dal repo),
 //                                 clasp push + deploy. Solo dopo il build.
-//                                 --netlify: forza anche netlify deploy via CLI.
+//                                 --netlify: forza netlify deploy via CLI; --clasp: forza clasp da qui
+//                                 (di norma lo script lo deploya la GitHub Action dopo il push).
 //  node release.mjs status      → mostra versioni correnti e coerenza.
 //
 //  Fonte di verità del backend: apps-script/Codice.js
@@ -121,11 +122,16 @@ function deploy() {
   }
 
   console.log('\n[2/3] Apps Script');
+  const hasAction = fs.existsSync(path.join(ROOT, '.github', 'workflows', 'deploy-apps-script.yml'));
+  if (pushed && hasAction && !process.argv.includes('--clasp')) {
+    console.log('  saltato: lo script viene deployato dalla GitHub Action dopo il push (usa "deploy --clasp" per farlo da qui)');
+  } else {
   sh('clasp push -f', path.join(ROOT, 'apps-script'));
   if (cfg.deploymentId) sh(`clasp deploy -i ${cfg.deploymentId} -d "${tag}"`, path.join(ROOT, 'apps-script'));
   else {
     console.log('  ⚠ deploymentId mancante in release.config.json: codice caricato ma NON ridistribuito.');
     console.log('    Recuperalo con: cd apps-script && clasp deployments   (quello con l\'URL /exec in uso)');
+  }
   }
 
   console.log('\n[3/3] Netlify');

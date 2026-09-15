@@ -230,7 +230,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v37</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v38</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -630,11 +630,15 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
   <div class="fc">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
       <div class="fct" style="margin-bottom:0;">🔔 Proposte da approvare</div>
-      <button class="btn btn-o btn-sm" onclick="caricaProposte()">🔄 Aggiorna</button>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-o btn-sm" id="prop-scan-btn" onclick="scansionaEAggiorna()" title="Legge le mail arrivate dopo l'ultima scansione, poi ricarica la lista">📬 Scansiona mail</button>
+        <button class="btn btn-o btn-sm" onclick="caricaProposte()" title="Ricarica solo la lista, senza leggere la posta">🔄</button>
+      </div>
     </div>
-    <p style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:12px;">
+    <p style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:4px;">
       Spettacoli estratti automaticamente dalle mail di programmazione. Nessuno viene inserito finché non lo approvi.
     </p>
+    <div id="prop-scan-stato" style="font-size:10px;color:var(--text3);margin-bottom:12px;"></div>
     <div id="schede-lista"></div>
     <div id="segn-lista"></div>
     <div id="prop-lista"></div>
@@ -2545,7 +2549,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v23 ──
+  return `// ── SPETTACOLI APP SCRIPT v25 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -2661,6 +2665,11 @@ function doPost(e) {
       lock.releaseLock();
       return resp('sent');
     }
+    if (body.action === 'scansionaOra') {
+      lock.releaseLock();   // dura minuti: non bloccare le sync
+      var rs2; try { rs2 = scansionaOra(); } catch(errS) { rs2 = { error: errS.message }; }
+      return ContentService.createTextOutput(JSON.stringify(rs2)).setMimeType(ContentService.MimeType.JSON);
+    }
     if (body.action === 'applicaAnagrafica') {
       var ra; try { ra = applicaAnagrafica(body.remaps); } catch(errA) { ra = { error: errA.message }; }
       lock.releaseLock();
@@ -2769,7 +2778,7 @@ function doGet(e) {
         });
         if(String(o.stato).toLowerCase()==='pending') out.push(o);
       }
-      return ContentService.createTextOutput(JSON.stringify({proposte:out})).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({proposte:out, ultimaScansione: props.getProperty('ultimaScansione') || ''})).setMimeType(ContentService.MimeType.JSON);
     } catch(err) {
       return ContentService.createTextOutput(JSON.stringify({error:err.message})).setMimeType(ContentService.MimeType.JSON);
     }
@@ -3196,8 +3205,9 @@ var DRY_SCAN = false;
 var DA_DATA  = '2026/01/01';
 var MAX_MIN  = 4.5;
 
-function scansionaMail() {
+function scansionaMail(maxMin) {
   var t0 = Date.now();
+  var limiteMin = maxMin || MAX_MIN;
   var props = PropertiesService.getScriptProperties();
   var KEY = props.getProperty('anthropicKey');
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -3251,7 +3261,7 @@ function scansionaMail() {
   var scritte = 0, dup = 0, fatti = 0, senzaSpazio = 0, interrotto = false;
 
   for (var t = 0; t < threads.length; t++) {
-    if ((Date.now() - t0) / 60000 > MAX_MIN) { interrotto = true; break; }
+    if ((Date.now() - t0) / 60000 > limiteMin) { interrotto = true; break; }
 
     var nuove = [];
     var msgs = threads[t].getMessages();
@@ -3309,6 +3319,7 @@ function scansionaMail() {
   Logger.log('Proposte scritte: ' + scritte + '  |  gia note: ' + dup + '  |  senza spazio: ' + senzaSpazio);
   Logger.log('Thread rimasti: ' + (threads.length - t));
   Logger.log(interrotto ? '\\n>>> Fermato per tempo. RILANCIA per continuare.' : '\\n*** Arretrato completato ***');
+  return 'Calendari: ' + fatti + ' Word letti, ' + scritte + ' proposte' + (interrotto ? ' (fermato per tempo, riprende al prossimo giro)' : '');
 }
 function scansionaSettimanale() {
   var out = [];
@@ -3319,6 +3330,7 @@ function scansionaSettimanale() {
   try { out.push(scansionaSchede()); }
   catch(e){ out.push('Errore schede: ' + e.message); }
 
+  PropertiesService.getScriptProperties().setProperty('ultimaScansione', Utilities.formatDate(new Date(), 'Europe/Rome', 'dd/MM/yyyy HH:mm'));
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var shP = ss.getSheetByName('Proposte');
   var pend = 0;
@@ -3483,8 +3495,9 @@ function _ctxSchede() {
   };
 }
 
-function scansionaSchede() {
+function scansionaSchede(maxMin) {
   var ctx = _ctxSchede();
+  ctx.maxMin = maxMin || SCHEDE_MAX_MIN;
   if (!ctx.KEY) return 'Schede: anthropicKey mancante';
   var threads = GmailApp.search('has:attachment newer_than:' + SCHEDE_GIORNI + 'd -label:GF-scheda (filename:pdf OR filename:docx OR filename:doc)', 0, 100);
   Logger.log('Schede: ' + threads.length + ' thread con allegati da filtrare, ' + ctx.elenco.length + ' spettacoli futuri');
@@ -3546,7 +3559,7 @@ function _elaboraThreadSchede(thread, ctx, forza) {
       else ctx.giaSaltati++;
       continue;
     }
-    if (!forza && ((Date.now() - ctx.t0) / 60000 > SCHEDE_MAX_MIN || ctx.esaminati >= SCHEDE_MAX_LETTURE)) { ctx.interrotto = true; completo = false; break; }
+    if (!forza && ((Date.now() - ctx.t0) / 60000 > (ctx.maxMin || SCHEDE_MAX_MIN) || ctx.esaminati >= SCHEDE_MAX_LETTURE)) { ctx.interrotto = true; completo = false; break; }
     ctx.esaminati++;
     Logger.log('  leggo [' + ctx.esaminati + '] ' + k.nome + '  (' + Math.round((Date.now()-ctx.t0)/1000) + 's)');
     var j = _analizzaScheda(ctx.KEY, ctx.elenco, k);
@@ -3997,6 +4010,22 @@ function applicaAnagrafica(remaps) {
   props.setProperty('anagraficaVer', String(ver));
   props.setProperty('lastModified', String(Date.now()));
   return { ok: true, righe: nRighe, ver: ver, teatriDB: nuovo, manifCustom: nm, spazioInfo: nsi };
+}
+
+// ════════════════════ SCANSIONE SU RICHIESTA (pulsante Aggiorna nell'app) ════════════════════
+// Esegue i tre lettori in sequenza con un budget totale di ~4 minuti (limite web app 6 min).
+// Sono tutti incrementali (etichette GF-*): riparte da dove era arrivata l'ultima scansione.
+function scansionaOra() {
+  var t0 = Date.now(), esiti = [];
+  var budget = function(){ return Math.max(0.3, 4.2 - (Date.now() - t0) / 60000); };
+  try { esiti.push(scansionaMail(Math.min(1.5, budget()))); } catch(e) { esiti.push('Calendari: errore ' + e.message); }
+  try { esiti.push(analizzaCorpoMail()); } catch(e) { esiti.push('Corpo mail: errore ' + e.message); }
+  try { esiti.push(scansionaSchede(budget())); } catch(e) { esiti.push('Schede: errore ' + e.message); }
+  var ts = Utilities.formatDate(new Date(), 'Europe/Rome', 'dd/MM/yyyy HH:mm');
+  PropertiesService.getScriptProperties().setProperty('ultimaScansione', ts);
+  var out = { ok: true, ultimaScansione: ts, esiti: esiti, secondi: Math.round((Date.now() - t0) / 1000) };
+  Logger.log(JSON.stringify(out));
+  return out;
 }
 `;
 }
@@ -6195,7 +6224,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v37</span>
+    <span>Report generato da GammaFucker v38</span>
   </div>
   </body></html>`;
 
@@ -6301,7 +6330,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v37</span>
+    <span>Report generato da GammaFucker v38</span>
   </div>
   </body></html>`;
 
@@ -6376,7 +6405,7 @@ function generaReportStagione(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v37</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v38</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -7142,6 +7171,39 @@ let _segnalazioni = [];
 let _schede = [];
 let _propEditId = null;
 
+function _mostraUltimaScansione(msg){
+  const el=document.getElementById('prop-scan-stato'); if(!el) return;
+  const ts=ld('ultimaScansione','');
+  el.textContent = msg || (ts ? 'Ultima scansione mail: '+ts+' (automatica ogni settimana, o con 📬)' : 'Nessuna scansione registrata');
+}
+// Pulsante 📬: legge la posta dall'ultima scansione (calendari, corpo mail, schede) e poi ricarica.
+// Dura fino a ~4 minuti: il backend lavora a pezzi e riparte da dove era arrivato.
+let _scanInCorso=false;
+async function scansionaEAggiorna(){
+  if(_scanInCorso) return;
+  const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
+  const btn=document.getElementById('prop-scan-btn');
+  _scanInCorso=true; btn.disabled=true; btn.textContent='⏳ Scansione…';
+  const t0=Date.now();
+  const tick=setInterval(()=>_mostraUltimaScansione('⏳ Leggo la posta dall\'ultima scansione… '+Math.round((Date.now()-t0)/1000)+'s (può durare qualche minuto)'), 1000);
+  window._pullBlockUntil = Date.now() + 5*60*1000;
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'scansionaOra'})});
+    const j=await res.json(); if(j.error) throw new Error(j.error);
+    clearInterval(tick);
+    sv('ultimaScansione', j.ultimaScansione||'');
+    await caricaProposte();
+    _mostraUltimaScansione('✓ '+(j.ultimaScansione||'')+' — '+(j.esiti||[]).join(' · ')+' ('+j.secondi+'s)');
+    const tot=_proposte.length+_segnalazioni.length+_schede.length;
+    toast(tot ? '✓ Scansione fatta: '+tot+' proposte in attesa' : '✓ Scansione fatta: niente di nuovo');
+  }catch(e){
+    clearInterval(tick);
+    _mostraUltimaScansione('Scansione fallita: '+e.message+' — riprova tra poco');
+    toast('Errore scansione: '+e.message, true);
+    try{ await caricaProposte(); }catch(_){}
+  }finally{ _scanInCorso=false; btn.disabled=false; btn.textContent='📬 Scansiona mail'; window._pullBlockUntil = Date.now() + 30000; }
+}
+
 async function caricaProposte(){
   const url = ld('sheetsUrl','');
   if(!url){ toast('Configura Sheets URL', true); return; }
@@ -7163,6 +7225,7 @@ async function caricaProposte(){
     })).filter(p=>p.id);
     _segnalazioni = tutte.filter(p=>p.tipo==='segnalazione');
     _schede       = tutte.filter(p=>p.tipo==='scheda_tecnica');
+    if(j.ultimaScansione){ sv('ultimaScansione', j.ultimaScansione); _mostraUltimaScansione(); }
     _proposte     = tutte.filter(p=>p.tipo!=='segnalazione' && p.tipo!=='scheda_tecnica' && p.data && p.titolo);
     renderSchede();
     renderSegnalazioni();

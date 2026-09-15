@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v23 ──
+// ── SPETTACOLI APP SCRIPT v25 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -114,6 +114,11 @@ function doPost(e) {
       lock.releaseLock();
       return resp('sent');
     }
+    if (body.action === 'scansionaOra') {
+      lock.releaseLock();   // dura minuti: non bloccare le sync
+      var rs2; try { rs2 = scansionaOra(); } catch(errS) { rs2 = { error: errS.message }; }
+      return ContentService.createTextOutput(JSON.stringify(rs2)).setMimeType(ContentService.MimeType.JSON);
+    }
     if (body.action === 'applicaAnagrafica') {
       var ra; try { ra = applicaAnagrafica(body.remaps); } catch(errA) { ra = { error: errA.message }; }
       lock.releaseLock();
@@ -222,7 +227,7 @@ function doGet(e) {
         });
         if(String(o.stato).toLowerCase()==='pending') out.push(o);
       }
-      return ContentService.createTextOutput(JSON.stringify({proposte:out})).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({proposte:out, ultimaScansione: props.getProperty('ultimaScansione') || ''})).setMimeType(ContentService.MimeType.JSON);
     } catch(err) {
       return ContentService.createTextOutput(JSON.stringify({error:err.message})).setMimeType(ContentService.MimeType.JSON);
     }
@@ -649,8 +654,9 @@ var DRY_SCAN = false;
 var DA_DATA  = '2026/01/01';
 var MAX_MIN  = 4.5;
 
-function scansionaMail() {
+function scansionaMail(maxMin) {
   var t0 = Date.now();
+  var limiteMin = maxMin || MAX_MIN;
   var props = PropertiesService.getScriptProperties();
   var KEY = props.getProperty('anthropicKey');
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -704,7 +710,7 @@ function scansionaMail() {
   var scritte = 0, dup = 0, fatti = 0, senzaSpazio = 0, interrotto = false;
 
   for (var t = 0; t < threads.length; t++) {
-    if ((Date.now() - t0) / 60000 > MAX_MIN) { interrotto = true; break; }
+    if ((Date.now() - t0) / 60000 > limiteMin) { interrotto = true; break; }
 
     var nuove = [];
     var msgs = threads[t].getMessages();
@@ -762,6 +768,7 @@ function scansionaMail() {
   Logger.log('Proposte scritte: ' + scritte + '  |  gia note: ' + dup + '  |  senza spazio: ' + senzaSpazio);
   Logger.log('Thread rimasti: ' + (threads.length - t));
   Logger.log(interrotto ? '\n>>> Fermato per tempo. RILANCIA per continuare.' : '\n*** Arretrato completato ***');
+  return 'Calendari: ' + fatti + ' Word letti, ' + scritte + ' proposte' + (interrotto ? ' (fermato per tempo, riprende al prossimo giro)' : '');
 }
 function scansionaSettimanale() {
   var out = [];
@@ -772,6 +779,7 @@ function scansionaSettimanale() {
   try { out.push(scansionaSchede()); }
   catch(e){ out.push('Errore schede: ' + e.message); }
 
+  PropertiesService.getScriptProperties().setProperty('ultimaScansione', Utilities.formatDate(new Date(), 'Europe/Rome', 'dd/MM/yyyy HH:mm'));
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var shP = ss.getSheetByName('Proposte');
   var pend = 0;
@@ -936,8 +944,9 @@ function _ctxSchede() {
   };
 }
 
-function scansionaSchede() {
+function scansionaSchede(maxMin) {
   var ctx = _ctxSchede();
+  ctx.maxMin = maxMin || SCHEDE_MAX_MIN;
   if (!ctx.KEY) return 'Schede: anthropicKey mancante';
   var threads = GmailApp.search('has:attachment newer_than:' + SCHEDE_GIORNI + 'd -label:GF-scheda (filename:pdf OR filename:docx OR filename:doc)', 0, 100);
   Logger.log('Schede: ' + threads.length + ' thread con allegati da filtrare, ' + ctx.elenco.length + ' spettacoli futuri');
@@ -999,7 +1008,7 @@ function _elaboraThreadSchede(thread, ctx, forza) {
       else ctx.giaSaltati++;
       continue;
     }
-    if (!forza && ((Date.now() - ctx.t0) / 60000 > SCHEDE_MAX_MIN || ctx.esaminati >= SCHEDE_MAX_LETTURE)) { ctx.interrotto = true; completo = false; break; }
+    if (!forza && ((Date.now() - ctx.t0) / 60000 > (ctx.maxMin || SCHEDE_MAX_MIN) || ctx.esaminati >= SCHEDE_MAX_LETTURE)) { ctx.interrotto = true; completo = false; break; }
     ctx.esaminati++;
     Logger.log('  leggo [' + ctx.esaminati + '] ' + k.nome + '  (' + Math.round((Date.now()-ctx.t0)/1000) + 's)');
     var j = _analizzaScheda(ctx.KEY, ctx.elenco, k);
@@ -1450,4 +1459,20 @@ function applicaAnagrafica(remaps) {
   props.setProperty('anagraficaVer', String(ver));
   props.setProperty('lastModified', String(Date.now()));
   return { ok: true, righe: nRighe, ver: ver, teatriDB: nuovo, manifCustom: nm, spazioInfo: nsi };
+}
+
+// ════════════════════ SCANSIONE SU RICHIESTA (pulsante Aggiorna nell'app) ════════════════════
+// Esegue i tre lettori in sequenza con un budget totale di ~4 minuti (limite web app 6 min).
+// Sono tutti incrementali (etichette GF-*): riparte da dove era arrivata l'ultima scansione.
+function scansionaOra() {
+  var t0 = Date.now(), esiti = [];
+  var budget = function(){ return Math.max(0.3, 4.2 - (Date.now() - t0) / 60000); };
+  try { esiti.push(scansionaMail(Math.min(1.5, budget()))); } catch(e) { esiti.push('Calendari: errore ' + e.message); }
+  try { esiti.push(analizzaCorpoMail()); } catch(e) { esiti.push('Corpo mail: errore ' + e.message); }
+  try { esiti.push(scansionaSchede(budget())); } catch(e) { esiti.push('Schede: errore ' + e.message); }
+  var ts = Utilities.formatDate(new Date(), 'Europe/Rome', 'dd/MM/yyyy HH:mm');
+  PropertiesService.getScriptProperties().setProperty('ultimaScansione', ts);
+  var out = { ok: true, ultimaScansione: ts, esiti: esiti, secondi: Math.round((Date.now() - t0) / 1000) };
+  Logger.log(JSON.stringify(out));
+  return out;
 }

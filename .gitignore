@@ -1,3 +1,5 @@
 # Local Netlify folder
 .netlify
 node_modules/
+# file che l'app Claude salva nella cartella
+Claude outputs/
