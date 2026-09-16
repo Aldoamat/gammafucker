@@ -113,12 +113,18 @@ function deploy() {
   if (!has('git')) console.log('  git non installato — salto (winget install Git.Git)');
   else {
     if (!fs.existsSync(path.join(ROOT, '.git'))) sh('git init');
+    try { execSync('git rm -r -q --cached --ignore-unmatch "Claude outputs"', { cwd: ROOT, stdio: 'ignore', shell: true }); } catch {}
     sh('git add -A');
     try { sh(`git commit -m "release ${tag}"`); } catch { console.log('  (niente da committare)'); }
     try { sh(`git tag -f ${tag}`); } catch {}
     let remote = '';
     try { remote = execSync('git remote get-url origin', { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'], shell: true }).toString().trim(); } catch {}
-    if (remote) { sh('git push origin HEAD --tags --force-with-lease'); pushed = true; console.log('  → push su ' + remote + ' (Netlify pubblica da solo)'); }
+    if (remote) {
+      try { sh('git pull --rebase --autostash origin main'); } catch { console.log('  (pull non riuscito: continuo con il push)'); }
+      sh('git push origin HEAD');
+      try { sh(`git push -f origin refs/tags/${tag}`); } catch { console.log('  (tag non aggiornato, non è un problema)'); }
+      pushed = true; console.log('  → push su ' + remote + ' (Netlify pubblica l\'app, la GitHub Action lo script)');
+    }
   }
 
   console.log('\n[2/3] Apps Script');

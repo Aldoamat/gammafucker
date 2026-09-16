@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v25 ──
+// ── SPETTACOLI APP SCRIPT v27 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -168,7 +168,7 @@ function doPost(e) {
     var header = ['ID','DATA','CITTA','TEATRO','SPETTACOLO','MANIFESTAZIONE',
       'N.MACC','TAR.MACC','SUB.MACC','N.ELETT','TAR.ELETT','SUB.ELETT',
       'N.FACC','TAR.FACC','SUB.FACC','N.FONI','TAR.FONI','SUB.FONI',
-      'N.SART','TAR.SART','SUB.SART','TOTALE','NOTE','FATTURATO','PREMONTAGGIO','COLLAB_JSON','REPLICA_OF','MAILS_JSON','CONTATTI_JSON'];
+      'N.SART','TAR.SART','SUB.SART','TOTALE','NOTE','FATTURATO','PREMONTAGGIO','COLLAB_JSON','REPLICA_OF','MAILS_JSON','CONTATTI_JSON','ACCORDI'];
     sh.clearContents();
     sh.getRange(1,1,1,header.length).setValues([header]);
     var rows = body.data.map(function(r,i) {
@@ -178,7 +178,7 @@ function doPost(e) {
         r.n_facc,r.tariffa_facc,r.sub_facc,
         r.n_foni||0,r.tariffa_foni||0,r.sub_foni||0,
         r.n_sart||0,r.tariffa_sart||0,r.sub_sart||0,
-        r.totale,r.note,r.fatturato,r.premontaggio||'NO',r.collab_json||'',r.replica_of||'',r.mails_json||'',r.contatti_json||''];
+        r.totale,r.note,r.fatturato,r.premontaggio||'NO',r.collab_json||'',r.replica_of||'',r.mails_json||'',r.contatti_json||'',r.accordi||''];
     });
     if(rows.length) sh.getRange(2,1,rows.length,header.length).setValues(rows);
     return resp('ok: '+rows.length+' righe');
@@ -222,7 +222,7 @@ function doGet(e) {
         var o = {};
         hP.forEach(function(h,k){
           var v = rP[i][k];
-          if(v instanceof Date) v = Utilities.formatDate(v,'GMT+1','yyyy-MM-dd');
+          if(v instanceof Date) v = Utilities.formatDate(v,'Europe/Rome','yyyy-MM-dd');
           o[h] = v;
         });
         if(String(o.stato).toLowerCase()==='pending') out.push(o);
@@ -269,7 +269,7 @@ function doGet(e) {
         spazioInfo: JSON.parse(props.getProperty('spazioInfo')||'{}'),
         aziendeDB: JSON.parse(props.getProperty('aziendeDB')||'[]'),
         anagraficaVer: parseInt(props.getProperty('anagraficaVer')||'0'),
-        anagraficaRemaps: JSON.parse(props.getProperty('anagraficaRemaps')||'[]')
+        anagraficaRemaps: _leggiGiornale(ss, parseInt(e.parameter.anagVer||'0'))
       });
       return ContentService.createTextOutput(result).setMimeType(ContentService.MimeType.JSON);
     } catch(err) {
@@ -681,7 +681,7 @@ function scansionaMail(maxMin) {
   var esistenti = {};
   for (var r = 1; r < rowsS.length; r++) {
     var d = rowsS[r][iD];
-    if (d instanceof Date) d = Utilities.formatDate(d, 'GMT+1', 'yyyy-MM-dd');
+    if (d instanceof Date) d = Utilities.formatDate(d, 'Europe/Rome', 'yyyy-MM-dd');
     esistenti[chiave(d, rowsS[r][iC], rowsS[r][iSp])] = true;
   }
 
@@ -697,7 +697,7 @@ function scansionaMail(maxMin) {
     var pC = hP.indexOf('CITTA'), pD = hP.indexOf('DATA'), pT = hP.indexOf('TITOLO');
     for (var q = 1; q < rP.length; q++) {
       var dp = rP[q][pD];
-      if (dp instanceof Date) dp = Utilities.formatDate(dp, 'GMT+1', 'yyyy-MM-dd');
+      if (dp instanceof Date) dp = Utilities.formatDate(dp, 'Europe/Rome', 'yyyy-MM-dd');
       esistenti[chiave(dp, rP[q][pC], rP[q][pT])] = true;
     }
   }
@@ -818,8 +818,8 @@ function analizzaCorpoMail() {
   for (var r=1;r<rS.length;r++){
     var d = rS[r][iD];
     if (d instanceof Date) { if (d < oggi || d > limite) continue;
-      d = Utilities.formatDate(d,'GMT+1','yyyy-MM-dd'); }
-    else { if (!d || String(d) < Utilities.formatDate(oggi,'GMT+1','yyyy-MM-dd')) continue; }
+      d = Utilities.formatDate(d,'Europe/Rome','yyyy-MM-dd'); }
+    else { if (!d || String(d) < Utilities.formatDate(oggi,'Europe/Rome','yyyy-MM-dd')) continue; }
     elenco.push(d + ' | ' + rS[r][iC] + ' | ' + rS[r][iT]);
   }
 
@@ -1394,12 +1394,14 @@ function applicaAnagrafica(remaps) {
   var manif = JSON.parse(props.getProperty('manifCustom') || '[]');
   var si = JSON.parse(props.getProperty('spazioInfo') || '{}');
   var U = function(s){ return String(s || '').trim().toUpperCase().replace(/\s+/g, ' '); };
-  var mapM = {}, mapC = {}, mapT = {}, aggiunte = [];
+  var mapM = {}, mapC = {}, mapT = {}, aggiunte = [], mapD = [], mapF = {};
   remaps.forEach(function(x) {
     if (x.tipo === 'manif' && x.da && x.a && x.da !== x.a) mapM[String(x.da).trim()] = String(x.a).trim();
     else if (x.tipo === 'citta' && x.da && x.a && U(x.da) !== U(x.a)) mapC[U(x.da)] = U(x.a);
     else if (x.tipo === 'teatro' && x.citta && x.da && x.a && U(x.da) !== U(x.a)) mapT[U(x.citta) + '|' + U(x.da)] = U(x.a);
     else if (x.tipo === 'aggiungiTeatro' && x.citta) aggiunte.push({ citta: U(x.citta), teatro: U(x.teatro) });
+    else if (x.tipo === 'data' && x.da && x.a) mapD.push({ id: String(x.id || ''), citta: U(x.citta), spett: U(x.spett), da: String(x.da), a: String(x.a) });
+    else if (x.tipo === 'campi' && x.id) mapF[_normId(x.id)] = x;   // {id, note_add, accordi, contatti:[...]}
   });
   function fixCitta(c){ var u = U(c); return mapC[u] || u; }
   function fixTeatro(c, t){ var u = U(t); var m = mapT[U(c) + '|' + u]; return m || u; }   // usa la città ORIGINALE come chiave
@@ -1410,9 +1412,34 @@ function applicaAnagrafica(remaps) {
     var rng = sh.getDataRange(), rows = rng.getValues();
     var hdr = rows[0].map(function(h){ return String(h).trim().toUpperCase(); });
     var iC = hdr.indexOf('CITTA'), iT = hdr.indexOf(nome === 'Spettacoli' ? 'TEATRO' : 'SPAZIO'), iM = hdr.indexOf('MANIFESTAZIONE');
+    var iD = hdr.indexOf('DATA'), iId = hdr.indexOf('ID'), iS = hdr.indexOf('SPETTACOLO');
+    var iN = hdr.indexOf('NOTE'), iA = hdr.indexOf('ACCORDI'), iK = hdr.indexOf('CONTATTI_JSON');
+    if (nome === 'Spettacoli' && Object.keys(mapF).length) {
+      if (iA < 0) { sh.getRange(1, hdr.length + 1).setValue('ACCORDI'); hdr.push('ACCORDI'); iA = hdr.length - 1; rows.forEach(function(rw){ rw.push(''); }); rng = sh.getRange(1, 1, rows.length, hdr.length); }
+      if (iK < 0) { sh.getRange(1, hdr.length + 1).setValue('CONTATTI_JSON'); hdr.push('CONTATTI_JSON'); iK = hdr.length - 1; rows.forEach(function(rw){ rw.push(''); }); rng = sh.getRange(1, 1, rows.length, hdr.length); }
+    }
     var mod = false;
     for (var r = 1; r < rows.length; r++) {
       var ch = false;
+      if (nome === 'Spettacoli' && iId >= 0 && mapF[_normId(rows[r][iId])]) {
+        var f2 = mapF[_normId(rows[r][iId])];
+        if (f2.note_add && iN >= 0) { var nv = String(rows[r][iN] || ''); if (nv.indexOf(f2.note_add) < 0) { rows[r][iN] = nv ? nv + ' | ' + f2.note_add : f2.note_add; ch = true; } }
+        if (f2.accordi && iA >= 0 && !String(rows[r][iA] || '').trim()) { rows[r][iA] = f2.accordi; ch = true; }
+        if (f2.contatti && f2.contatti.length && iK >= 0) {
+          var cur = []; try { cur = JSON.parse(rows[r][iK] || '[]'); } catch(e) { cur = []; }
+          f2.contatti.forEach(function(c){ if (!c) return; var em = String(c.email || '').toLowerCase(); var dup = cur.some(function(o){ return (em && String(o.email||'').toLowerCase() === em) || (!em && String(o.nome||'').toUpperCase() === String(c.nome||'').toUpperCase() && String(o.telefono||'') === String(c.telefono||'')); }); if (!dup) cur.push(c); });
+          rows[r][iK] = JSON.stringify(cur); ch = true;
+        }
+      }
+      if (nome === 'Spettacoli' && mapD.length && iD >= 0) {
+        var dv = rows[r][iD]; var ds = dv instanceof Date ? Utilities.formatDate(dv, 'Europe/Rome', 'yyyy-MM-dd') : String(dv || '');
+        for (var q = 0; q < mapD.length; q++) {
+          var f = mapD[q];
+          var byId = f.id && _normId(rows[r][iId]) === _normId(f.id);
+          var byKey = ds === f.da && U(rows[r][iC]) === f.citta && U(rows[r][iS]) === f.spett;
+          if ((byId || byKey) && ds === f.da) { rows[r][iD] = f.a; ch = true; break; }
+        }
+      }
       if (iM >= 0) { var m = String(rows[r][iM] || '').trim(); if (m && mapM[m] && mapM[m] !== m) { rows[r][iM] = mapM[m]; ch = true; } }
       if (iC >= 0 && rows[r][iC]) {
         var oc = rows[r][iC], ot = iT >= 0 ? rows[r][iT] : '';
@@ -1449,13 +1476,11 @@ function applicaAnagrafica(remaps) {
   });
 
   var ver = parseInt(props.getProperty('anagraficaVer') || '0') + 1;
-  var giornale = JSON.parse(props.getProperty('anagraficaRemaps') || '[]');
-  remaps.forEach(function(x){ x.ver = ver; giornale.push(x); });
-  if (giornale.length > 300) giornale = giornale.slice(-300);
+  _scriviGiornale(ss, ver, remaps);
   props.setProperty('teatriDB', JSON.stringify(nuovo));
   props.setProperty('manifCustom', JSON.stringify(nm));
   props.setProperty('spazioInfo', JSON.stringify(nsi));
-  props.setProperty('anagraficaRemaps', JSON.stringify(giornale));
+  props.deleteProperty('anagraficaRemaps');
   props.setProperty('anagraficaVer', String(ver));
   props.setProperty('lastModified', String(Date.now()));
   return { ok: true, righe: nRighe, ver: ver, teatriDB: nuovo, manifCustom: nm, spazioInfo: nsi };
@@ -1476,3 +1501,305 @@ function scansionaOra() {
   Logger.log(JSON.stringify(out));
   return out;
 }
+
+// ════════════════════ CORREZIONE DATE (bug GMT+1 in ora legale) ════════════════════
+// Le proposte approvate tra fine agosto e settembre 2026 avevano la data spostata di -1 giorno
+// (formatDate con 'GMT+1' fisso durante l'ora legale). Elenco ricavato dal confronto con
+// l'Elenco Ordini Eventi del 16/09/2026. Da eseguire UNA volta: correggiDateDST()
+var DATE_DA_CORREGGERE = [
+ {
+  "tipo": "data",
+  "id": "1787055513996.0",
+  "citta": "SENIGALLIA",
+  "spett": "ASSENZA. EURIDICE E ORFEO",
+  "da": "2026-09-04",
+  "a": "2026-09-05"
+ },
+ {
+  "tipo": "data",
+  "id": "1787055514996.0",
+  "citta": "SENIGALLIA",
+  "spett": "CAPELLI",
+  "da": "2026-09-05",
+  "a": "2026-09-06"
+ },
+ {
+  "tipo": "data",
+  "id": "1787055531487.0",
+  "citta": "SIROLO",
+  "spett": "METAMORFOSI",
+  "da": "2026-09-10",
+  "a": "2026-09-11"
+ },
+ {
+  "tipo": "data",
+  "id": "1787056546421.0",
+  "citta": "PESARO",
+  "spett": "ROSENCRANTZ E GUILDENSTERN SONO MORTI",
+  "da": "2026-10-07",
+  "a": "2026-10-08"
+ },
+ {
+  "tipo": "data",
+  "id": "1787054242139.0",
+  "citta": "ASCOLI PICENO",
+  "spett": "LA MISTERIOSA SCOMPARSA DI W",
+  "da": "2026-10-09",
+  "a": "2026-10-10"
+ },
+ {
+  "tipo": "data",
+  "id": "1788514288430.0",
+  "citta": "PESARO",
+  "spett": "BAMBU 2026",
+  "da": "2026-10-10",
+  "a": "2026-10-11"
+ },
+ {
+  "tipo": "data",
+  "id": "1787056570370.0",
+  "citta": "FANO",
+  "spett": "UNO NESSUNO CENTOMILA",
+  "da": "2026-10-14",
+  "a": "2026-10-15"
+ },
+ {
+  "tipo": "data",
+  "id": "1787052516955.0",
+  "citta": "ASCOLI PICENO",
+  "spett": "GLENN - UNA VARIAZIONE",
+  "da": "2026-10-15",
+  "a": "2026-10-16"
+ },
+ {
+  "tipo": "data",
+  "id": "1787052517955.0",
+  "citta": "ASCOLI PICENO",
+  "spett": "CANI LUNARI",
+  "da": "2026-10-15",
+  "a": "2026-10-16"
+ },
+ {
+  "tipo": "data",
+  "id": "1787052518955.0",
+  "citta": "ASCOLI PICENO",
+  "spett": "IT'S NOT FAIR TO DIE",
+  "da": "2026-10-15",
+  "a": "2026-10-16"
+ },
+ {
+  "tipo": "data",
+  "id": "1787052535955.0",
+  "citta": "MATELICA",
+  "spett": "ME LA CANTO E ME LA SOGNO... ANCORA",
+  "da": "2026-10-16",
+  "a": "2026-10-17"
+ },
+ {
+  "tipo": "data",
+  "id": "1787052519955.0",
+  "citta": "ASCOLI PICENO",
+  "spett": "TOTEMICA",
+  "da": "2026-10-16",
+  "a": "2026-10-17"
+ },
+ {
+  "tipo": "data",
+  "id": "1787052520955.0",
+  "citta": "ASCOLI PICENO",
+  "spett": "DODESKADEN",
+  "da": "2026-10-16",
+  "a": "2026-10-17"
+ },
+ {
+  "tipo": "data",
+  "id": "1787052521955.0",
+  "citta": "ASCOLI PICENO",
+  "spett": "L'ANIMALE",
+  "da": "2026-10-16",
+  "a": "2026-10-17"
+ },
+ {
+  "tipo": "data",
+  "id": "1787052523955.0",
+  "citta": "ASCOLI PICENO",
+  "spett": "L'ANGELO DEL FOCOLARE",
+  "da": "2026-10-16",
+  "a": "2026-10-17"
+ },
+ {
+  "tipo": "data",
+  "id": "1787052522955.0",
+  "citta": "ASCOLI PICENO",
+  "spett": "FOLKLORE DYNAMICS",
+  "da": "2026-10-16",
+  "a": "2026-10-17"
+ },
+ {
+  "tipo": "data",
+  "id": "1787051026280.0",
+  "citta": "TOLENTINO",
+  "spett": "PEOPLE, PLACES & THINGS",
+  "da": "2026-10-17",
+  "a": "2026-10-18"
+ },
+ {
+  "tipo": "data",
+  "id": "1787059222246.0",
+  "citta": "SAN SEVERINO MARCHE",
+  "spett": "LA MISTERIOSA SCOMPARSA DI W",
+  "da": "2026-10-22",
+  "a": "2026-10-23"
+ },
+ {
+  "tipo": "data",
+  "id": "1787054257139.0",
+  "citta": "OSIMO",
+  "spett": "LA MISTERIOSA SCOMPARSA DI W",
+  "da": "2026-10-23",
+  "a": "2026-10-24"
+ },
+ {
+  "tipo": "data",
+  "id": "1787056576370.0",
+  "citta": "FANO",
+  "spett": "GRACES",
+  "da": "2027-03-31",
+  "a": "2027-04-01"
+ },
+ {
+  "tipo": "data",
+  "id": "1787052560955.0",
+  "citta": "PORTO SANT'ELPIDIO",
+  "spett": "TUTTA COLPA DI ADAMO",
+  "da": "2027-04-01",
+  "a": "2027-04-02"
+ },
+ {
+  "tipo": "data",
+  "id": "1787059228246.0",
+  "citta": "SAN SEVERINO MARCHE",
+  "spett": "AMADEUS",
+  "da": "2027-04-05",
+  "a": "2027-04-06"
+ },
+ {
+  "tipo": "data",
+  "id": "1788513815691.0",
+  "citta": "RECANATI",
+  "spett": "CUORE",
+  "da": "2027-04-05",
+  "a": "2027-04-06"
+ },
+ {
+  "tipo": "data",
+  "id": "1787051033280.0",
+  "citta": "TOLENTINO",
+  "spett": "RUMORI FUORI SCENA",
+  "da": "2027-04-07",
+  "a": "2027-04-08"
+ },
+ {
+  "tipo": "data",
+  "id": "1787054256139.0",
+  "citta": "CORINALDO",
+  "spett": "PER FUTILI MOTIVI",
+  "da": "2027-04-09",
+  "a": "2027-04-10"
+ },
+ {
+  "tipo": "data",
+  "id": "1787052533955.0",
+  "citta": "CIVITANOVA MARCHE",
+  "spett": "CARI GENITORI",
+  "da": "2027-04-15",
+  "a": "2027-04-16"
+ },
+ {
+  "tipo": "data",
+  "id": "1789452014290.0",
+  "citta": "CHIARAVALLE",
+  "spett": "IL PIACERE DELL'ATTESA",
+  "da": "2027-04-16",
+  "a": "2027-04-17"
+ },
+ {
+  "tipo": "data",
+  "id": "1788513804691.0",
+  "citta": "GROTTAMMARE",
+  "spett": "IL PADRONE",
+  "da": "2027-04-20",
+  "a": "2027-04-21"
+ },
+ {
+  "tipo": "data",
+  "id": "1787052586955.0",
+  "citta": "SENIGALLIA",
+  "spett": "CONTRAZIONI PERICOLOSE",
+  "da": "2027-04-22",
+  "a": "2027-04-23"
+ },
+ {
+  "tipo": "data",
+  "id": "1789452021290.0",
+  "citta": "JESI",
+  "spett": "POVERI CRISTI",
+  "da": "2027-04-22",
+  "a": "2027-04-23"
+ },
+ {
+  "tipo": "data",
+  "id": "1787052570955.0",
+  "citta": "SAN BENEDETTO",
+  "spett": "CENA CON SORPRESA",
+  "da": "2027-04-26",
+  "a": "2027-04-27"
+ },
+ {
+  "tipo": "data",
+  "id": "1787054251139.0",
+  "citta": "ASCOLI PICENO",
+  "spett": "SMANIE PER LA VILLEGGIATURA",
+  "da": "2027-04-28",
+  "a": "2027-04-29"
+ },
+ {
+  "tipo": "data",
+  "id": "1787052534955.0",
+  "citta": "CIVITANOVA MARCHE",
+  "spett": "LE NOSTRE DONNE",
+  "da": "2027-05-04",
+  "a": "2027-05-05"
+ }
+];
+function correggiDateDST() {
+  var r = applicaAnagrafica(DATE_DA_CORREGGERE);
+  Logger.log('Date corrette nel foglio: ' + r.righe + ' (versione anagrafica ' + r.ver + '); i dispositivi si allineano al prossimo pull');
+  return r;
+}
+
+// ════════════════════ GIORNALE (foglio "Giornale") ════════════════════
+// Una riga per rinomina/correzione: VER, TS, JSON. Il pull restituisce solo le righe
+// con VER > versione del dispositivo, che le applica ai propri dati locali.
+function _giornale(ss) {
+  var sh = ss.getSheetByName('Giornale');
+  if (!sh) { sh = ss.insertSheet('Giornale'); sh.getRange(1, 1, 1, 3).setValues([['VER', 'TS', 'JSON']]); }
+  return sh;
+}
+function _scriviGiornale(ss, ver, remaps) {
+  var sh = _giornale(ss), now = new Date();
+  var righe = remaps.map(function(x){ x.ver = ver; return [ver, now, JSON.stringify(x)]; });
+  if (righe.length) sh.getRange(sh.getLastRow() + 1, 1, righe.length, 3).setValues(righe);
+}
+function _leggiGiornale(ss, daVer) {
+  var sh = ss.getSheetByName('Giornale'); if (!sh || sh.getLastRow() < 2) return [];
+  var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues(), out = [];
+  for (var i = 0; i < rows.length; i++) {
+    if (+rows[i][0] > daVer) { try { out.push(JSON.parse(rows[i][2])); } catch(e) {} }
+    if (out.length >= 2000) break;
+  }
+  return out;
+}
+
+// ID spettacolo come stringa confrontabile (dal foglio arrivano numeri, dagli export "….0")
+function _normId(v) { var t = String(v == null ? '' : v).trim(); if (/^\d+\.0+$/.test(t)) t = t.replace(/\.0+$/, ''); return t; }
