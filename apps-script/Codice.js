@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v27 ──
+// ── SPETTACOLI APP SCRIPT v28 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -90,11 +90,12 @@ function doPost(e) {
     }
 
     if (body.action === 'syncConfig') {
-      props.setProperty('teatriDB', JSON.stringify(body.teatriDB||{}));
-      if(body.manifCustom) props.setProperty('manifCustom', JSON.stringify(body.manifCustom));
+      var G0 = _mappeGiornale(SpreadsheetApp.getActiveSpreadsheet());   // un'app indietro non può riportare nomi vecchi
+      props.setProperty('teatriDB', JSON.stringify(_giornaleTeatriDB(body.teatriDB||{}, G0)));
+      if(body.manifCustom) props.setProperty('manifCustom', JSON.stringify(_giornaleManif(body.manifCustom, G0)));
       if(body.dittaDB) props.setProperty('dittaDB', JSON.stringify(body.dittaDB));
       if(body.collaboratori) props.setProperty('collaboratori', JSON.stringify(body.collaboratori));
-      if(body.spazioInfo) props.setProperty('spazioInfo', JSON.stringify(body.spazioInfo));
+      if(body.spazioInfo) props.setProperty('spazioInfo', JSON.stringify(_giornaleSpazioInfo(body.spazioInfo, G0)));
       if(body.aziendeDB) props.setProperty('aziendeDB', JSON.stringify(body.aziendeDB));
       lock.releaseLock();
       return resp('config ok');
@@ -169,6 +170,9 @@ function doPost(e) {
       'N.MACC','TAR.MACC','SUB.MACC','N.ELETT','TAR.ELETT','SUB.ELETT',
       'N.FACC','TAR.FACC','SUB.FACC','N.FONI','TAR.FONI','SUB.FONI',
       'N.SART','TAR.SART','SUB.SART','TOTALE','NOTE','FATTURATO','PREMONTAGGIO','COLLAB_JSON','REPLICA_OF','MAILS_JSON','CONTATTI_JSON','ACCORDI'];
+    // Difesa dal "locale vince": le rinomine/correzioni del giornale si applicano anche ai dati in arrivo
+    var G1 = _mappeGiornale(ss);
+    if (G1.n) body.data.forEach(function(r){ _giornaleRiga(r, G1); });
     sh.clearContents();
     sh.getRange(1,1,1,header.length).setValues([header]);
     var rows = body.data.map(function(r,i) {
@@ -1470,7 +1474,7 @@ function applicaAnagrafica(remaps) {
   var nsi = {};
   Object.keys(si).forEach(function(k) {
     var pp = k.split('||'); var nk = fixCitta(pp[0]) + '||' + fixTeatro(pp[0], pp[1] || '');
-    if (nsi[nk] && nk !== k) { // fondi: tieni i campi compilati
+    if (nsi[nk]) { // fondi: tieni i campi compilati
       var a = nsi[nk], b = si[k]; Object.keys(b).forEach(function(f){ if (!a[f] || (Array.isArray(a[f]) && !a[f].length)) a[f] = b[f]; });
     } else nsi[nk] = si[k];
   });
@@ -1803,3 +1807,52 @@ function _leggiGiornale(ss, daVer) {
 
 // ID spettacolo come stringa confrontabile (dal foglio arrivano numeri, dagli export "….0")
 function _normId(v) { var t = String(v == null ? '' : v).trim(); if (/^\d+\.0+$/.test(t)) t = t.replace(/\.0+$/, ''); return t; }
+
+// ── Applicazione del giornale ai dati in arrivo dai dispositivi ──
+// Copre il caso di un'app vecchia (o non ancora allineata) che risincronizza nomi/date superati.
+function _mappeGiornale(ss) {
+  var G = { mapM: {}, mapC: {}, mapT: {}, mapD: {}, n: 0 };
+  var U = function(v){ return String(v || '').trim().toUpperCase().replace(/\s+/g, ' '); };
+  _leggiGiornale(ss, 0).forEach(function(x) {
+    if (x.tipo === 'manif' && x.da && x.a) { G.mapM[String(x.da).trim()] = String(x.a).trim(); G.n++; }
+    else if (x.tipo === 'citta' && x.da && x.a) { G.mapC[U(x.da)] = U(x.a); G.n++; }
+    else if (x.tipo === 'teatro' && x.citta && x.da && x.a) { G.mapT[U(x.citta) + '|' + U(x.da)] = U(x.a); G.n++; }
+    else if (x.tipo === 'data' && x.id && x.da && x.a) { G.mapD[_normId(x.id)] = { da: String(x.da), a: String(x.a) }; G.n++; }
+  });
+  G.U = U;
+  G.fixC = function(c){ var u = U(c); var seen = 0; while (G.mapC[u] && seen++ < 5) u = G.mapC[u]; return u; };
+  G.fixT = function(c, t){ var u = U(t); var m = G.mapT[U(c) + '|' + u]; return m || u; };
+  G.fixM = function(m){ var v = String(m || '').trim(); var seen = 0; while (G.mapM[v] && seen++ < 5) v = G.mapM[v]; return v; };
+  return G;
+}
+function _giornaleRiga(r, G) {
+  if (!r) return;
+  if (r.manifestazione) r.manifestazione = G.fixM(r.manifestazione);
+  if (r.citta) { var oc = r.citta; r.teatro = G.fixT(oc, r.teatro || ''); r.citta = G.fixC(oc); }
+  var d = G.mapD[_normId(r.id)]; if (d && String(r.data) === d.da) r.data = d.a;
+}
+function _giornaleTeatriDB(tdb, G) {
+  if (!G.n) return tdb;
+  var out = {};
+  Object.keys(tdb || {}).forEach(function(c) {
+    var nc = G.fixC(c); out[nc] = out[nc] || [];
+    (tdb[c] || []).forEach(function(t){ var nt = G.fixT(c, t); if (nt && out[nc].indexOf(nt) < 0) out[nc].push(nt); });
+  });
+  Object.keys(out).forEach(function(c){ out[c].sort(); });
+  return out;
+}
+function _giornaleManif(lista, G) {
+  if (!G.n) return lista;
+  var out = []; (lista || []).forEach(function(m){ var v = G.fixM(m); if (v && out.indexOf(v) < 0) out.push(v); });
+  return out.sort();
+}
+function _giornaleSpazioInfo(si, G) {
+  if (!G.n) return si;
+  var out = {};
+  Object.keys(si || {}).forEach(function(k) {
+    var p = k.split('||'); var nk = G.fixC(p[0]) + '||' + G.fixT(p[0], p[1] || '');
+    if (out[nk]) { var a = out[nk], b = si[k]; Object.keys(b).forEach(function(f){ if (!a[f] || (Array.isArray(a[f]) && !a[f].length)) a[f] = b[f]; }); }
+    else out[nk] = si[k];
+  });
+  return out;
+}
