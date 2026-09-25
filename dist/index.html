@@ -233,7 +233,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v43</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v44</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -2610,7 +2610,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v33 ──
+  return `// ── SPETTACOLI APP SCRIPT v34 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -6696,7 +6696,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v43</span>
+    <span>Report generato da GammaFucker v44</span>
   </div>
   </body></html>`;
 
@@ -6802,7 +6802,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v43</span>
+    <span>Report generato da GammaFucker v44</span>
   </div>
   </body></html>`;
 
@@ -6839,12 +6839,13 @@ function generaReportStagione(){
         <td style="padding:5px 10px;font-size:10px;font-weight:700;">${s.replicaOf?'\ud83d\udd01 ':''}${s.premontaggio?'\ud83d\udd27 ':''}${s.spett||''}</td>
         <td style="padding:5px 10px;font-size:9px;color:#6b7280;">${s.teatro||''}</td>
         <td style="padding:5px 10px;font-size:9px;color:#7c3aed;">${s.manif||''}</td>
-        ${IS_COLLAB?`<td style="padding:5px 10px;font-size:9px;color:#6b7280;">${(s.note||'').replace(/</g,'&lt;')}</td>`:`<td style="padding:5px 10px;font-size:10px;text-align:right;font-weight:700;color:${s.fatturato?'#059669':'#1a1a2e'};">${fmt(s.totale)}</td>`}
+        ${IS_COLLAB?`<td style="padding:5px 10px;font-size:9px;color:#6b7280;">${(s.note||'').replace(/</g,'&lt;')}</td>`:''}
+        <td style="padding:5px 10px;font-size:10px;text-align:right;font-weight:700;color:${!IS_COLLAB&&s.fatturato?'#059669':'#1a1a2e'};">${fmt(s.totale)}</td>
       </tr>`).join('');
     return `<div style="break-inside:avoid;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:14px;overflow:hidden;background:#fff;">
       <div style="background:#065f46;color:#fff;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;">
         <span style="font-weight:800;font-size:12px;">${citta}</span>
-        <span style="font-size:11px;color:#a7f3d0;">${lista.length} spett.${IS_COLLAB?'':' \u00b7 '+fmt(totC)}</span>
+        <span style="font-size:11px;color:#a7f3d0;">${lista.length} spett. \u00b7 ${fmt(totC)}</span>
       </div>
       <table style="width:100%;border-collapse:collapse;background:#f8fafc;">${righe}</table>
     </div>`;
@@ -6874,11 +6875,11 @@ function generaReportStagione(){
   <div class="summary">
     <div class="sum-item"><div class="sum-val">${spett.length}</div><div class="sum-lbl">Spettacoli</div></div>
     <div class="sum-item"><div class="sum-val">${Object.keys(perCitta).length}</div><div class="sum-lbl">Citt\u00e0</div></div>
-    ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val">${fmt(totale)}</div><div class="sum-lbl">Totale stagione</div></div>
-    <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
+    <div class="sum-item"><div class="sum-val">${fmt(totale)}</div><div class="sum-lbl">Totale spese</div></div>
+    ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v43</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v44</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
