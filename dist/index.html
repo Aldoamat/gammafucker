@@ -215,7 +215,7 @@ textarea{resize:none;height:68px;font-size:13px;}
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
-html.collab .admin-only{display:none!important;}
+html.collab .admin-only,html.collab #chip-fatt,html.collab #chip-fat,html.collab #chip-zero{display:none!important;}
 html.collab .tabs{justify-content:center;}
 input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;width:auto;padding:0;accent-color:var(--accent);}
 .rb-wrap{position:relative;}
@@ -232,7 +232,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v41</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v42</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -426,7 +426,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
   </div>
 
   <div class="fils">
-    <input type="text" id="fil-q" placeholder="🔍 Cerca..." oninput="renderList()">
+    <input type="text" id="fil-q" placeholder="🔍 Cerca..." autocomplete="off" name="ricerca-spettacoli" oninput="renderList()">
     <select id="fil-mese" onchange="renderList()"><option value="">Tutti i mesi</option></select>
     <select id="fil-citta" onchange="renderList()"><option value="">Tutte le città</option></select>
     <select id="fil-manif" onchange="renderList()"><option value="">Tutti i tipi</option></select>
@@ -2608,7 +2608,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v30 ──
+  return `// ── SPETTACOLI APP SCRIPT v31 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -6694,7 +6694,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v41</span>
+    <span>Report generato da GammaFucker v42</span>
   </div>
   </body></html>`;
 
@@ -6800,7 +6800,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v41</span>
+    <span>Report generato da GammaFucker v42</span>
   </div>
   </body></html>`;
 
@@ -6875,7 +6875,7 @@ function generaReportStagione(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v41</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v42</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -7656,6 +7656,8 @@ function _initCollab(){
   if(!IS_COLLAB) return;
   sv('sheetsUrl', COLLAB_SHEETS_URL);   // URL sempre quello corrente: niente dispositivi con webhook vecchi
   document.title = 'GammaFucker Collab';
+  const q=document.getElementById('fil-q'); if(q) q.value='';
+  setTimeout(()=>{ const q2=document.getElementById('fil-q'); if(q2 && q2.value){ q2.value=''; renderList(); } }, 1500);   // contro l'autocompilazione del browser
   ['access-nome','access-code'].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('keydown', e=>{ if(e.key==='Enter') checkAccesso(); }); });
   if(!(ld('accessOk','') && ld('nomeUtente',''))){
     const ov=document.getElementById('access-overlay'); if(ov){ ov.style.display='flex'; setTimeout(()=>{ const n=document.getElementById('access-nome'); if(n) n.focus(); },600); }
