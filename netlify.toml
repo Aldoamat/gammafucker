@@ -1,4 +1,5 @@
-# Netlify pubblica la cartella dist/ (generata da: node release.mjs build)
+# Netlify: due siti dallo stesso repository.
+#   fuckgamma               → publish directory "dist"         (impostata nella dashboard)
+#   fuckgammamministrazione → publish directory "dist-collab"  (impostata nella dashboard)
 [build]
-  publish = "dist"
   command = ""

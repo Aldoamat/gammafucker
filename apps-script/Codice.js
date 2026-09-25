@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v28 ──
+// ── SPETTACOLI APP SCRIPT v30 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -114,6 +114,11 @@ function doPost(e) {
       });
       lock.releaseLock();
       return resp('sent');
+    }
+    if (body.action === 'updateNote') {
+      var rn = aggiornaNota(body.id, body.note, body.autore);
+      lock.releaseLock();
+      return ContentService.createTextOutput(JSON.stringify(rn)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'scansionaOra') {
       lock.releaseLock();   // dura minuti: non bloccare le sync
@@ -1428,6 +1433,7 @@ function applicaAnagrafica(remaps) {
       if (nome === 'Spettacoli' && iId >= 0 && mapF[_normId(rows[r][iId])]) {
         var f2 = mapF[_normId(rows[r][iId])];
         if (f2.note_add && iN >= 0) { var nv = String(rows[r][iN] || ''); if (nv.indexOf(f2.note_add) < 0) { rows[r][iN] = nv ? nv + ' | ' + f2.note_add : f2.note_add; ch = true; } }
+        if (typeof f2.note_set === 'string' && iN >= 0) { rows[r][iN] = f2.note_set; ch = true; }
         if (f2.accordi && iA >= 0 && !String(rows[r][iA] || '').trim()) { rows[r][iA] = f2.accordi; ch = true; }
         if (f2.contatti && f2.contatti.length && iK >= 0) {
           var cur = []; try { cur = JSON.parse(rows[r][iK] || '[]'); } catch(e) { cur = []; }
@@ -1855,4 +1861,29 @@ function _giornaleSpazioInfo(si, G) {
     else out[nk] = si[k];
   });
   return out;
+}
+
+// ════════════════════ NOTE DALL'APP COLLABORATORI ════════════════════
+// Aggiorna solo la cella NOTE dello spettacolo e registra la modifica nel giornale,
+// così anche i dispositivi admin (merge "locale vince") la ricevono.
+function aggiornaNota(id, note, autore) {
+  var props = PropertiesService.getScriptProperties();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('Spettacoli'); if (!sh) return { error: 'foglio mancante' };
+  var rows = sh.getDataRange().getValues();
+  var hdr = rows[0].map(function(h){ return String(h).trim().toUpperCase(); });
+  var iId = hdr.indexOf('ID'), iN = hdr.indexOf('NOTE'), iS = hdr.indexOf('SPETTACOLO');
+  var target = _normId(id);
+  for (var r = 1; r < rows.length; r++) {
+    if (_normId(rows[r][iId]) === target) {
+      sh.getRange(r + 1, iN + 1).setValue(String(note || ''));
+      var ver = parseInt(props.getProperty('anagraficaVer') || '0') + 1;
+      _scriviGiornale(ss, ver, [{ tipo: 'campi', id: target, note_set: String(note || ''), autore: String(autore || '') }]);
+      props.setProperty('anagraficaVer', String(ver));
+      props.setProperty('lastModified', String(Date.now()));
+      props.setProperty('lastAuthor', String(autore || 'Collaboratore'));
+      return { ok: true, spettacolo: rows[r][iS], ver: ver };
+    }
+  }
+  return { error: 'spettacolo non trovato: ' + id };
 }

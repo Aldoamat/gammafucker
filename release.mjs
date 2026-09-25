@@ -26,6 +26,7 @@ const P = {
   script: path.join(ROOT, 'apps-script', 'Codice.js'),
   cfg: path.join(ROOT, 'release.config.json'),
   dist: path.join(ROOT, 'dist'),
+  distCollab: path.join(ROOT, 'dist-collab'),
 };
 const PUBLISH = ['index.html', 'sw.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
@@ -96,7 +97,19 @@ function build(target) {
   fs.mkdirSync(P.dist);
   for (const f of PUBLISH) fs.copyFileSync(path.join(ROOT, f), path.join(P.dist, f));
 
-  console.log(`✓ index.html, sw.js, Codice.js aggiornati; dist/ pronta (${PUBLISH.length} file)`);
+  // App collaboratori: stesso sorgente, APP_MODE='collab', cache e manifest propri → dist-collab/
+  fs.rmSync(P.distCollab, { recursive: true, force: true });
+  fs.mkdirSync(P.distCollab);
+  const marker = "const APP_MODE = 'admin'; // __APP_MODE__";
+  if (!idx.includes(marker)) throw new Error('marker APP_MODE non trovato in index.html');
+  write(path.join(P.distCollab, 'index.html'), idx.replace(marker, "const APP_MODE = 'collab'; // __APP_MODE__").replace(/<title>[^<]*<\/title>/, '<title>GammaFucker Collab</title>'));
+  write(path.join(P.distCollab, 'sw.js'), sw.replace(/const CACHE='teatro-v[0-9a-z]+'/, `const CACHE='collab-v${next}'`));
+  const man = JSON.parse(read(path.join(ROOT, 'manifest.json')));
+  man.name = 'GammaFucker Collab'; man.short_name = 'GF Collab';
+  write(path.join(P.distCollab, 'manifest.json'), JSON.stringify(man, null, 2));
+  for (const f of ['icon-192.png', 'icon-512.png']) fs.copyFileSync(path.join(ROOT, f), path.join(P.distCollab, f));
+
+  console.log(`✓ index.html, sw.js, Codice.js aggiornati; dist/ e dist-collab/ pronte`);
   console.log('  Controlla il diff, poi: node release.mjs deploy');
 }
 
