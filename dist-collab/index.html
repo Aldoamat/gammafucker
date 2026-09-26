@@ -233,7 +233,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v44</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v45</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -2610,7 +2610,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v34 ──
+  return `// ── SPETTACOLI APP SCRIPT v35 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -4937,7 +4937,7 @@ async function analizzaFattura(){
       // Per Excel: manda base64 come documento
       prompt = null;
     } else {
-      prompt = buildFatturaPrompt(testo, fornitore, numFattura, spettList);
+      prompt = buildFatturaPromptV2(testo, fornitore, numFattura);
     }
 
     let result;
@@ -4947,7 +4947,7 @@ async function analizzaFattura(){
       result = await callAIWithPDF(url, testoEl.dataset.imgB64, fornitore, numFattura, spettList, testoEl.dataset.imgType||'image/jpeg');
     } else if(isExcel && testoEl.dataset.excelTesto){
       // Excel: già convertito in CSV testo da SheetJS
-      const excelPrompt = buildFatturaPromptExcel(fornitore, numFattura, spettList);
+      const excelPrompt = buildFatturaPromptV2(null, fornitore, numFattura);
       result = await callAIWithExcel(url, testoEl.dataset.excelTesto, testoEl.dataset.excelName||'fattura.xlsx', excelPrompt);
     } else {
       result = await callAIText(url, prompt);
@@ -5006,8 +5006,19 @@ async function analizzaFattura(){
         }catch(_){}
       }
       if(parsed===null) throw new Error('Risposta AI non valida: '+result.substring(0,120));
-      // Normalizza: se oggetto singolo → array
-      voci = Array.isArray(parsed) ? parsed : [parsed];
+      if(parsed && !Array.isArray(parsed) && Array.isArray(parsed.righe)){
+        // Formato v2: l'AI ha trascritto le righe, l'abbinamento lo facciamo qui
+        const fornV2 = fornitore || parsed.fornitore || '';
+        const numV2  = numFattura || parsed.numero_fattura || '';
+        if(!document.getElementById('prev-fornitore').value.trim() && fornV2) document.getElementById('prev-fornitore').value = fornV2;
+        if(!document.getElementById('prev-numero').value.trim() && numV2) document.getElementById('prev-numero').value = numV2;
+        if(!document.getElementById('fatt-totale-fatt').value && parsed.totale_imponibile) document.getElementById('fatt-totale-fatt').value = (+parsed.totale_imponibile).toFixed(2);
+        voci = abbinaRigheFattura(parsed.righe, {fornitore:fornV2, numero_fattura:numV2, data_fattura:parsed.data_fattura});
+        if(!voci.length) throw new Error('Nessuna riga nella fattura');
+      } else {
+        // Normalizza: se oggetto singolo → array
+        voci = Array.isArray(parsed) ? parsed : [parsed];
+      }
     }catch(e){
       toast('Errore parsing risposta AI: '+e.message, true);
       console.error('Risposta raw:', result);
@@ -5029,6 +5040,7 @@ async function analizzaFattura(){
       const _spe = +(v.spese_accessorie||0);
       v._costoOriginale = _cf > 0 ? _cf : (_imp + _spe);
       v._costoOriginaleSaved = true;  // flag: non ricalcolare mai
+      if(v._v2) return v;  // già abbinata da abbinaRigheFattura
       // Matching a cascata: ID → data+città+spett → data+città → nome+città → solo data
       let match = null;
       // 1. ID diretto dall'AI
@@ -5259,6 +5271,276 @@ REGOLE FORMATO:
 - Se la stessa voce si ripete per più spettacoli nella stessa fattura, crea UN oggetto per ogni spettacolo`;
 }
 
+// ══════════════ FATTURE v2: l'AI trascrive, l'app abbina ══════════════
+// L'AI restituisce le righe della fattura in forma strutturata (date, luogo,
+// titolo, importo, tipo). L'abbinamento agli spettacoli lo fa abbinaRigheFattura()
+// con regole deterministiche sul calendario:
+//   data + luogo in calendario      → costo sullo spettacolo
+//   data + luogo NON in calendario  → GESTIONE del teatro (nuova riga manif GESTIONE)
+//   canone mensile (mese + teatro)  → GESTIONE
+//   solo titolo                     → ricerca titolo in stagione
+//   più candidati                   → DA DECIDERE (select nella scheda)
+//   rimborso spese senza data       → sommato alla riga di servizio precedente
+let fattAlias = ld('fattAlias', {});   // teatro normalizzato → città (imparato dalle correzioni)
+
+function _normTxt(s){
+  return String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^A-Z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+}
+const _FATT_STOP = new Set(['IL','LO','LA','I','GLI','LE','DI','DEL','DELLA','DELLE','DEI','DEGLI','DELLO','E','ED','A','AL','ALLA','ALLE','IN','UN','UNA','PER','CON','SU','DA','DAL','DALLA','TEATRO','SPETTACOLO','EVENTO','TITOLO','PRESSO','SCENA','RASSEGNA']);
+function _fattTokens(s){ return _normTxt(s).split(' ').filter(t=>t && t.length>1 && !_FATT_STOP.has(t)); }
+function _simTitolo(a, b){
+  const na=_normTxt(a), nb=_normTxt(b);
+  if(!na||!nb) return 0;
+  if(na===nb) return 1;
+  if(na.includes(nb)||nb.includes(na)) return .9;
+  const ta=_fattTokens(a), tb=_fattTokens(b);
+  if(!ta.length||!tb.length) return 0;
+  const hit = ta.filter(t=>tb.some(x=>x===t || (t.length>=5 && x.startsWith(t.slice(0,5))))).length;
+  return hit/Math.min(ta.length,tb.length);
+}
+function _cittaEq(a, b){
+  const na=_normTxt(a), nb=_normTxt(b);
+  if(!na||!nb) return false;
+  if(na===nb) return true;
+  // "PORTO SANT ELPIDIO" vs "PORTO S ELPIDIO", "S. BENEDETTO" vs "SAN BENEDETTO"
+  const f = s=>s.replace(/\bS\b/g,'SAN').replace(/\bSANT\b/g,'SAN');
+  if(f(na)===f(nb)) return true;
+  return na.length>=5 && nb.length>=5 && (na.startsWith(nb)||nb.startsWith(na));
+}
+function _teatroEq(a, b){
+  const na=_normTxt(a).replace(/^TEATRO /,''), nb=_normTxt(b).replace(/^TEATRO /,'');
+  if(!na||!nb) return false;
+  return na===nb || na.includes(nb) || nb.includes(na);
+}
+// Città canonica (chiave di teatriDB) partendo da città e/o teatro della fattura
+function _risolviCitta(citta, teatro){
+  const keys = Object.keys(teatriDB||{});
+  if(citta){
+    const k = keys.find(k=>_cittaEq(k,citta));
+    if(k) return k;
+  }
+  if(teatro){
+    const nt = _normTxt(teatro).replace(/^TEATRO /,'');
+    if(fattAlias[nt]) return fattAlias[nt];
+    const k = keys.find(k=>(teatriDB[k]||[]).some(t=>_teatroEq(t,teatro)));
+    if(k) return k;
+    // teatro presente negli spettacoli del calendario
+    const s = data.find(s=>s.teatro && _teatroEq(s.teatro,teatro));
+    if(s) return s.citta;
+  }
+  return citta ? _normTxt(citta) : '';
+}
+function _rigaPrincipale(rows){
+  // tra righe dello stesso titolo, preferisci quella non premontaggio/replica, poi la prima per data
+  const sorted=[...rows].sort((a,b)=>a.data.localeCompare(b.data));
+  return sorted.find(s=>!s.premontaggio && !s.replicaOf) || sorted[0];
+}
+function _fmtGG(d){ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}); }catch{ return d; } }
+function _descBreve(d){ const t=String(d||'').replace(/\s+/g,' ').trim(); if(t.length<=80) return t; const c=t.substring(0,80); return c.substring(0, Math.max(40, c.lastIndexOf(' ')))+'…'; }
+
+function abbinaRigheFattura(righe, opt){
+  opt = opt || {};
+  const dataFatt = normalizeDate(opt.data_fattura||'') || new Date().toISOString().slice(0,10);
+  const voci = [];
+  let prevServizio = null;
+
+  const nuovaVoce = (r, extra)=>Object.assign({
+    _v2:true, descrizione:_descBreve(r.descrizione), importo:+(r.importo||0), spese_accessorie:0,
+    fornitore:opt.fornitore||'', numero_fattura:opt.numero_fattura||'',
+    data:'', citta:'', teatro:r.teatro||'', spettacolo_id:null, spettacolo_nome:null,
+    _match:null, _stato:'nessuno', _motivo:'', _candidati:[], _gestione:false, _righe:[r]
+  }, extra||{});
+
+  const cercaPerData = (d, citta, teatro, titolo)=>{
+    let c = data.filter(s=>s.data===d);
+    if(citta) c = c.filter(s=>_cittaEq(s.citta,citta));
+    if(c.length>1 && teatro){ const ct=c.filter(s=>_teatroEq(s.teatro,teatro)); if(ct.length) c=ct; }
+    if(c.length>1 && titolo){ const ct=c.filter(s=>_simTitolo(titolo,s.spett)>=.6); if(ct.length) c=ct; }
+    // stesso titolo più volte lo stesso giorno (replica/premontaggio) → una sola riga, la principale
+    if(c.length>1 && new Set(c.map(s=>_normTxt(s.spett))).size===1) c=[_rigaPrincipale(c)];
+    return c;
+  };
+  const gestione = (r, d, citta, teatro, importo, motivo)=>nuovaVoce(r, {
+    data:d, citta:citta, teatro:teatro||(teatriDB[citta]||[''])[0]||'', importo:+importo.toFixed(2),
+    spettacolo_nome:'Gestione: '+_descBreve(r.descrizione), _stato:'gestione', _gestione:true, _motivo:motivo
+  });
+  const abbinata = (r, s, importo, motivo)=>nuovaVoce(r, {
+    data:s.data, citta:s.citta, teatro:s.teatro||'', importo:+importo.toFixed(2),
+    spettacolo_id:s.id, spettacolo_nome:s.spett, _match:s, _stato:'spettacolo', _motivo:motivo
+  });
+  const ambigua = (r, cands, importo, motivo, d, citta)=>{
+    const c0 = cands[0];
+    return nuovaVoce(r, { data:d||c0.data, citta:citta||c0.citta, importo:+importo.toFixed(2),
+      spettacolo_id:c0.id, spettacolo_nome:c0.spett, _match:c0, _stato:'ambiguo', _motivo:motivo, _candidati:cands });
+  };
+
+  (righe||[]).forEach(r=>{
+    const importo = +(r.importo||0);
+    const tipo = String(r.tipo||'').toLowerCase();
+    const dates = [...new Set((r.date||[]).map(normalizeDate).filter(Boolean))].sort();
+    const periodo = r.periodo && r.periodo.da && r.periodo.a ? {da:normalizeDate(r.periodo.da), a:normalizeDate(r.periodo.a)} : null;
+    const citta = _risolviCitta(r.citta, r.teatro);
+    const teatro = r.teatro||'';
+    const titolo = r.titolo||'';
+
+    // Rimborso spese senza data → si somma alla riga di servizio precedente
+    if(tipo==='rimborso' && !dates.length && !periodo && prevServizio){
+      prevServizio.spese_accessorie = +((prevServizio.spese_accessorie||0)+importo).toFixed(2);
+      prevServizio._righe.push(r);
+      prevServizio._motivo += ' · rimborso spese €'+importo.toFixed(2)+' sommato';
+      return;
+    }
+
+    let prodotte = [];
+
+    if(dates.length){
+      const perData = dates.map(d=>({d, c:cercaPerData(d, citta, teatro, titolo)}));
+      const trovate = perData.filter(x=>x.c.length);
+      const mancanti = perData.filter(x=>!x.c.length);
+      const titoli = new Set(trovate.filter(x=>x.c.length===1).map(x=>_normTxt(x.c[0].spett)));
+      const qtaWarn = (r.quantita && Math.round(+r.quantita)>1 && Math.round(+r.quantita)!==dates.length) ? ' ⚠ quantità '+r.quantita+' su '+dates.length+' date' : '';
+
+      if(trovate.length && !mancanti.length && titoli.size===1 && trovate.every(x=>x.c.length===1)){
+        // tutte le date → stesso spettacolo (premontaggio/replica): una sola voce sulla riga principale
+        const rows = trovate.map(x=>x.c[0]);
+        const s = _rigaPrincipale(rows);
+        prodotte.push(abbinata(r, s, importo, dates.length+' date in calendario → '+s.spett+qtaWarn));
+      } else {
+        const quota = importo/dates.length;
+        perData.forEach(x=>{
+          if(x.c.length===1) prodotte.push(abbinata(r, x.c[0], quota, 'in calendario il '+_fmtGG(x.d)+(dates.length>1?' (1/'+dates.length+')':'')+qtaWarn));
+          else if(x.c.length>1) prodotte.push(ambigua(r, x.c, quota, x.c.length+' spettacoli il '+_fmtGG(x.d)+(citta?' a '+citta:'')+' — scegli', x.d, citta));
+        });
+        // date senza spettacolo → una voce di gestione per città
+        const perCitta = {};
+        mancanti.forEach(x=>{ (perCitta[citta||'?'] = perCitta[citta||'?']||[]).push(x.d); });
+        Object.keys(perCitta).forEach(c=>{
+          const ds = perCitta[c];
+          if(!citta){
+            prodotte.push(nuovaVoce(r, {data:ds[0], importo:+(quota*ds.length).toFixed(2), _stato:'nessuno', _motivo:'nessuno spettacolo il '+ds.map(_fmtGG).join(', ')+' e città non indicata'}));
+          } else {
+            prodotte.push(gestione(r, ds[0], citta, teatro, quota*ds.length, 'nessuno spettacolo a '+citta+' il '+ds.map(_fmtGG).join(', ')+' → gestione'+qtaWarn));
+          }
+        });
+      }
+    } else if(periodo){
+      let c = data.filter(s=>s.data>=periodo.da && s.data<=periodo.a);
+      if(citta) c = c.filter(s=>_cittaEq(s.citta,citta));
+      if(c.length>1 && teatro){ const ct=c.filter(s=>_teatroEq(s.teatro,teatro)); if(ct.length) c=ct; }
+      if(c.length>1 && titolo){ const ct=c.filter(s=>_simTitolo(titolo,s.spett)>=.6); if(ct.length) c=ct; }
+      const titoli = new Set(c.map(s=>_normTxt(s.spett)));
+      if(c.length && titoli.size===1) prodotte.push(abbinata(r, _rigaPrincipale(c), importo, 'periodo '+_fmtGG(periodo.da)+'–'+_fmtGG(periodo.a)+' → '+c[0].spett));
+      else if(c.length>1) prodotte.push(ambigua(r, c, importo, c.length+' spettacoli nel periodo '+_fmtGG(periodo.da)+'–'+_fmtGG(periodo.a)+' — scegli', periodo.da, citta));
+      else if(citta) prodotte.push(gestione(r, periodo.da, citta, teatro, importo, 'nessuno spettacolo a '+citta+' dal '+_fmtGG(periodo.da)+' al '+_fmtGG(periodo.a)+' → gestione'));
+      else prodotte.push(nuovaVoce(r, {data:periodo.da, importo, _stato:'nessuno', _motivo:'periodo senza città'}));
+    } else if(r.mese && /^\d{4}-\d{2}$/.test(r.mese) && (citta||teatro)){
+      const c = citta || _risolviCitta('', teatro);
+      if(c) prodotte.push(gestione(r, r.mese+'-01', c, teatro, importo, 'canone mese '+r.mese+' → gestione '+c));
+      else prodotte.push(nuovaVoce(r, {data:r.mese+'-01', importo, _stato:'nessuno', _motivo:'canone mensile, luogo non riconosciuto: '+teatro}));
+    } else if(titolo){
+      let c = data.filter(s=>_simTitolo(titolo,s.spett)>=.6);
+      if(citta){ const cc=c.filter(s=>_cittaEq(s.citta,citta)); if(cc.length) c=cc; }
+      if(c.length>1 && teatro){ const ct=c.filter(s=>_teatroEq(s.teatro,teatro)); if(ct.length) c=ct; }
+      // preferisci la stagione della fattura e le date prima della fattura
+      if(c.length>1){ const st=_stagioneDa(dataFatt); const cs=c.filter(s=>_stagioneDa(s.data)===st); if(cs.length) c=cs; }
+      const titoli = new Set(c.map(s=>_normTxt(s.spett)));
+      if(c.length===1 || (c.length>1 && titoli.size===1)){
+        const s = _rigaPrincipale(c);
+        prodotte.push(abbinata(r, s, importo, 'titolo "'+titolo+'" trovato'+(citta?' a '+citta:'')+(c.length>1?' ('+c.length+' date, messo sulla principale)':'')));
+      } else if(c.length>1){
+        c.sort((a,b)=>Math.abs(new Date(a.data)-new Date(dataFatt))-Math.abs(new Date(b.data)-new Date(dataFatt)));
+        prodotte.push(ambigua(r, c, importo, c.length+' spettacoli simili a "'+titolo+'" — scegli', '', citta));
+      } else if(citta){
+        prodotte.push(gestione(r, dataFatt, citta, teatro, importo, 'titolo "'+titolo+'" non in calendario a '+citta+' → gestione'));
+        prodotte[prodotte.length-1]._stato='ambiguo'; prodotte[prodotte.length-1]._candidati=[];
+      } else {
+        prodotte.push(nuovaVoce(r, {data:dataFatt, importo, _stato:'nessuno', _motivo:'titolo "'+titolo+'" non trovato'}));
+      }
+    } else if(citta){
+      // solo luogo, niente date né titolo (es. noleggio a freddo "saggi Pesaro") → gestione proposta, da confermare
+      const g = gestione(r, dataFatt, citta, teatro, importo, 'solo luogo, senza data né titolo → proposta gestione '+citta);
+      g._stato='ambiguo';
+      prodotte.push(g);
+    } else {
+      prodotte.push(nuovaVoce(r, {data:dataFatt, importo, _stato:'nessuno', _motivo:'né data, né luogo, né titolo: da assegnare'}));
+    }
+
+    prodotte.forEach(v=>voci.push(v));
+    if(tipo!=='rimborso' && prodotte.length) prevServizio = prodotte[prodotte.length-1];
+  });
+  return voci;
+}
+
+// Applica la scelta dell'utente su una voce ambigua (select nella scheda)
+function scegliCandidato(idx, val){
+  const v = fattVoci[idx]; if(!v) return;
+  if(val==='__gestione'){
+    v._match=null; v.spettacolo_id=null; v._gestione=true; v._stato='gestione';
+    v.spettacolo_nome='Gestione: '+_descBreve(v.descrizione);
+    if(!v.citta && v._candidati && v._candidati[0]) v.citta=v._candidati[0].citta;
+  } else {
+    const s = data.find(s=>String(s.id)===val); if(!s) return;
+    v._match=s; v.spettacolo_id=s.id; v.spettacolo_nome=s.spett; v.data=s.data; v.citta=s.citta; v.teatro=s.teatro||'';
+    v._gestione=false; v._stato='spettacolo';
+  }
+  v.nota_da_aggiungere = _buildNotaFattura({...v, fornitore:document.getElementById('prev-fornitore').value.trim()||v.fornitore, numero_fattura:document.getElementById('prev-numero').value.trim()||v.numero_fattura}, v.importo||0, v.spese_accessorie||0);
+  v._notaDefault = v.nota_da_aggiungere;
+  renderFatturaPreview(fattVoci);
+  setTimeout(()=>{ fattVoci.forEach((_,i)=>aggiornaDistribuzione(i)); }, 50);
+}
+
+function buildFatturaPromptV2(testo, fornitore, numFattura){
+  const oggi = new Date();
+  const da = new Date(oggi); da.setMonth(da.getMonth()-8);
+  const a = new Date(oggi); a.setMonth(a.getMonth()+4);
+  const daS=da.toISOString().slice(0,10), aS=a.toISOString().slice(0,10);
+  const titoli = [...new Set(data.filter(s=>s.data>=daS && s.data<=aS && !s.replicaOf && !s.premontaggio && s.manif!=='GESTIONE').map(s=>s.spett.trim()))].slice(0,200);
+  const luoghi = Object.keys(teatriDB).sort().map(c=>c+': '+(teatriDB[c]||[]).join(', ')).join('\n');
+  return `ISTRUZIONI: Rispondi ESCLUSIVAMENTE con un oggetto JSON grezzo, senza testo prima o dopo e senza markdown.
+
+Sei un trascrittore di fatture di fornitori di servizi teatrali (tecnici, macchinisti, facchinaggio, noleggi, antincendio). NON devi abbinare le voci agli spettacoli e NON devi sommare o dividere importi: devi solo trascrivere fedelmente ogni riga della fattura in forma strutturata. L'abbinamento lo fa il programma.
+${fornitore ? '\nFornitore: '+fornitore : ''}${numFattura ? '\nNumero fattura: '+numFattura : ''}
+
+FATTURA:
+${testo || '(vedi documento allegato)'}
+
+FORMATO RISPOSTA:
+{
+  "fornitore": "denominazione del cedente/prestatore",
+  "numero_fattura": "numero documento",
+  "data_fattura": "YYYY-MM-DD",
+  "totale_imponibile": 0.00,
+  "righe": [
+    {
+      "descrizione": "testo della riga come scritto, max 150 caratteri",
+      "importo": 0.00,
+      "quantita": 1,
+      "tipo": "servizio | rimborso | noleggio | canone | altro",
+      "date": ["YYYY-MM-DD"],
+      "periodo": {"da": "YYYY-MM-DD", "a": "YYYY-MM-DD"},
+      "mese": "YYYY-MM",
+      "citta": "CITTÀ",
+      "teatro": "nome del teatro/spazio",
+      "titolo": "titolo dello spettacolo o evento"
+    }
+  ]
+}
+
+REGOLE:
+- Una riga JSON per ogni riga della fattura, nell'ordine della fattura. importo = imponibile della riga (prezzo totale senza IVA), numero puro.
+- "date": TUTTE le date esplicite della riga, espandendo gli elenchi ("4,6,7 giugno 2026" → 3 date; "16 e 17 mar. 2026" → 2 date). Se manca l'anno usa quello della fattura. Lascia [] se la riga non ha date.
+- "periodo": solo per intervalli ("dal 15 al 22 giugno"); altrimenti null. "mese": solo per canoni/servizi mensili ("nel mese di giugno"); altrimenti null.
+- "tipo": rimborso = rimborso spese/trasferta; canone = servizio mensile forfettario; noleggio = noleggio senza operatore; tutto il resto (assistenza, macchinista, responsabile tecnico, noleggio con operatore, facchinaggio) = servizio.
+- "citta"/"teatro"/"titolo": solo se scritti nella riga (o nell'intestazione se vale per tutta la fattura). Usa i nomi delle città della lista qui sotto quando corrispondono; se è citato solo il teatro, lascia citta "" e compila teatro. Se il titolo coincide con uno della lista, copialo esatto. Non inventare nulla.
+
+CITTÀ E TEATRI CONOSCIUTI:
+${luoghi}
+
+TITOLI IN CALENDARIO:
+${titoli.join(' | ')}`;
+}
+
 async function callAIText(url, prompt){
   const body = JSON.stringify({action:'ai', prompt});
   const res = await fetch(url, {method:'POST', headers:{'Content-Type':'text/plain'}, body});
@@ -5273,7 +5555,7 @@ async function callAIText(url, prompt){
 
 async function callAIWithPDF(url, b64, fornitore, numFattura, spettList, imgType=null){
   const mediaLabel = imgType ? 'immagine' : 'PDF';
-  const prompt = `Analizza questa fattura ${mediaLabel} e ${buildFatturaPrompt('[vedi allegato]', fornitore, numFattura, spettList).split('FATTURA:')[1]}`;
+  const prompt = buildFatturaPromptV2(null, fornitore, numFattura).replace('(vedi documento allegato)', '(la fattura è nel documento '+mediaLabel+' allegato)');
   // imgType=null → PDF, imgType='image/jpeg' → immagine
   const body = JSON.stringify({action:'ai_pdf', prompt, pdf_b64: imgType ? null : b64, img_b64: imgType ? b64 : null, img_type: imgType, fornitore, spettList});
   const res = await fetch(url, {method:'POST', headers:{'Content-Type':'text/plain'}, body});
@@ -5316,11 +5598,14 @@ function renderFatturaPreview(voci){
   list.innerHTML = '';
   nomatchList.innerHTML = '';
 
-  const withMatch = voci.filter(v=>v._match);
-  const noMatch   = voci.filter(v=>!v._match);
+  const withMatch = voci.filter(v=>v._match || v._v2);
+  const noMatch   = voci.filter(v=>!v._match && !v._v2);
 
+  const nSp = voci.filter(v=>v._stato==='spettacolo' || (!v._v2 && v._match)).length;
+  const nGe = voci.filter(v=>v._stato==='gestione').length;
+  const nDe = voci.filter(v=>v._stato==='ambiguo' || v._stato==='nessuno').length + noMatch.length;
   document.getElementById('fatt-count').textContent =
-    `${withMatch.length} voci abbinate · ${noMatch.length} senza corrispondenza`;
+    `${nSp} su spettacoli · ${nGe} gestione · ${nDe} da decidere`;
 
   function buildCard(v, globalIdx, isNew){
     const s = v._match;
@@ -5329,9 +5614,15 @@ function renderFatturaPreview(voci){
     div.className = 'cal-ev sel';
     div.id = 'fattev-'+globalIdx;
     if(isNew) div.style.borderColor = 'var(--purple)';
-    const badge = isNew
-      ? '<span style="font-size:9px;background:var(--purple);color:#fff;padding:1px 6px;border-radius:10px;margin-left:6px;">NUOVO</span>'
-      : '<span style="font-size:9px;background:var(--green);color:#000;padding:1px 6px;border-radius:10px;margin-left:6px;">ABBINATO</span>';
+    const _bd = 'font-size:9px;padding:1px 6px;border-radius:10px;margin-left:6px;';
+    const badge = v._stato==='gestione' ? '<span style="'+_bd+'background:#2563eb;color:#fff;">GESTIONE</span>'
+      : v._stato==='ambiguo' ? '<span style="'+_bd+'background:#f59e0b;color:#000;">DA DECIDERE</span>'
+      : v._stato==='nessuno' ? '<span style="'+_bd+'background:#ef4444;color:#fff;">DA ASSEGNARE</span>'
+      : isNew ? '<span style="'+_bd+'background:var(--purple);color:#fff;">NUOVO</span>'
+      : '<span style="'+_bd+'background:var(--green);color:#000;">ABBINATO</span>';
+    if(v._stato==='gestione') div.style.borderColor='#2563eb';
+    else if(v._stato==='ambiguo') div.style.borderColor='#f59e0b';
+    else if(v._stato==='nessuno') div.style.borderColor='#ef4444';
     const header = document.createElement('div');
     header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer;';
     header.onclick = (e)=>{ if(e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA') div.classList.toggle('sel'); };
@@ -5341,14 +5632,26 @@ function renderFatturaPreview(voci){
       </div>
       <div style="font-size:16px;">${isNew?'➕':'✓'}</div>`;
     div.appendChild(header);
-    if(s && !isNew){
+    if((s && !isNew) || v._v2){
       const matchInfo = document.createElement('div');
       matchInfo.style.cssText = 'font-size:10px;color:var(--text2);margin-bottom:6px;';
-      matchInfo.textContent = v.descrizione||'';
+      matchInfo.textContent = (v.descrizione||'') + (v._motivo ? '  →  '+v._motivo : '');
       div.appendChild(matchInfo);
     }
+    if(v._v2 && (v._stato==='ambiguo' || v._stato==='nessuno' || (v._candidati&&v._candidati.length))){
+      const sel = document.createElement('select');
+      sel.style.cssText = 'font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid #f59e0b;background:var(--bg);color:var(--text1);width:100%;margin-bottom:6px;';
+      const cands = (v._candidati&&v._candidati.length) ? v._candidati
+        : data.filter(x=>(!v.citta || _cittaEq(x.citta,v.citta)) && Math.abs(new Date(x.data)-new Date(v.data||Date.now()))<45*86400000).sort((a,b)=>a.data.localeCompare(b.data)).slice(0,40);
+      const fd = d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}); }catch{ return d; } };
+      sel.innerHTML = '<option value="">— scegli dove mettere il costo —</option>' +
+        cands.map(x=>`<option value="${x.id}"${v._match&&String(v._match.id)===String(x.id)?' selected':''}>${fd(x.data)} ${x.citta} · ${x.spett}${x.teatro?' ('+x.teatro+')':''}</option>`).join('') +
+        `<option value="__gestione"${v._gestione?' selected':''}>🏛 Gestione ${v.citta||''} (nuova riga)</option>`;
+      sel.onchange = ()=>{ if(sel.value) scegliCandidato(globalIdx, sel.value); };
+      div.appendChild(sel);
+    }
     const inp = 'font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--bg);color:var(--text1);';
-    const spettDefault = isNew?(v.spettacolo_nome||v.descrizione||''):(s?s.spett:'');
+    const spettDefault = s ? s.spett : (v.spettacolo_nome||v.descrizione||'');
     const fields = document.createElement('div');
     fields.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
     fields.innerHTML = `
@@ -6455,6 +6758,11 @@ function applicaFattura(){
     }
     // Memorizza l'ID dello spettacolo trovato per la nota
     if(spett) v._targetSpettId = spett.id;
+    // Impara: teatro citato in fattura → città scelta dall'utente (per le prossime fatture)
+    if(v._v2 && v.teatro && cittaVal){
+      const nt = _normTxt(v.teatro).replace(/^TEATRO /,'');
+      if(nt.length>=4 && fattAlias[nt]!==cittaVal){ fattAlias[nt]=cittaVal; sv('fattAlias',fattAlias); }
+    }
 
     // ── Se la voce ha splits, scrivi su ciascuno ──
     if(v._splits && v._splits.length > 0){
@@ -6513,7 +6821,7 @@ function applicaFattura(){
       data.push({
         id:Date.now()+Math.random(), data:dataVal, citta:cittaVal,
         teatro:v.teatro||(teatriDB[cittaVal]||[''])[0]||'',
-        spett:spettVal||'SPETTACOLO', manif:'',
+        spett:spettVal||'SPETTACOLO', manif:(v._gestione||/^GESTIONE/i.test(spettVal))?'GESTIONE':'',
         nm:0,tm:tariffe.m,sm:0,ne:0,te:tariffe.e,se:0,nf:0,tf:tariffe.f,sf:0,
         totale:0, note:notaNuova, fatturato:false, fromAI:true,
         ts:new Date().toISOString()
@@ -6696,7 +7004,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v44</span>
+    <span>Report generato da GammaFucker v45</span>
   </div>
   </body></html>`;
 
@@ -6802,7 +7110,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v44</span>
+    <span>Report generato da GammaFucker v45</span>
   </div>
   </body></html>`;
 
@@ -6879,7 +7187,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v44</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v45</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
