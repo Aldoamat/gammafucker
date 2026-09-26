@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v35 ──
+// ── SPETTACOLI APP SCRIPT v36 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -211,6 +211,10 @@ function doGet(e) {
     var cb = e.parameter.callback;
     if(cb) return ContentService.createTextOutput(cb+'('+payload+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
     return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
+  }
+  if(action === 'auditDate') {
+    try { return ContentService.createTextOutput(JSON.stringify(auditDateProposte())).setMimeType(ContentService.MimeType.JSON); }
+    catch(err) { return ContentService.createTextOutput(JSON.stringify({error: err.message})).setMimeType(ContentService.MimeType.JSON); }
   }
   if(action === 'auditAnagrafica') {
     try { return ContentService.createTextOutput(JSON.stringify(auditAnagrafica())).setMimeType(ContentService.MimeType.JSON); }
@@ -1782,6 +1786,58 @@ var DATE_DA_CORREGGERE = [
   "a": "2027-05-05"
  }
 ];
+// ════════════════════ VERIFICA DATE dalle proposte ════════════════════
+// Le proposte approvate conservano la data letta dal programma; gli spettacoli creati da esse
+// durante l'ora legale (bug GMT+1) sono un giorno indietro. Confronto: per ogni proposta approvata
+// (città + titolo + data) senza spettacolo in quella data ma con uno il giorno prima → proposta di
+// correzione +1 (con la catena di repliche/premontaggi nei giorni precedenti). GET ?action=auditDate
+function auditDateProposte() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var shP = ss.getSheetByName('Proposte'), shS = ss.getSheetByName('Spettacoli');
+  if (!shP || !shS) return { error: 'fogli mancanti' };
+  var fmt = function(v){ return v instanceof Date ? Utilities.formatDate(v, 'Europe/Rome', 'yyyy-MM-dd') : String(v || '').substring(0, 10); };
+  var U = function(v){ return String(v || '').trim().toUpperCase().replace(/\s+/g, ' '); };
+  var key = function(c, t){ return U(c) + '|' + _normTitoloGS(t); };
+  var addDays = function(d, n){ var x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().substring(0, 10); };
+
+  var P = shP.getDataRange().getValues(), hP = P[0].map(function(h){ return U(h); });
+  var pS = hP.indexOf('STATO'), pC = hP.indexOf('CITTA'), pD = hP.indexOf('DATA'), pT = hP.indexOf('TITOLO'), pR = hP.indexOf('REPLICHE');
+  var prop = {};   // key → { date: {d:true}, repliche }
+  for (var i = 1; i < P.length; i++) {
+    if (String(P[i][pS]).toLowerCase() !== 'approvata') continue;
+    var d = fmt(P[i][pD]); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+    var k = key(P[i][pC], P[i][pT]); if (!prop[k]) prop[k] = { date: {}, repliche: 1 };
+    prop[k].date[d] = true; prop[k].repliche = Math.max(prop[k].repliche, +P[i][pR] || 1);
+  }
+  var S = shS.getDataRange().getValues(), hS = S[0].map(function(h){ return U(h); });
+  var sI = hS.indexOf('ID'), sD = hS.indexOf('DATA'), sC = hS.indexOf('CITTA'), sT = hS.indexOf('SPETTACOLO'), sM = hS.indexOf('MANIFESTAZIONE'), sTe = hS.indexOf('TEATRO');
+  var rows = {};   // key → [{id,data,citta,spett,teatro,manif}]
+  for (var j = 1; j < S.length; j++) {
+    var k2 = key(S[j][sC], S[j][sT]); if (!prop[k2]) continue;
+    (rows[k2] = rows[k2] || []).push({ id: _normId(S[j][sI]), data: fmt(S[j][sD]), citta: String(S[j][sC] || ''), spett: String(S[j][sT] || ''), teatro: String(S[j][sTe] || ''), manif: String(S[j][sM] || '') });
+  }
+  var out = [], visti = {};
+  Object.keys(prop).forEach(function(k) {
+    var R = rows[k] || []; if (!R.length) return;
+    var byDate = {}; R.forEach(function(r){ (byDate[r.data] = byDate[r.data] || []).push(r); });
+    Object.keys(prop[k].date).forEach(function(d) {
+      if (byDate[d]) return;                       // c'è già uno spettacolo in quella data → ok
+      var prev = addDays(d, -1); if (!byDate[prev]) return;
+      // catena all'indietro: repliche/premontaggi nei giorni consecutivi precedenti (non oltre un'altra data di proposta)
+      var x = prev, catena = [];
+      while (byDate[x] && !prop[k].date[x] && catena.length < 8) { catena = catena.concat(byDate[x]); x = addDays(x, -1); }
+      catena.forEach(function(r) {
+        if (visti[r.id]) return; visti[r.id] = true;
+        out.push({ tipo: 'data', id: r.id, citta: r.citta, spett: r.spett, teatro: r.teatro, manif: r.manif, da: r.data, a: addDays(r.data, 1), proposta: d });
+      });
+    });
+  });
+  out.sort(function(a, b){ return a.da < b.da ? -1 : a.da > b.da ? 1 : 0; });
+  return { totProposte: Object.keys(prop).length, totSpettacoli: S.length - 1, correzioni: out };
+}
+function anteprimaDateProposte() { var r = auditDateProposte(); Logger.log(r.correzioni.length + ' correzioni proposte'); r.correzioni.forEach(function(x){ Logger.log(x.da + ' → ' + x.a + '  ' + x.citta + ' · ' + x.spett); }); return r; }
+function correggiDateProposte() { var r = auditDateProposte(); if (!r.correzioni.length) { Logger.log('niente da correggere'); return r; } var a = applicaAnagrafica(r.correzioni.map(function(x){ return { tipo: 'data', id: x.id, citta: x.citta, spett: x.spett, da: x.da, a: x.a }; })); Logger.log('Date corrette: ' + a.righe + ' (ver ' + a.ver + ')'); return a; }
+
 function correggiDateDST() {
   var r = applicaAnagrafica(DATE_DA_CORREGGERE);
   Logger.log('Date corrette nel foglio: ' + r.righe + ' (versione anagrafica ' + r.ver + '); i dispositivi si allineano al prossimo pull');

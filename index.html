@@ -233,7 +233,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v45</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v46</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -460,6 +460,16 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <span id="anag-stato" style="font-size:10px;color:var(--text3);"></span>
     </div>
     <div id="anag-report"></div>
+  </div>
+
+  <div class="fc">
+    <div class="fct">🗓 Verifica date</div>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.5;">Confronta gli spettacoli con le proposte approvate: se uno spettacolo risulta il giorno prima della data della proposta (vecchio errore di fuso orario), viene proposto lo spostamento di +1 giorno. Tu scegli, l'app corregge foglio e dispositivi.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+      <button class="btn btn-o btn-sm" onclick="verificaDate()">🗓 Verifica ora</button>
+      <span id="date-stato" style="font-size:10px;color:var(--text3);"></span>
+    </div>
+    <div id="date-report"></div>
   </div>
 
   <div class="fc">
@@ -1488,6 +1498,48 @@ async function applicaAudit(){
     st.textContent='✓ fatto: '+r.righe+' righe nel foglio, '+n+' record locali';
     toast('✓ Anagrafica unificata');
     document.getElementById('anag-report').innerHTML=''; _audit=null;
+  }catch(e){ st.textContent='errore: '+e.message; toast('Errore: '+e.message, true); }
+}
+
+// ════════════════════ VERIFICA DATE (spettacoli vs proposte) ════════════════════
+let _auditDate=null;
+async function verificaDate(){
+  const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
+  const st=document.getElementById('date-stato'), box=document.getElementById('date-report');
+  st.textContent='⏳ confronto…'; box.innerHTML='';
+  try{
+    const res=await fetch(url+'?action=auditDate&t='+Date.now()); const j=await res.json();
+    if(j.error) throw new Error(j.error);
+    _auditDate=j; const c=j.correzioni||[];
+    st.textContent=c.length ? c.length+' date da correggere' : '✓ nessuna data da correggere';
+    if(!c.length) return;
+    const fd=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'2-digit'}); }catch{ return d; } };
+    let h='<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><label style="font-size:10px;color:var(--text2);"><input type="checkbox" checked onchange="document.querySelectorAll(\'.date-fix\').forEach(x=>x.checked=this.checked)"> tutte</label></div>';
+    h+=c.map((x,i)=>`<label style="display:flex;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px;font-size:11px;cursor:pointer;">
+      <input type="checkbox" class="date-fix" data-i="${i}" checked>
+      <span style="color:var(--red);white-space:nowrap;">${fd(x.da)}</span><span style="color:var(--text3);">→</span><span style="color:var(--green);white-space:nowrap;font-weight:700;">${fd(x.a)}</span>
+      <span style="flex:1;color:var(--text1);">${x.citta} · ${x.spett}${x.teatro?' <span style="color:var(--text3);">('+x.teatro+')</span>':''}</span></label>`).join('');
+    h+=`<div style="display:flex;gap:8px;margin-top:12px;"><button class="btn btn-p" style="flex:1;" onclick="applicaDate()">✓ Correggi le date selezionate</button><button class="btn btn-o" onclick="document.getElementById('date-report').innerHTML='';_auditDate=null;">Chiudi</button></div>`;
+    box.innerHTML=h;
+  }catch(e){ st.textContent='errore: '+e.message; }
+}
+async function applicaDate(){
+  if(!_auditDate) return;
+  const sel=[...document.querySelectorAll('.date-fix:checked')].map(x=>_auditDate.correzioni[+x.dataset.i]);
+  if(!sel.length){ toast('Niente selezionato', true); return; }
+  if(!confirm('Spostare '+sel.length+' spettacoli di +1 giorno? La correzione vale per il foglio e per tutti i dispositivi.')) return;
+  const remaps=sel.map(x=>({tipo:'data', id:x.id, citta:x.citta, spett:x.spett, da:x.da, a:x.a}));
+  const url=ld('sheetsUrl',''); const st=document.getElementById('date-stato'); st.textContent='⏳ correggo…';
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'applicaAnagrafica', remaps})});
+    const r=await res.json(); if(r.error) throw new Error(r.error);
+    const n=applicaRemapsLocali(remaps);
+    sv('anagraficaVer', r.ver);
+    window._pullBlockUntil = Date.now() + 30000;
+    renderList();
+    st.textContent='✓ fatto: '+r.righe+' righe nel foglio, '+n+' record locali';
+    toast('✓ Date corrette');
+    document.getElementById('date-report').innerHTML=''; _auditDate=null;
   }catch(e){ st.textContent='errore: '+e.message; toast('Errore: '+e.message, true); }
 }
 
@@ -2610,7 +2662,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v35 ──
+  return `// ── SPETTACOLI APP SCRIPT v36 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -2823,6 +2875,10 @@ function doGet(e) {
     var cb = e.parameter.callback;
     if(cb) return ContentService.createTextOutput(cb+'('+payload+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
     return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
+  }
+  if(action === 'auditDate') {
+    try { return ContentService.createTextOutput(JSON.stringify(auditDateProposte())).setMimeType(ContentService.MimeType.JSON); }
+    catch(err) { return ContentService.createTextOutput(JSON.stringify({error: err.message})).setMimeType(ContentService.MimeType.JSON); }
   }
   if(action === 'auditAnagrafica') {
     try { return ContentService.createTextOutput(JSON.stringify(auditAnagrafica())).setMimeType(ContentService.MimeType.JSON); }
@@ -4394,6 +4450,58 @@ var DATE_DA_CORREGGERE = [
   "a": "2027-05-05"
  }
 ];
+// ════════════════════ VERIFICA DATE dalle proposte ════════════════════
+// Le proposte approvate conservano la data letta dal programma; gli spettacoli creati da esse
+// durante l'ora legale (bug GMT+1) sono un giorno indietro. Confronto: per ogni proposta approvata
+// (città + titolo + data) senza spettacolo in quella data ma con uno il giorno prima → proposta di
+// correzione +1 (con la catena di repliche/premontaggi nei giorni precedenti). GET ?action=auditDate
+function auditDateProposte() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var shP = ss.getSheetByName('Proposte'), shS = ss.getSheetByName('Spettacoli');
+  if (!shP || !shS) return { error: 'fogli mancanti' };
+  var fmt = function(v){ return v instanceof Date ? Utilities.formatDate(v, 'Europe/Rome', 'yyyy-MM-dd') : String(v || '').substring(0, 10); };
+  var U = function(v){ return String(v || '').trim().toUpperCase().replace(/\\s+/g, ' '); };
+  var key = function(c, t){ return U(c) + '|' + _normTitoloGS(t); };
+  var addDays = function(d, n){ var x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().substring(0, 10); };
+
+  var P = shP.getDataRange().getValues(), hP = P[0].map(function(h){ return U(h); });
+  var pS = hP.indexOf('STATO'), pC = hP.indexOf('CITTA'), pD = hP.indexOf('DATA'), pT = hP.indexOf('TITOLO'), pR = hP.indexOf('REPLICHE');
+  var prop = {};   // key → { date: {d:true}, repliche }
+  for (var i = 1; i < P.length; i++) {
+    if (String(P[i][pS]).toLowerCase() !== 'approvata') continue;
+    var d = fmt(P[i][pD]); if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(d)) continue;
+    var k = key(P[i][pC], P[i][pT]); if (!prop[k]) prop[k] = { date: {}, repliche: 1 };
+    prop[k].date[d] = true; prop[k].repliche = Math.max(prop[k].repliche, +P[i][pR] || 1);
+  }
+  var S = shS.getDataRange().getValues(), hS = S[0].map(function(h){ return U(h); });
+  var sI = hS.indexOf('ID'), sD = hS.indexOf('DATA'), sC = hS.indexOf('CITTA'), sT = hS.indexOf('SPETTACOLO'), sM = hS.indexOf('MANIFESTAZIONE'), sTe = hS.indexOf('TEATRO');
+  var rows = {};   // key → [{id,data,citta,spett,teatro,manif}]
+  for (var j = 1; j < S.length; j++) {
+    var k2 = key(S[j][sC], S[j][sT]); if (!prop[k2]) continue;
+    (rows[k2] = rows[k2] || []).push({ id: _normId(S[j][sI]), data: fmt(S[j][sD]), citta: String(S[j][sC] || ''), spett: String(S[j][sT] || ''), teatro: String(S[j][sTe] || ''), manif: String(S[j][sM] || '') });
+  }
+  var out = [], visti = {};
+  Object.keys(prop).forEach(function(k) {
+    var R = rows[k] || []; if (!R.length) return;
+    var byDate = {}; R.forEach(function(r){ (byDate[r.data] = byDate[r.data] || []).push(r); });
+    Object.keys(prop[k].date).forEach(function(d) {
+      if (byDate[d]) return;                       // c'è già uno spettacolo in quella data → ok
+      var prev = addDays(d, -1); if (!byDate[prev]) return;
+      // catena all'indietro: repliche/premontaggi nei giorni consecutivi precedenti (non oltre un'altra data di proposta)
+      var x = prev, catena = [];
+      while (byDate[x] && !prop[k].date[x] && catena.length < 8) { catena = catena.concat(byDate[x]); x = addDays(x, -1); }
+      catena.forEach(function(r) {
+        if (visti[r.id]) return; visti[r.id] = true;
+        out.push({ tipo: 'data', id: r.id, citta: r.citta, spett: r.spett, teatro: r.teatro, manif: r.manif, da: r.data, a: addDays(r.data, 1), proposta: d });
+      });
+    });
+  });
+  out.sort(function(a, b){ return a.da < b.da ? -1 : a.da > b.da ? 1 : 0; });
+  return { totProposte: Object.keys(prop).length, totSpettacoli: S.length - 1, correzioni: out };
+}
+function anteprimaDateProposte() { var r = auditDateProposte(); Logger.log(r.correzioni.length + ' correzioni proposte'); r.correzioni.forEach(function(x){ Logger.log(x.da + ' → ' + x.a + '  ' + x.citta + ' · ' + x.spett); }); return r; }
+function correggiDateProposte() { var r = auditDateProposte(); if (!r.correzioni.length) { Logger.log('niente da correggere'); return r; } var a = applicaAnagrafica(r.correzioni.map(function(x){ return { tipo: 'data', id: x.id, citta: x.citta, spett: x.spett, da: x.da, a: x.a }; })); Logger.log('Date corrette: ' + a.righe + ' (ver ' + a.ver + ')'); return a; }
+
 function correggiDateDST() {
   var r = applicaAnagrafica(DATE_DA_CORREGGERE);
   Logger.log('Date corrette nel foglio: ' + r.righe + ' (versione anagrafica ' + r.ver + '); i dispositivi si allineano al prossimo pull');
@@ -7004,7 +7112,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v45</span>
+    <span>Report generato da GammaFucker v46</span>
   </div>
   </body></html>`;
 
@@ -7110,7 +7218,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v45</span>
+    <span>Report generato da GammaFucker v46</span>
   </div>
   </body></html>`;
 
@@ -7187,7 +7295,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v45</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v46</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
