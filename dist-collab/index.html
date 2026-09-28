@@ -215,8 +215,8 @@ textarea{resize:none;height:68px;font-size:13px;}
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
-html.collab .collab-only{display:inline-block!important;}
-html.collab .admin-only,html.collab #chip-fatt,html.collab #chip-fat,html.collab #chip-zero{display:none!important;}
+html.collab .collab-only{display:inline-block!important;} html.collab p.collab-only,html.collab div.collab-only{display:block!important;}
+html.collab .admin-only,html.collab #chip-zero{display:none!important;}
 html.collab .tabs{justify-content:center;}
 input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;width:auto;padding:0;accent-color:var(--accent);}
 .rb-wrap{position:relative;}
@@ -233,7 +233,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v46</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v49</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -271,7 +271,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
   <button class="tab active" onclick="goTab('list')">📋 Lista</button>
   <button class="tab admin-only" onclick="goTab('set')">⚙️ Config</button>
   <button class="tab admin-only" onclick="goTab('exp')">📤 Export</button>
-  <button class="tab admin-only" onclick="goTab('forn')">🏢 Fornitori</button>
+  <button class="tab" onclick="goTab('forn')">🏢 Fornitori</button>
   <button class="tab admin-only" onclick="goTab('collab')">👥 Collab.</button>
   <button class="tab" onclick="goTab('agenda')">📅 Agenda</button>
   <button class="tab admin-only" onclick="goTab('proposte')">🔔 Proposte <span id="prop-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:2px;"></span></button>
@@ -421,8 +421,8 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
   <div class="stato-filter">
     <span class="stato-chip" id="chip-week" onclick="setWeekFilter()" style="border-color:rgba(245,200,66,.4);color:var(--gold);background:rgba(245,200,66,.1);">📅 Questa settimana</span>
     <span class="stato-chip active-all" id="chip-all" onclick="setStatoFilter('all')">Tutti</span>
-    <span class="stato-chip admin-only" id="chip-fatt" onclick="setStatoFilter('fatt')">💚 Fatturabili</span>
-    <span class="stato-chip admin-only" id="chip-fat" onclick="setStatoFilter('fat')">🔴 Fatturati</span>
+    <span class="stato-chip" id="chip-fatt" onclick="setStatoFilter('fatt')">💚 Fatturabili</span>
+    <span class="stato-chip" id="chip-fat" onclick="setStatoFilter('fat')">🔴 Fatturati</span>
     <span class="stato-chip admin-only" id="chip-zero" onclick="setStatoFilter('zero')">— Da definire</span>
   </div>
 
@@ -615,6 +615,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       </select>
       <button class="btn btn-o btn-sm" onclick="buildFornSelect()">🔄</button>
     </div>
+    <p class="collab-only" style="display:none;font-size:11px;color:var(--text2);margin-bottom:10px;">Archivio in sola lettura: scegli il fornitore e tocca una fattura per aprire il dettaglio.</p>
     <div id="forn-lista" style="display:flex;flex-direction:column;gap:8px;"></div>
   </div>
 </div>
@@ -1395,6 +1396,7 @@ function applicaRemapsLocali(remaps){
     if(f2){
       if(f2.note_add && !(s.note||'').includes(f2.note_add)){ s.note=(s.note?s.note+' | ':'')+f2.note_add; n++; }
       if(typeof f2.note_set==='string'){ s.note=f2.note_set; n++; }
+      if(typeof f2.fatturato_set==='boolean'){ s.fatturato=f2.fatturato_set; n++; }
       if(f2.accordi && !(s.accordi||'').trim()){ s.accordi=f2.accordi; n++; }
       if(f2.contatti&&f2.contatti.length){ s.contatti=s.contatti||[]; f2.contatti.forEach(c=>{ if(!c) return; const em=(c.email||'').toLowerCase(); const dup=s.contatti.some(o=>(em&&(o.email||'').toLowerCase()===em)||(!em&&(o.nome||'').toUpperCase()===(c.nome||'').toUpperCase()&&(o.telefono||'')===(c.telefono||''))); if(!dup) s.contatti.push(c); }); n++; }
     }
@@ -2085,8 +2087,16 @@ function toggleFatturato(id){
     }
   }
   // Aggiorna contatore in alto
-  document.getElementById('s-fat').textContent=data.filter(s=>s.fatturato).length;
+  const sf=document.getElementById('s-fat'); if(sf) sf.textContent=data.filter(s=>s.fatturato).length;
   toast(isFat?'🔴 Segnato come FATTURATO':'💚 Tornato a FATTURABILE');
+  if(IS_COLLAB){
+    // i collaboratori non fanno push: aggiornano solo la cella FATTURATO (e il giornale) sul server
+    const url=ld('sheetsUrl',''); if(!url) return;
+    window._pullBlockUntil = Date.now() + 30000;
+    fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'updateFatturato', id:data[idx].id, fatturato:isFat, autore:ld('nomeUtente','Collaboratore')})})
+      .then(r=>r.json()).then(j=>{ if(j.error) throw new Error(j.error); if(j.ver) sv('anagraficaVer', j.ver); })
+      .catch(e=>toast('Errore salvataggio: '+e.message, true));
+  }
 }
 
 // ══════════════════════════════════ LISTA ══════════════════════════════════
@@ -2172,7 +2182,7 @@ function _buildCard(s){
     ${(()=>{ if(!s.note) return ''; const righe=s.note.split('|').map(l=>l.trim()).filter(Boolean); const fR=righe.filter(l=>l.toLowerCase().includes('fattura')); const gR=righe.filter(l=>!l.toLowerCase().includes('fattura')); let h=''; if(gR.length) h+='<div class="spnote">'+gR.join('<br>')+'</div>'; if(fR.length) h+='<div class="spnote-fatt">'+fR.join('<br><br>')+'</div>'; if(fR.length) h+=`<button class="iBtn" style="font-size:10px;margin-top:3px;border-color:rgba(124,58,237,.4);color:var(--purple);" onclick="reportFattureNote(${s.id})">📋 Fatture in nota</button>`; return h; })()}
     <div class="sptags">
       ${s.manif?`<span class="tag m">${s.manif}</span>`:''}
-      ${IS_COLLAB?'':isFat?`<span class="tag fat">✓ fatturato</span>`:hasTot?`<span class="tag s">€ fatturabile</span>`:''}
+      ${isFat?`<span class="tag fat">✓ fatturato</span>`:hasTot?`<span class="tag s">€ fatturabile</span>`:''}
     </div>
     ${hp?`<div class="spprest">
       ${s.nm?`<span>🔧 Macchinista ${s.nm}×${s.tm}€</span>`:''}
@@ -2184,11 +2194,11 @@ function _buildCard(s){
     </div>`:''}
     <div class="spact">
       ${IS_COLLAB?`<button class="iBtn ed" onclick="apriNoteCollab(${s.id})">📝 Note</button>`:''}
-      ${!IS_COLLAB&&hasTot?`<button class="iBtn fatt-btn${isFat?' done':''}" onclick="toggleFatturato(${s.id})">${isFat?'🔴 Fatturato':'💚 Fatturabile'}</button>`:''}
+      ${hasTot?`<button class="iBtn fatt-btn${isFat?' done':''}" onclick="toggleFatturato(${s.id})">${isFat?'🔴 Fatturato':'💚 Fatturabile'}</button>`:''}
       ${!IS_COLLAB&&!s.premontaggio&&!s.replicaOf?`<button class="iBtn" style="color:#fb923c;border-color:rgba(251,146,60,.35);" onclick="aggiungiPremontaggio(${s.id})">🔧 Premontaggio</button>`:''}
       ${!IS_COLLAB&&!s.replicaOf?`<button class="iBtn" style="color:#6366f1;border-color:rgba(99,102,241,.35);" onclick="aggiungiReplica(${s.id})">➕ Replica</button>`:''}
-      ${IS_COLLAB?'':`<button class="iBtn" style="color:var(--accent);border-color:rgba(124,58,237,.3);" onclick="apriInvioInfoSpazio(${s.id})">📧 Info spazio</button>
-      <button class="iBtn ed" onclick="editSpett(${s.id})">✏️ Modifica</button>
+      <button class="iBtn" style="color:var(--accent);border-color:rgba(124,58,237,.3);" onclick="apriInvioInfoSpazio(${s.id})">📧 Info spazio</button>
+      ${IS_COLLAB?'':`<button class="iBtn ed" onclick="editSpett(${s.id})">✏️ Modifica</button>
       <button class="iBtn dl" onclick="delSpett(${s.id})">🗑</button>`}
     </div>
   </div>`;
@@ -2662,7 +2672,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v36 ──
+  return `// ── SPETTACOLI APP SCRIPT v39 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -2778,6 +2788,11 @@ function doPost(e) {
       });
       lock.releaseLock();
       return resp('sent');
+    }
+    if (body.action === 'updateFatturato') {
+      var rf = aggiornaFatturato(body.id, !!body.fatturato, body.autore);
+      lock.releaseLock();
+      return ContentService.createTextOutput(JSON.stringify(rf)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'updateNote') {
       var rn = aggiornaNota(body.id, body.note, body.autore);
@@ -4090,7 +4105,7 @@ function applicaAnagrafica(remaps) {
     var hdr = rows[0].map(function(h){ return String(h).trim().toUpperCase(); });
     var iC = hdr.indexOf('CITTA'), iT = hdr.indexOf(nome === 'Spettacoli' ? 'TEATRO' : 'SPAZIO'), iM = hdr.indexOf('MANIFESTAZIONE');
     var iD = hdr.indexOf('DATA'), iId = hdr.indexOf('ID'), iS = hdr.indexOf('SPETTACOLO');
-    var iN = hdr.indexOf('NOTE'), iA = hdr.indexOf('ACCORDI'), iK = hdr.indexOf('CONTATTI_JSON');
+    var iN = hdr.indexOf('NOTE'), iA = hdr.indexOf('ACCORDI'), iK = hdr.indexOf('CONTATTI_JSON'), iFa = hdr.indexOf('FATTURATO');
     if (nome === 'Spettacoli' && Object.keys(mapF).length) {
       if (iA < 0) { sh.getRange(1, hdr.length + 1).setValue('ACCORDI'); hdr.push('ACCORDI'); iA = hdr.length - 1; rows.forEach(function(rw){ rw.push(''); }); rng = sh.getRange(1, 1, rows.length, hdr.length); }
       if (iK < 0) { sh.getRange(1, hdr.length + 1).setValue('CONTATTI_JSON'); hdr.push('CONTATTI_JSON'); iK = hdr.length - 1; rows.forEach(function(rw){ rw.push(''); }); rng = sh.getRange(1, 1, rows.length, hdr.length); }
@@ -4102,6 +4117,7 @@ function applicaAnagrafica(remaps) {
         var f2 = mapF[_normId(rows[r][iId])];
         if (f2.note_add && iN >= 0) { var nv = String(rows[r][iN] || ''); if (nv.indexOf(f2.note_add) < 0) { rows[r][iN] = nv ? nv + ' | ' + f2.note_add : f2.note_add; ch = true; } }
         if (typeof f2.note_set === 'string' && iN >= 0) { rows[r][iN] = f2.note_set; ch = true; }
+        if (typeof f2.fatturato_set === 'boolean' && iFa >= 0) { rows[r][iFa] = f2.fatturato_set ? 'SI' : 'NO'; ch = true; }
         if (f2.accordi && iA >= 0 && !String(rows[r][iA] || '').trim()) { rows[r][iA] = f2.accordi; ch = true; }
         if (f2.contatti && f2.contatti.length && iK >= 0) {
           var cur = []; try { cur = JSON.parse(rows[r][iK] || '[]'); } catch(e) { cur = []; }
@@ -4581,6 +4597,30 @@ function _giornaleSpazioInfo(si, G) {
     else out[nk] = si[k];
   });
   return out;
+}
+
+// ════════════════════ FATTURATO DALL'APP COLLABORATORI ════════════════════
+function aggiornaFatturato(id, fatturato, autore) {
+  var props = PropertiesService.getScriptProperties();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('Spettacoli'); if (!sh) return { error: 'foglio mancante' };
+  var rows = sh.getDataRange().getValues();
+  var hdr = rows[0].map(function(h){ return String(h).trim().toUpperCase(); });
+  var iId = hdr.indexOf('ID'), iF = hdr.indexOf('FATTURATO'), iS = hdr.indexOf('SPETTACOLO');
+  if (iF < 0) return { error: 'colonna FATTURATO mancante' };
+  var target = _normId(id);
+  for (var r = 1; r < rows.length; r++) {
+    if (_normId(rows[r][iId]) === target) {
+      sh.getRange(r + 1, iF + 1).setValue(fatturato ? 'SI' : 'NO');
+      var ver = parseInt(props.getProperty('anagraficaVer') || '0') + 1;
+      _scriviGiornale(ss, ver, [{ tipo: 'campi', id: target, fatturato_set: !!fatturato, autore: String(autore || '') }]);
+      props.setProperty('anagraficaVer', String(ver));
+      props.setProperty('lastModified', String(Date.now()));
+      props.setProperty('lastAuthor', String(autore || 'Collaboratore'));
+      return { ok: true, spettacolo: rows[r][iS], fatturato: !!fatturato, ver: ver };
+    }
+  }
+  return { error: 'spettacolo non trovato: ' + id };
 }
 
 // ════════════════════ NOTE DALL'APP COLLABORATORI ════════════════════
@@ -5865,7 +5905,13 @@ function _pulisciDittaDB(){
 }
 
 function buildFornSelect(){
-  const fornitori = _pulisciDittaDB();
+  let fornitori = _pulisciDittaDB();
+  // aggiungi i fornitori presenti nelle note fattura ma non ancora in archivio
+  const daNote = new Set();
+  data.forEach(s=>{ if(!s.note) return; s.note.split('|').forEach(l=>{ if(!/fattura/i.test(l)) return; const p=_parsaNota(l.trim()); const f=(p.forn||'').toUpperCase().trim(); if(f && f!=='—' && f.length>2) daNote.add(f); }); });
+  const up = fornitori.map(f=>f.toUpperCase());
+  daNote.forEach(f=>{ if(!up.some(u=>u===f || u.includes(f) || f.includes(u))) fornitori.push(f); });
+  fornitori = [...new Set(fornitori)];
   const sel = document.getElementById('forn-sel');
   if(!sel) return;
   const current = sel.value;
@@ -6264,8 +6310,8 @@ function mostraFattureFornitore(){
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <div style="font-size:15px;font-weight:700;color:var(--purple);">€ ${f.totale.toLocaleString('it-IT',{minimumFractionDigits:2})}</div>
-          <button onclick="event.stopPropagation();apriEditFattura(${i})" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;" title="Modifica fattura">✏️</button>
-          <button onclick="event.stopPropagation();eliminaFattura(${i})" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid rgba(239,68,68,.3);background:transparent;color:var(--red);cursor:pointer;" title="Elimina fattura">🗑</button>
+          ${IS_COLLAB?'':`<button onclick="event.stopPropagation();apriEditFattura(${i})" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;" title="Modifica fattura">✏️</button>
+          <button onclick="event.stopPropagation();eliminaFattura(${i})" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid rgba(239,68,68,.3);background:transparent;color:var(--red);cursor:pointer;" title="Elimina fattura">🗑</button>`}
         </div>
       </div>
     </div>`;
@@ -7112,7 +7158,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v46</span>
+    <span>Report generato da GammaFucker v49</span>
   </div>
   </body></html>`;
 
@@ -7218,7 +7264,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v46</span>
+    <span>Report generato da GammaFucker v49</span>
   </div>
   </body></html>`;
 
@@ -7295,7 +7341,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v46</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v49</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -7913,7 +7959,7 @@ function apriInvioInfoSpazio(spettId){
         </div>
         ${hasInfo
           ? '<span style="font-size:10px;color:var(--green);">✓ scheda presente</span>'
-          : '<span style="font-size:10px;color:var(--red);">⚠ nessuna scheda — apri 📧 in Config</span>'}
+          : '<span style="font-size:10px;color:var(--red);">⚠ nessuna scheda'+(IS_COLLAB?'':' — apri 📧 in Config')+'</span>'}
       </label>`;
     }).join('');
 
@@ -7941,7 +7987,7 @@ function _aggiornaPreviewMail(){
     ? `Carissimi,\n\nvi inoltro le informazioni ${spettacoliSelezionati===1?'dello spazio':'degli spazi'} in cui andrà in scena il vostro spettacolo.\n\n` +
       corpoSpazi +
       `Disponibile per qualsiasi ulteriore chiarimento, in attesa di un vostro riscontro, vi saluto caramente.\n\n` +
-      `Aldo Bernardini\ncoordinamento tecnico Amat\nmob. 3477086550`
+      (IS_COLLAB ? `${ld('nomeUtente','')||'Coordinamento tecnico'}\ncoordinamento tecnico Amat` : `Aldo Bernardini\ncoordinamento tecnico Amat\nmob. 3477086550`)
     : '⚠️ Nessuno spazio selezionato ha una scheda compilata. Compila prima la scheda in ⚙️ Config → Città e Teatri → 📧.';
 
   document.getElementById('ii-preview').textContent = corpo;

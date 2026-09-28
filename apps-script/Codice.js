@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v36 ──
+// ── SPETTACOLI APP SCRIPT v39 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -114,6 +114,11 @@ function doPost(e) {
       });
       lock.releaseLock();
       return resp('sent');
+    }
+    if (body.action === 'updateFatturato') {
+      var rf = aggiornaFatturato(body.id, !!body.fatturato, body.autore);
+      lock.releaseLock();
+      return ContentService.createTextOutput(JSON.stringify(rf)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'updateNote') {
       var rn = aggiornaNota(body.id, body.note, body.autore);
@@ -1426,7 +1431,7 @@ function applicaAnagrafica(remaps) {
     var hdr = rows[0].map(function(h){ return String(h).trim().toUpperCase(); });
     var iC = hdr.indexOf('CITTA'), iT = hdr.indexOf(nome === 'Spettacoli' ? 'TEATRO' : 'SPAZIO'), iM = hdr.indexOf('MANIFESTAZIONE');
     var iD = hdr.indexOf('DATA'), iId = hdr.indexOf('ID'), iS = hdr.indexOf('SPETTACOLO');
-    var iN = hdr.indexOf('NOTE'), iA = hdr.indexOf('ACCORDI'), iK = hdr.indexOf('CONTATTI_JSON');
+    var iN = hdr.indexOf('NOTE'), iA = hdr.indexOf('ACCORDI'), iK = hdr.indexOf('CONTATTI_JSON'), iFa = hdr.indexOf('FATTURATO');
     if (nome === 'Spettacoli' && Object.keys(mapF).length) {
       if (iA < 0) { sh.getRange(1, hdr.length + 1).setValue('ACCORDI'); hdr.push('ACCORDI'); iA = hdr.length - 1; rows.forEach(function(rw){ rw.push(''); }); rng = sh.getRange(1, 1, rows.length, hdr.length); }
       if (iK < 0) { sh.getRange(1, hdr.length + 1).setValue('CONTATTI_JSON'); hdr.push('CONTATTI_JSON'); iK = hdr.length - 1; rows.forEach(function(rw){ rw.push(''); }); rng = sh.getRange(1, 1, rows.length, hdr.length); }
@@ -1438,6 +1443,7 @@ function applicaAnagrafica(remaps) {
         var f2 = mapF[_normId(rows[r][iId])];
         if (f2.note_add && iN >= 0) { var nv = String(rows[r][iN] || ''); if (nv.indexOf(f2.note_add) < 0) { rows[r][iN] = nv ? nv + ' | ' + f2.note_add : f2.note_add; ch = true; } }
         if (typeof f2.note_set === 'string' && iN >= 0) { rows[r][iN] = f2.note_set; ch = true; }
+        if (typeof f2.fatturato_set === 'boolean' && iFa >= 0) { rows[r][iFa] = f2.fatturato_set ? 'SI' : 'NO'; ch = true; }
         if (f2.accordi && iA >= 0 && !String(rows[r][iA] || '').trim()) { rows[r][iA] = f2.accordi; ch = true; }
         if (f2.contatti && f2.contatti.length && iK >= 0) {
           var cur = []; try { cur = JSON.parse(rows[r][iK] || '[]'); } catch(e) { cur = []; }
@@ -1917,6 +1923,30 @@ function _giornaleSpazioInfo(si, G) {
     else out[nk] = si[k];
   });
   return out;
+}
+
+// ════════════════════ FATTURATO DALL'APP COLLABORATORI ════════════════════
+function aggiornaFatturato(id, fatturato, autore) {
+  var props = PropertiesService.getScriptProperties();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('Spettacoli'); if (!sh) return { error: 'foglio mancante' };
+  var rows = sh.getDataRange().getValues();
+  var hdr = rows[0].map(function(h){ return String(h).trim().toUpperCase(); });
+  var iId = hdr.indexOf('ID'), iF = hdr.indexOf('FATTURATO'), iS = hdr.indexOf('SPETTACOLO');
+  if (iF < 0) return { error: 'colonna FATTURATO mancante' };
+  var target = _normId(id);
+  for (var r = 1; r < rows.length; r++) {
+    if (_normId(rows[r][iId]) === target) {
+      sh.getRange(r + 1, iF + 1).setValue(fatturato ? 'SI' : 'NO');
+      var ver = parseInt(props.getProperty('anagraficaVer') || '0') + 1;
+      _scriviGiornale(ss, ver, [{ tipo: 'campi', id: target, fatturato_set: !!fatturato, autore: String(autore || '') }]);
+      props.setProperty('anagraficaVer', String(ver));
+      props.setProperty('lastModified', String(Date.now()));
+      props.setProperty('lastAuthor', String(autore || 'Collaboratore'));
+      return { ok: true, spettacolo: rows[r][iS], fatturato: !!fatturato, ver: ver };
+    }
+  }
+  return { error: 'spettacolo non trovato: ' + id };
 }
 
 // ════════════════════ NOTE DALL'APP COLLABORATORI ════════════════════
