@@ -233,7 +233,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v52</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v53</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -2118,13 +2118,20 @@ function salvaVoceFornitore(){
 // Confronto costi previsti (servizi tecnici della card) vs fatture registrate in nota
 function _discrepanzaCosti(s){
   if(!s.note) return '';
-  let fatt=0, n=0;
-  s.note.split('|').forEach(l=>{ l=l.trim(); if(!/fattura/i.test(l)) return; const p=_parsaNota(l); if(p && p.costo>0){ fatt+=p.costo; n++; } });
-  if(!n) return '';
-  const prev=+s.totale||0, diff=fatt-prev;
+  let fatt=0, n=0, altre=0, nAltre=0;
+  s.note.split('|').forEach(l=>{
+    l=l.trim(); if(!l) return;
+    if(/fattura/i.test(l)){ const p=_parsaNota(l); if(p && p.costo>0){ fatt+=p.costo; n++; } return; }
+    // note generiche: somma gli importi in euro scritti a mano (es. "facchinaggio Seven €160")
+    const m=[...l.matchAll(/€\s*([\d.]+(?:,\d{1,2})?)/g)];
+    m.forEach(x=>{ const v=parseFloat(x[1].replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.')); if(v>0){ altre+=v; nAltre++; } });
+  });
+  if(!n && !nAltre) return '';
+  const prev=+s.totale||0, tot=fatt+altre, diff=tot-prev;
   if(Math.abs(diff)<0.5) return '';
   const f=v=>'€ '+v.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});
-  return `<div style="margin-top:6px;padding:6px 8px;border-radius:6px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.45);color:#f59e0b;font-size:10px;font-weight:700;">⚠ Discrepanza costi: previsti ${f(prev)} · totale fatture fornitore ${f(fatt)} (${diff>0?'+':'−'}${f(Math.abs(diff))})</div>`;
+  const dett = nAltre ? ` (fatture ${f(fatt)} + note ${f(altre)})` : '';
+  return `<div style="margin-top:6px;padding:6px 8px;border-radius:6px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.45);color:#f59e0b;font-size:10px;font-weight:700;">⚠ Discrepanza costi: previsti ${f(prev)} · totale fatture fornitore ${f(tot)}${dett} (${diff>0?'+':'−'}${f(Math.abs(diff))})</div>`;
 }
 
 function toggleFatturato(id){
@@ -2248,7 +2255,7 @@ function _buildCard(s){
       <a href="${mm.file||mm.link}" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;color:#60a5fa;border-color:rgba(96,165,250,.3);font-size:10px;padding:2px 7px;">${mm.tipo==='scheda'?'📎':'✉'} ${mm.og.length>26?mm.og.substring(0,26)+'…':mm.og}</a>`).join('')}
       ${IS_COLLAB?'':`<button class="iBtn" style="font-size:10px;padding:2px 6px;color:var(--text3);" onclick="gestisciMail(${s.id})">⚙</button>`}</div>`:''}
     ${(s.contatti&&s.contatti.length)?`<div style="margin-top:4px;">${_contattiChips(s.contatti)}</div>`:''}
-    ${(()=>{ if(!s.note) return ''; const righe=s.note.split('|').map(l=>l.trim()).filter(Boolean); const fR=righe.filter(l=>l.toLowerCase().includes('fattura')); const gR=righe.filter(l=>!l.toLowerCase().includes('fattura')); let h=''; if(gR.length) h+='<div class="spnote">'+gR.join('<br>')+'</div>'; if(fR.length) h+='<div class="spnote-fatt">'+fR.join('<br><br>')+'</div>'; if(fR.length){ const w=_discrepanzaCosti(s); if(w) h+=w; } if(fR.length) h+=`<button class="iBtn" style="font-size:10px;margin-top:3px;border-color:rgba(124,58,237,.4);color:var(--purple);" onclick="reportFattureNote(${s.id})">📋 Fatture in nota</button>`; return h; })()}
+    ${(()=>{ if(!s.note) return ''; const righe=s.note.split('|').map(l=>l.trim()).filter(Boolean); const fR=righe.filter(l=>l.toLowerCase().includes('fattura')); const gR=righe.filter(l=>!l.toLowerCase().includes('fattura')); let h=''; if(gR.length) h+='<div class="spnote">'+gR.join('<br>')+'</div>'; if(fR.length) h+='<div class="spnote-fatt">'+fR.join('<br><br>')+'</div>'; { const w=_discrepanzaCosti(s); if(w) h+=w; } if(fR.length) h+=`<button class="iBtn" style="font-size:10px;margin-top:3px;border-color:rgba(124,58,237,.4);color:var(--purple);" onclick="reportFattureNote(${s.id})">📋 Fatture in nota</button>`; return h; })()}
     <div class="sptags">
       ${s.manif?`<span class="tag m">${s.manif}</span>`:''}
       ${isFat?`<span class="tag fat">✓ fatturato</span>`:hasTot?`<span class="tag s">€ fatturabile</span>`:''}
@@ -2742,7 +2749,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v42 ──
+  return `// ── SPETTACOLI APP SCRIPT v43 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7228,7 +7235,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v52</span>
+    <span>Report generato da GammaFucker v53</span>
   </div>
   </body></html>`;
 
@@ -7334,7 +7341,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v52</span>
+    <span>Report generato da GammaFucker v53</span>
   </div>
   </body></html>`;
 
@@ -7411,7 +7418,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v52</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v53</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
