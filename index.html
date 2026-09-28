@@ -233,7 +233,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v50</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v52</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1013,6 +1013,29 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 </div>
 
 <!-- MODAL INVIO INFO SPAZIO -->
+<div class="mover" id="voce-forn-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:460px;padding:20px;">
+    <div class="mtitle">🧾 Aggiungi voce fornitore</div>
+    <div id="vf-titolo" style="font-size:11px;color:var(--text2);margin-bottom:10px;"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="field"><label>Fornitore</label><input type="text" id="vf-forn" list="ditta-list" placeholder="Es. TEMPI TECNICI" oninput="this.value=this.value.toUpperCase()"></div>
+      <div style="display:flex;gap:8px;">
+        <div class="field" style="flex:1;margin:0;"><label>N° fattura <span style="font-size:9px;color:var(--text3);">(vuoto = senza fattura)</span></label><input type="text" id="vf-num" placeholder="Es. 102/26"></div>
+      </div>
+      <div class="field"><label>Descrizione</label><input type="text" id="vf-desc" placeholder="Es. facchinaggio montaggio/smontaggio"></div>
+      <div style="display:flex;gap:8px;">
+        <div class="field" style="flex:1;margin:0;"><label style="color:var(--green);">Servizi €</label><input type="number" step="0.01" id="vf-imp" placeholder="0.00"></div>
+        <div class="field" style="flex:1;margin:0;"><label style="color:var(--orange);">Spese acc. €</label><input type="number" step="0.01" id="vf-spese" placeholder="0.00"></div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);">La voce viene scritta in nota nel formato standard (Fattura n.… FORNITORE - … €…) e conta nel report fornitori e nel confronto costi. Senza numero fattura viene marcata come <b>PREV</b>.</div>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button class="btn btn-p" style="flex:1;" onclick="salvaVoceFornitore()">✓ Aggiungi in nota</button>
+        <button class="btn btn-o" onclick="document.getElementById('voce-forn-ov').classList.remove('open')">Annulla</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="mover" id="invia-info-ov" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" style="max-width:500px;max-height:90vh;overflow-y:auto;padding:20px;">
     <div class="mtitle">📧 Invia Info Spazio</div>
@@ -2058,6 +2081,40 @@ function resetForm(){
 }
 
 // ══════════════════════════════════ TOGGLE FATTURATO ══════════════════════════════════
+// ══ Voce fornitore a mano (costo comunicato senza fattura, o fattura non analizzata) ══
+let _vfId=null;
+function apriVoceFornitore(id){
+  const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
+  _vfId=s.id;
+  document.getElementById('vf-titolo').textContent = s.spett+' · '+s.citta+(s.teatro?' · '+s.teatro:'')+' · '+s.data;
+  ['vf-forn','vf-num','vf-desc','vf-imp','vf-spese'].forEach(i=>document.getElementById(i).value='');
+  buildDittaDatalist();
+  document.getElementById('voce-forn-ov').classList.add('open');
+  setTimeout(()=>document.getElementById('vf-forn').focus(),100);
+}
+function salvaVoceFornitore(){
+  const s=data.find(x=>String(x.id)===String(_vfId)); if(!s) return;
+  const forn=document.getElementById('vf-forn').value.trim().toUpperCase();
+  const num=document.getElementById('vf-num').value.trim().replace(/\s+-\s+/g,'-') || 'PREV';
+  const desc=document.getElementById('vf-desc').value.trim().replace(/\|/g,'/');
+  const imp=+document.getElementById('vf-imp').value||0, spese=+document.getElementById('vf-spese').value||0;
+  if(!forn){ toast('Inserisci il fornitore', true); return; }
+  if(!desc){ toast('Inserisci una descrizione', true); return; }
+  if(imp+spese<=0){ toast('Inserisci un importo', true); return; }
+  let nota='Fattura n.'+num+' '+forn+' - '+desc+' €'+imp.toFixed(2);
+  if(spese>0) nota+=' (spese €'+spese.toFixed(2)+')';
+  nota+=' [SID:'+s.id+']';
+  s.note = s.note ? s.note.trim()+' | '+nota : nota;
+  salvaDittaDB(forn);
+  sv('spettacoli',data);
+  window._pullBlockUntil = Date.now() + 30000;
+  _logModifica('fattura', 'Voce fornitore '+forn+(num!=='PREV'?' n.'+num:' (senza fattura)')+' — '+s.spett+' €'+(imp+spese).toFixed(2));
+  document.getElementById('voce-forn-ov').classList.remove('open');
+  renderList();
+  toast('✓ Voce aggiunta in nota');
+  if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
+}
+
 // Confronto costi previsti (servizi tecnici della card) vs fatture registrate in nota
 function _discrepanzaCosti(s){
   if(!s.note) return '';
@@ -2067,7 +2124,7 @@ function _discrepanzaCosti(s){
   const prev=+s.totale||0, diff=fatt-prev;
   if(Math.abs(diff)<0.5) return '';
   const f=v=>'€ '+v.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});
-  return `<div style="margin-top:6px;padding:6px 8px;border-radius:6px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.45);color:#f59e0b;font-size:10px;font-weight:700;">⚠ Discrepanza costi: previsto ${f(prev)} · fatturato ${f(fatt)} (${diff>0?'+':'−'}${f(Math.abs(diff))})</div>`;
+  return `<div style="margin-top:6px;padding:6px 8px;border-radius:6px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.45);color:#f59e0b;font-size:10px;font-weight:700;">⚠ Discrepanza costi: previsti ${f(prev)} · totale fatture fornitore ${f(fatt)} (${diff>0?'+':'−'}${f(Math.abs(diff))})</div>`;
 }
 
 function toggleFatturato(id){
@@ -2210,7 +2267,8 @@ function _buildCard(s){
       ${!IS_COLLAB&&!s.premontaggio&&!s.replicaOf?`<button class="iBtn" style="color:#fb923c;border-color:rgba(251,146,60,.35);" onclick="aggiungiPremontaggio(${s.id})">🔧 Premontaggio</button>`:''}
       ${!IS_COLLAB&&!s.replicaOf?`<button class="iBtn" style="color:#6366f1;border-color:rgba(99,102,241,.35);" onclick="aggiungiReplica(${s.id})">➕ Replica</button>`:''}
       <button class="iBtn" style="color:var(--accent);border-color:rgba(124,58,237,.3);" onclick="apriInvioInfoSpazio(${s.id})">📧 Info spazio</button>
-      ${IS_COLLAB?'':`<button class="iBtn ed" onclick="editSpett(${s.id})">✏️ Modifica</button>
+      ${IS_COLLAB?'':`<button class="iBtn" style="color:var(--purple);border-color:rgba(124,58,237,.35);" onclick="apriVoceFornitore(${s.id})">🧾 Voce fornitore</button>
+      <button class="iBtn ed" onclick="editSpett(${s.id})">✏️ Modifica</button>
       <button class="iBtn dl" onclick="delSpett(${s.id})">🗑</button>`}
     </div>
   </div>`;
@@ -2684,7 +2742,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v40 ──
+  return `// ── SPETTACOLI APP SCRIPT v42 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7170,7 +7228,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v50</span>
+    <span>Report generato da GammaFucker v52</span>
   </div>
   </body></html>`;
 
@@ -7276,7 +7334,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v50</span>
+    <span>Report generato da GammaFucker v52</span>
   </div>
   </body></html>`;
 
@@ -7353,7 +7411,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v50</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v52</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
