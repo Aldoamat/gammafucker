@@ -233,7 +233,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v58</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v59</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -691,8 +691,25 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div style="display:flex;flex-direction:column;gap:10px;">
       <div class="field"><label>Destinatari</label><input type="text" id="mc-dest" placeholder="email1, email2"></div>
       <div class="field"><label>Oggetto</label><input type="text" id="mc-ogg"></div>
-      <div class="field"><label>Testo</label><textarea id="mc-testo" style="min-height:180px;font-size:12px;"></textarea></div>
+      <div class="field"><label>Testo</label><textarea id="mc-testo" style="min-height:160px;font-size:12px;"></textarea></div>
+      <label id="mc-info-lbl" style="display:flex;gap:8px;align-items:center;font-size:12px;cursor:pointer;"><input type="checkbox" id="mc-info" style="width:15px;height:15px;"> 🏛 Includi le informazioni dello spazio (scarico, ZTL, referente…)</label>
+      <div id="mc-allegati"></div>
       <div style="display:flex;gap:8px;"><button class="btn btn-p" id="mc-btn" style="flex:1;" onclick="inviaMailCompagnia()">📤 Invia</button><button class="btn btn-o" onclick="document.getElementById('mail-comp-ov').classList.remove('open')">Annulla</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="mover" id="wa-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto;padding:20px;">
+    <div class="mtitle">💬 WhatsApp alla compagnia</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="field"><label>Contatto</label><select id="wa-dest" onchange="_waAggiorna()" style="width:100%;font-size:12px;"></select><input type="tel" id="wa-num" placeholder="numero con prefisso, es. 3331234567" style="display:none;margin-top:6px;" oninput="_waAggiorna()"></div>
+      <div class="field"><label>Messaggio</label><textarea id="wa-testo" style="min-height:90px;font-size:12px;" oninput="_waAggiorna()"></textarea></div>
+      <label style="display:flex;gap:8px;align-items:center;font-size:12px;cursor:pointer;"><input type="checkbox" id="wa-info" style="width:15px;height:15px;" onchange="_waAggiorna()"> 🏛 Includi le informazioni dello spazio</label>
+      <div id="wa-allegati" onchange="_waAggiorna()"></div>
+      <div style="font-size:10px;color:var(--text3);">Anteprima</div>
+      <div id="wa-anteprima" style="font-size:11px;white-space:pre-wrap;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;max-height:160px;overflow-y:auto;"></div>
+      <div style="display:flex;gap:8px;"><a id="wa-apri" href="#" target="_blank" rel="noopener" class="btn btn-p" style="flex:1;text-align:center;text-decoration:none;background:#25d366;">💬 Apri WhatsApp</a><button class="btn btn-o" onclick="document.getElementById('wa-ov').classList.remove('open')">Chiudi</button></div>
     </div>
   </div>
 </div>
@@ -2830,7 +2847,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v49 ──
+  return `// ── SPETTACOLI APP SCRIPT v50 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -2939,12 +2956,16 @@ function doPost(e) {
       var subject = body.subject || '';
       var message = body.message || '';
       if(!to || !subject || !message){ lock.releaseLock(); return resp('missing fields'); }
-      MailApp.sendEmail({
-        to: to,
-        subject: subject,
-        body: message,
-        htmlBody: message.split(String.fromCharCode(10)).join('<br>')
+      var opt = { to: to, subject: subject, body: message, htmlBody: message.split(String.fromCharCode(10)).join('<br>') };
+      if (COPIA_MAIL_A && to.toLowerCase().indexOf(COPIA_MAIL_A.toLowerCase()) < 0) opt.bcc = COPIA_MAIL_A;   // copia di ogni mail inviata dall'app
+      var att = [];
+      (body.allegati || []).forEach(function(u) {
+        var m = String(u || '').match(/[-\\w]{25,}/);
+        if (!m) return;
+        try { var f = DriveApp.getFileById(m[0]); if (f.getSize() < 20 * 1024 * 1024) att.push(f.getBlob()); } catch(e) {}
       });
+      if (att.length) opt.attachments = att;
+      MailApp.sendEmail(opt);
       lock.releaseLock();
       return resp('sent');
     }
@@ -4360,6 +4381,9 @@ function scansionaOra() {
 // Le proposte approvate tra fine agosto e settembre 2026 avevano la data spostata di -1 giorno
 // (formatDate con 'GMT+1' fisso durante l'ora legale). Elenco ricavato dal confronto con
 // l'Elenco Ordini Eventi del 16/09/2026. Da eseguire UNA volta: correggiDateDST()
+// Ogni mail inviata dall'app (info spazio, richieste ZTL, mail alle compagnie, riepiloghi) va in copia nascosta qui.
+var COPIA_MAIL_A = 'aldoamat@gmail.com';
+
 var DATE_DA_CORREGGERE = [
  {
   "tipo": "data",
@@ -7318,7 +7342,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v58</span>
+    <span>Report generato da GammaFucker v59</span>
   </div>
   </body></html>`;
 
@@ -7424,7 +7448,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v58</span>
+    <span>Report generato da GammaFucker v59</span>
   </div>
   </body></html>`;
 
@@ -7501,7 +7525,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v58</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v59</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9371,8 +9395,7 @@ function renderPiano(){
     const scheda = (s.mails||[]).find(x=>x.tipo==='scheda');
     const tel = (s.contatti||[]).filter(c=>c.telefono);
     const mail = (s.contatti||[]).filter(c=>c.email);
-    const waText = encodeURIComponent(`Buongiorno, sono ${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'} del coordinamento tecnico AMAT Marche, in merito allo spettacolo "${s.spett}" del ${_prodFmtD(s.data)} a ${s.citta}${s.teatro?' ('+s.teatro+')':''}.`);
-    const contattiBtn = tel.map(c=>`<a href="https://wa.me/${_prodEsc(String(c.telefono).replace(/[^\d]/g,'').replace(/^00/,'').replace(/^(?!39)(3\d{8,9})$/,'39$1'))}?text=${waText}" target="_blank" rel="noopener" class="iBtn" title="${_prodEsc(c.telefono)}" style="text-decoration:none;font-size:10px;padding:3px 8px;color:#25d366;border-color:rgba(37,211,102,.4);">💬 ${_prodEsc((c.nome||'').split(' ')[0]||'WhatsApp')}</a>`).join('')
+    const contattiBtn = (tel.length?`<button class="iBtn" style="font-size:10px;padding:3px 8px;color:#25d366;border-color:rgba(37,211,102,.4);" onclick="apriWaCompagnia(${s.id})">💬 WhatsApp</button>`:'')
       + (mail.length?`<button class="iBtn" style="font-size:10px;padding:3px 8px;color:#a78bfa;border-color:rgba(167,139,250,.35);" onclick="apriMailCompagnia(${s.id})">✉ Mail compagnia</button>`:'');
     const z = p.ztl||{};
     const ztlHtml = `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;padding:6px 8px;border-radius:6px;background:${z.serve?(z.permessoUrl?'rgba(16,185,129,.1)':z.richiesta?'rgba(245,158,11,.12)':'rgba(239,68,68,.12)'):'var(--bg)'};border:1px solid var(--border2);">
@@ -9477,6 +9500,36 @@ async function allegaPermesso(id, files){
     toast('✓ Permesso allegato'); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
   }catch(e){ toast('Errore: '+e.message, true); }
 }
+// ── allegati disponibili per uno spettacolo: scheda tecnica, permesso ZTL, documenti dello spazio, file caricati ora ──
+let _allegatiExtra = {};   // id spettacolo → [{label,url}] caricati al momento
+function _allegatiDi(s){
+  const out=[];
+  (s.mails||[]).filter(m=>m.tipo==='scheda'&&m.file).forEach(m=>out.push({label:'📄 Scheda tecnica'+(m.og?' — '+m.og.replace(/^Scheda tecnica — /,''):''), url:m.file}));
+  const z=(s.prod&&s.prod.ztl)||{}; if(z.permessoUrl) out.push({label:'🚧 Permesso ZTL'+(z.permessoNome?' — '+z.permessoNome:''), url:z.permessoUrl});
+  const si=spazioInfo[(s.citta||'')+'||'+(s.teatro||'')]||{}; (si.links||[]).forEach(l=>{ if(l.url) out.push({label:'🏛 '+(l.label||'documento spazio'), url:l.url}); });
+  (_allegatiExtra[s.id]||[]).forEach(a=>out.push({label:'📎 '+a.label, url:a.url}));
+  return out;
+}
+function _allegatiHtml(prefix, s){
+  const all=_allegatiDi(s);
+  return `<div style="font-size:10px;color:var(--text3);margin-bottom:4px;">ALLEGATI (link ai file su Drive${prefix==='mc'?', allegati anche come file quando possibile':''})</div>
+    <div id="${prefix}-all-list">${all.length?all.map((a,i)=>`<label style="display:flex;gap:6px;align-items:center;font-size:11px;padding:2px 0;cursor:pointer;"><input type="checkbox" class="${prefix}-all" data-url="${_prodEsc(a.url)}" data-label="${_prodEsc(a.label)}" style="width:14px;height:14px;"> ${_prodEsc(a.label)}</label>`).join(''):'<div style="font-size:10px;color:var(--text3);">nessun documento agganciato a questo spettacolo</div>'}</div>
+    <label class="iBtn" style="font-size:10px;padding:3px 8px;cursor:pointer;margin-top:4px;display:inline-block;">➕ carica un altro file<input type="file" multiple style="display:none" onchange="caricaAllegatoExtra('${prefix}',${s.id},this.files)"></label>`;
+}
+async function caricaAllegatoExtra(prefix, id, files){
+  const s=data.find(x=>String(x.id)===String(id)); if(!s||!files||!files.length) return;
+  for(const f of Array.from(files)){
+    toast('⏳ carico '+f.name+'…');
+    try{ const r=await caricaDocumento(f, 'Allegati/'+_stagioneDa(s.data).replace('/','-')+' '+(s.citta||'')); (_allegatiExtra[s.id]=_allegatiExtra[s.id]||[]).push({label:f.name, url:r.url}); }
+    catch(e){ toast('Errore '+f.name+': '+e.message, true); }
+  }
+  const box=document.getElementById(prefix+'-allegati'); if(box){ box.innerHTML=_allegatiHtml(prefix, s); box.querySelectorAll('.'+prefix+'-all').forEach(c=>{ if((_allegatiExtra[s.id]||[]).some(a=>a.url===c.dataset.url)) c.checked=true; }); }
+  toast('✓ file caricato'); if(prefix==='wa') _waAggiorna();
+}
+function _allegatiScelti(prefix){ return [...document.querySelectorAll('.'+prefix+'-all:checked')].map(c=>({label:c.dataset.label, url:c.dataset.url})); }
+function _testoAllegati(lista){ return lista.length ? '\n\nDocumenti:\n'+lista.map(a=>'- '+a.label.replace(/^[^\w]+/,'')+': '+a.url).join('\n') : ''; }
+function _testoInfoSpazioDi(s){ const t=_buildTestoSpazio(s.citta, s.teatro||''); return t ? '\n\nInformazioni dello spazio:\n'+t : ''; }
+
 // mail alla compagnia dal piano (parte dall'account Google dell'app, resta in Gmail)
 function apriMailCompagnia(id){
   const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
@@ -9484,21 +9537,55 @@ function apriMailCompagnia(id){
   document.getElementById('mc-dest').value=(s.contatti||[]).map(c=>c.email).filter(Boolean).join(', ');
   document.getElementById('mc-ogg').value=`${s.spett} — ${_prodFmtD(s.data)} — ${s.citta}${s.teatro?' · '+s.teatro:''}`;
   document.getElementById('mc-testo').value=`Buongiorno,\n\n\n\n${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}\ncoordinamento tecnico Amat${IS_COLLAB?'':'\nmob. 3477086550'}`;
+  const chk=document.getElementById('mc-info'); chk.checked=false; chk.disabled=!_buildTestoSpazio(s.citta, s.teatro||'');
+  document.getElementById('mc-info-lbl').style.opacity=chk.disabled?'.5':'1';
+  document.getElementById('mc-allegati').innerHTML=_allegatiHtml('mc', s);
   document.getElementById('mail-comp-ov').classList.add('open');
   setTimeout(()=>{ const t=document.getElementById('mc-testo'); t.focus(); t.setSelectionRange(12,12); },100);
 }
 async function inviaMailCompagnia(){
   const s=data.find(x=>String(x.id)===String(_mailId)); if(!s) return;
-  const dest=document.getElementById('mc-dest').value.trim(), ogg=document.getElementById('mc-ogg').value.trim(), testo=document.getElementById('mc-testo').value;
+  const dest=document.getElementById('mc-dest').value.trim(), ogg=document.getElementById('mc-ogg').value.trim();
+  let testo=document.getElementById('mc-testo').value;
   if(!dest){ toast('Inserisci il destinatario', true); return; }
   const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
+  const all=_allegatiScelti('mc');
+  if(document.getElementById('mc-info').checked) testo+=_testoInfoSpazioDi(s);
+  testo+=_testoAllegati(all);
   const btn=document.getElementById('mc-btn'); btn.disabled=true; btn.textContent='⏳ Invio…';
   try{
-    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'sendEmail', to:dest, subject:ogg, message:testo})});
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'sendEmail', to:dest, subject:ogg, message:testo, allegati:all.map(a=>a.url)})});
     const j=await res.json(); if(j.result!=='sent') throw new Error(j.result||j.error||'errore');
     document.getElementById('mail-comp-ov').classList.remove('open'); toast('✓ Mail inviata a '+dest);
   }catch(e){ toast('Errore: '+e.message, true); }
   finally{ btn.disabled=false; btn.textContent='📤 Invia'; }
+}
+
+// WhatsApp alla compagnia: contatto, info spazio e link ai documenti nel testo
+let _waId=null;
+function apriWaCompagnia(id){
+  const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
+  _waId=s.id;
+  const tel=(s.contatti||[]).filter(c=>c.telefono);
+  document.getElementById('wa-dest').innerHTML=tel.map(c=>`<option value="${_prodEsc(c.telefono)}">${_prodEsc(c.nome||c.telefono)}${c.compagnia?' · '+_prodEsc(c.compagnia):''} (${_prodEsc(c.telefono)})</option>`).join('')+'<option value="__altro">altro numero…</option>';
+  document.getElementById('wa-num').style.display='none'; document.getElementById('wa-num').value='';
+  const chk=document.getElementById('wa-info'); chk.checked=false; chk.disabled=!_buildTestoSpazio(s.citta, s.teatro||'');
+  document.getElementById('wa-allegati').innerHTML=_allegatiHtml('wa', s);
+  document.getElementById('wa-testo').value=`Buongiorno, sono ${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'} del coordinamento tecnico AMAT Marche, in merito allo spettacolo "${s.spett}" del ${_prodFmtD(s.data)} a ${s.citta}${s.teatro?' ('+s.teatro+')':''}.`;
+  document.getElementById('wa-ov').classList.add('open');
+  _waAggiorna();
+}
+function _waNumero(v){ let n=String(v||'').replace(/[^\d]/g,'').replace(/^00/,''); if(/^3\d{8,9}$/.test(n)) n='39'+n; return n; }
+function _waAggiorna(){
+  const s=data.find(x=>String(x.id)===String(_waId)); if(!s) return;
+  const sel=document.getElementById('wa-dest'); const numEl=document.getElementById('wa-num');
+  numEl.style.display = sel.value==='__altro' ? 'block' : 'none';
+  let testo=document.getElementById('wa-testo').value;
+  if(document.getElementById('wa-info').checked) testo+=_testoInfoSpazioDi(s);
+  testo+=_testoAllegati(_allegatiScelti('wa'));
+  const num=_waNumero(sel.value==='__altro'?numEl.value:sel.value);
+  const a=document.getElementById('wa-apri'); a.href='https://wa.me/'+num+'?text='+encodeURIComponent(testo); a.style.opacity=num?'1':'.5';
+  document.getElementById('wa-anteprima').textContent=testo;
 }
 // scheda tecnica arrivata fuori dalla mail (WhatsApp ecc.): la carico su Drive e la aggancio allo spettacolo
 async function allegaSchedaTecnica(id, files){

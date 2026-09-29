@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v49 ──
+// ── SPETTACOLI APP SCRIPT v50 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -107,12 +107,16 @@ function doPost(e) {
       var subject = body.subject || '';
       var message = body.message || '';
       if(!to || !subject || !message){ lock.releaseLock(); return resp('missing fields'); }
-      MailApp.sendEmail({
-        to: to,
-        subject: subject,
-        body: message,
-        htmlBody: message.split(String.fromCharCode(10)).join('<br>')
+      var opt = { to: to, subject: subject, body: message, htmlBody: message.split(String.fromCharCode(10)).join('<br>') };
+      if (COPIA_MAIL_A && to.toLowerCase().indexOf(COPIA_MAIL_A.toLowerCase()) < 0) opt.bcc = COPIA_MAIL_A;   // copia di ogni mail inviata dall'app
+      var att = [];
+      (body.allegati || []).forEach(function(u) {
+        var m = String(u || '').match(/[-\w]{25,}/);
+        if (!m) return;
+        try { var f = DriveApp.getFileById(m[0]); if (f.getSize() < 20 * 1024 * 1024) att.push(f.getBlob()); } catch(e) {}
       });
+      if (att.length) opt.attachments = att;
+      MailApp.sendEmail(opt);
       lock.releaseLock();
       return resp('sent');
     }
@@ -1528,6 +1532,9 @@ function scansionaOra() {
 // Le proposte approvate tra fine agosto e settembre 2026 avevano la data spostata di -1 giorno
 // (formatDate con 'GMT+1' fisso durante l'ora legale). Elenco ricavato dal confronto con
 // l'Elenco Ordini Eventi del 16/09/2026. Da eseguire UNA volta: correggiDateDST()
+// Ogni mail inviata dall'app (info spazio, richieste ZTL, mail alle compagnie, riepiloghi) va in copia nascosta qui.
+var COPIA_MAIL_A = 'aldoamat@gmail.com';
+
 var DATE_DA_CORREGGERE = [
  {
   "tipo": "data",
