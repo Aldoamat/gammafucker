@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v44 ──
+// ── SPETTACOLI APP SCRIPT v46 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -97,6 +97,7 @@ function doPost(e) {
       if(body.collaboratori) props.setProperty('collaboratori', JSON.stringify(body.collaboratori));
       if(body.spazioInfo) props.setProperty('spazioInfo', JSON.stringify(_giornaleSpazioInfo(body.spazioInfo, G0)));
       if(body.aziendeDB) props.setProperty('aziendeDB', JSON.stringify(body.aziendeDB));
+      if(body.pianiProduzione) props.setProperty('pianiProduzione', JSON.stringify(body.pianiProduzione));
       lock.releaseLock();
       return resp('config ok');
     }
@@ -179,7 +180,7 @@ function doPost(e) {
     var header = ['ID','DATA','CITTA','TEATRO','SPETTACOLO','MANIFESTAZIONE',
       'N.MACC','TAR.MACC','SUB.MACC','N.ELETT','TAR.ELETT','SUB.ELETT',
       'N.FACC','TAR.FACC','SUB.FACC','N.FONI','TAR.FONI','SUB.FONI',
-      'N.SART','TAR.SART','SUB.SART','TOTALE','NOTE','FATTURATO','PREMONTAGGIO','COLLAB_JSON','REPLICA_OF','MAILS_JSON','CONTATTI_JSON','ACCORDI'];
+      'N.SART','TAR.SART','SUB.SART','TOTALE','NOTE','FATTURATO','PREMONTAGGIO','COLLAB_JSON','REPLICA_OF','MAILS_JSON','CONTATTI_JSON','ACCORDI','PROD_JSON'];
     // Difesa dal "locale vince": le rinomine/correzioni del giornale si applicano anche ai dati in arrivo
     var G1 = _mappeGiornale(ss);
     if (G1.n) body.data.forEach(function(r){ _giornaleRiga(r, G1); });
@@ -192,7 +193,7 @@ function doPost(e) {
         r.n_facc,r.tariffa_facc,r.sub_facc,
         r.n_foni||0,r.tariffa_foni||0,r.sub_foni||0,
         r.n_sart||0,r.tariffa_sart||0,r.sub_sart||0,
-        r.totale,r.note,r.fatturato,r.premontaggio||'NO',r.collab_json||'',r.replica_of||'',r.mails_json||'',r.contatti_json||'',r.accordi||''];
+        r.totale,r.note,r.fatturato,r.premontaggio||'NO',r.collab_json||'',r.replica_of||'',r.mails_json||'',r.contatti_json||'',r.accordi||'',r.prod_json||''];
     });
     if(rows.length) sh.getRange(2,1,rows.length,header.length).setValues(rows);
     return resp('ok: '+rows.length+' righe');
@@ -286,6 +287,7 @@ function doGet(e) {
         collaboratori: JSON.parse(props.getProperty('collaboratori')||'[]'),
         spazioInfo: JSON.parse(props.getProperty('spazioInfo')||'{}'),
         aziendeDB: JSON.parse(props.getProperty('aziendeDB')||'[]'),
+        pianiProduzione: JSON.parse(props.getProperty('pianiProduzione')||'{}'),
         anagraficaVer: parseInt(props.getProperty('anagraficaVer')||'0'),
         anagraficaRemaps: _leggiGiornale(ss, parseInt(e.parameter.anagVer||'0'))
       });
