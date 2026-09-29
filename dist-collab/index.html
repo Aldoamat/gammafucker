@@ -233,7 +233,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v55</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v56</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -2818,7 +2818,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v46 ──
+  return `// ── SPETTACOLI APP SCRIPT v47 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7306,7 +7306,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v55</span>
+    <span>Report generato da GammaFucker v56</span>
   </div>
   </body></html>`;
 
@@ -7412,7 +7412,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v55</span>
+    <span>Report generato da GammaFucker v56</span>
   </div>
   </body></html>`;
 
@@ -7489,7 +7489,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v55</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v56</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9344,7 +9344,6 @@ function renderPiano(){
   h += `<div class="fc" style="margin-bottom:10px;"><div class="fct">Dati generali del piano</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       ${field(`oninput="_prodGen('responsabile',this.value)"`,'Responsabile produzione',g.responsabile,'nome')}
-      ${field(`oninput="_prodGen('serviceGenerale',this.value)" list="prod-service-list"`,'Service di riferimento',g.serviceGenerale,'azienda')}
     </div>
     <div style="margin-top:8px;">${area(`oninput="_prodGen('noteGenerali',this.value)"`,'Note generali',g.noteGenerali,'accordi generali, materiali comuni, trasporti…')}</div>
     ${serviceList}</div>`;
@@ -9378,7 +9377,7 @@ function renderPiano(){
         ${field(oi(s.id,'smontaggio'),'Smontaggio',p.smontaggio,'es. a seguire')}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-        ${field(oi(s.id,'service')+' list="prod-service-list"','Service',p.service||g.serviceGenerale||'','azienda che segue l\'evento')}
+        ${field(oi(s.id,'service')+' list="prod-service-list"','Service',p.service||'','azienda che segue l\'evento')}
         ${field(oi(s.id,'tecnici'),'Tecnici',p.tecnici,'nomi / numero')}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
@@ -9478,7 +9477,7 @@ function _prodBloccoHtml(s, g){
       <span style="font-size:11px;color:#ddd6fe;">${_prodEsc(s.citta)}${s.teatro?' · '+_prodEsc(s.teatro):''}</span></div>
     <table style="width:100%;border-collapse:collapse;font-size:11px;">
       ${r('Arrivo compagnia',p.arrivo)}${r('Montaggio',p.montaggio)}${r('Prove',p.prove)}${r('Spettacolo',p.inizio)}${r('Smontaggio',p.smontaggio)}
-      ${r('Service',p.service||g.serviceGenerale)}${r('Tecnici',p.tecnici)}${r('Referente compagnia',p.refComp)}${r('Referente teatro',p.refTeatro)}
+      ${r('Service',p.service)}${r('Tecnici',p.tecnici)}${r('Referente compagnia',p.refComp)}${r('Referente teatro',p.refTeatro)}
       ${r('Esigenze tecniche',p.esigenze)}${r('Note',p.note)}
       ${z.serve?r('ZTL', z.permessoUrl?'permesso ottenuto ('+(z.permessoNome||'allegato')+')':z.richiesta?'richiesta inviata'+(z.dataRichiesta?' il '+_prodFmtD(z.dataRichiesta):''):'DA RICHIEDERE'):''}
     </table></div>`;
@@ -9500,7 +9499,7 @@ function _prodStampa(titolo, sotto, corpo){
 function stampaPiano(){
   if(!_prodKey) return; const [m,st]=_prodKey.split('||'); const g=pianiProduzione[_prodKey]||{};
   const shows=_prodShows(_prodKey);
-  const gen = (g.responsabile||g.serviceGenerale||g.noteGenerali) ? `<div class="g">${g.responsabile?'<b>Responsabile:</b> '+_prodEsc(g.responsabile)+'<br>':''}${g.serviceGenerale?'<b>Service:</b> '+_prodEsc(g.serviceGenerale)+'<br>':''}${g.noteGenerali?'<b>Note:</b> '+_prodEsc(g.noteGenerali).replace(/\n/g,'<br>'):''}</div>` : '';
+  const gen = (g.responsabile||g.noteGenerali) ? `<div class="g">${g.responsabile?'<b>Responsabile:</b> '+_prodEsc(g.responsabile)+'<br>':''}${g.noteGenerali?'<b>Note:</b> '+_prodEsc(g.noteGenerali).replace(/\n/g,'<br>'):''}</div>` : '';
   _prodStampa('Piano di produzione — '+m, 'stagione '+st+' · '+shows.length+' spettacoli', gen + shows.map(s=>_prodBloccoHtml(s,g)).join(''));
 }
 function stampaSchedaGiornata(id){
