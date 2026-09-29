@@ -233,7 +233,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v53</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v54</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1498,8 +1498,36 @@ function renderAudit(){
     });
     if(j.orfani.length>40) h+=`<div style="font-size:10px;color:var(--text3);">…e altri ${j.orfani.length-40}</div>`;
   }
+  // rinomina a mano: qualsiasi manifestazione in uso → un altro nome
+  const esc=v=>String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  const tutte=(j.manifestazioni||[]).slice().sort((a,b)=>a.nome.localeCompare(b.nome));
+  h+=`<div style="font-size:11px;font-weight:700;color:var(--gold);margin:6px 0;">✏️ RINOMINA A MANO</div>`;
+  h+=card(`<div style="font-size:10px;color:var(--text3);margin-bottom:6px;">Se una manifestazione non è stata riconosciuta come variante, scegli qui il nome da sostituire e quello giusto.</div>
+    <select id="am-man-da" style="${inp}width:100%;margin-bottom:6px;"><option value="">— manifestazione da rinominare —</option>${tutte.map(m=>`<option value="${esc(m.nome)}">${esc(m.nome)} (${m.usi} spett.${m.inLista?'':' · non in lista'})</option>`).join('')}</select>
+    <input id="am-man-a" list="am-man-list" placeholder="nome giusto (es. APP)" style="${inp}width:100%;margin-bottom:6px;"><datalist id="am-man-list">${tutte.filter(m=>m.inLista).map(m=>`<option value="${esc(m.nome)}">`).join('')}</datalist>
+    <button class="btn btn-o btn-sm" onclick="rinominaManifManuale()">Rinomina ovunque</button>`);
   h+=`<div style="display:flex;gap:8px;margin-top:12px;"><button class="btn btn-p" style="flex:1;" onclick="applicaAudit()">✓ Applica le unificazioni selezionate</button><button class="btn btn-o" onclick="document.getElementById('anag-report').innerHTML='';_audit=null;">Chiudi</button></div>`;
   box.innerHTML=h;
+}
+async function rinominaManifManuale(){
+  const da=(document.getElementById('am-man-da')||{}).value||'', a=((document.getElementById('am-man-a')||{}).value||'').trim();
+  if(!da){ toast('Scegli la manifestazione da rinominare', true); return; }
+  if(!a){ toast('Scrivi il nome giusto', true); return; }
+  if(da===a){ toast('Sono uguali', true); return; }
+  if(!confirm('Rinominare "'+da+'" in "'+a+'" su tutti gli spettacoli, le proposte e l\'anagrafica?')) return;
+  const remaps=[{tipo:'manif', da, a}];
+  const url=ld('sheetsUrl',''); const st=document.getElementById('anag-stato'); st.textContent='⏳ rinomino…';
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'applicaAnagrafica', remaps})});
+    const r=await res.json(); if(r.error) throw new Error(r.error);
+    const n=applicaRemapsLocali(remaps);
+    sv('anagraficaVer', r.ver);
+    window._pullBlockUntil = Date.now() + 30000;
+    renderList();
+    st.textContent='✓ fatto: '+r.righe+' righe nel foglio, '+n+' record locali';
+    toast('✓ Manifestazione rinominata');
+    verificaAnagrafica();
+  }catch(e){ st.textContent='errore: '+e.message; toast('Errore: '+e.message, true); }
 }
 async function applicaAudit(){
   const j=_audit; if(!j) return;
@@ -2749,7 +2777,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v43 ──
+  return `// ── SPETTACOLI APP SCRIPT v44 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7235,7 +7263,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v53</span>
+    <span>Report generato da GammaFucker v54</span>
   </div>
   </body></html>`;
 
@@ -7341,7 +7369,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v53</span>
+    <span>Report generato da GammaFucker v54</span>
   </div>
   </body></html>`;
 
@@ -7418,7 +7446,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v53</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v54</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
