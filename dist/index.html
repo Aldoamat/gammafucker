@@ -233,7 +233,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v59</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v61</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1364,6 +1364,26 @@ function init(){
 }
 
 // Pull silenzioso — aggiorna senza toast se non ci sono errori
+// schede spazio, aziende e piani di produzione: arrivano con ogni pull (silenzioso o manuale)
+function _applicaConfigExtra(json){
+  if(!json) return;
+  if(json.spazioInfo && typeof json.spazioInfo==='object'){
+    spazioInfo = {...spazioInfo, ...json.spazioInfo};
+    sv('spazioInfo', spazioInfo);
+  }
+  if(json.aziendeDB && Array.isArray(json.aziendeDB)){
+    aziendeDB = json.aziendeDB;
+    sv('aziendeDB', aziendeDB);
+    buildCfgAziendeList();
+    _buildAziendaDatalist();
+  }
+  if(json.pianiProduzione && typeof json.pianiProduzione==='object'){
+    // piano per piano: vince la versione più recente (ts)
+    Object.keys(json.pianiProduzione).forEach(k=>{ const r=json.pianiProduzione[k], l=pianiProduzione[k]; if(!l || IS_COLLAB || (r.ts||0)>=(l.ts||0)) pianiProduzione[k]=r; });
+    sv('pianiProduzione', pianiProduzione);
+    if(document.getElementById('panel-prod')?.classList.contains('active')){ renderPianiCreati(); if(_prodKey && !document.activeElement?.closest?.('#prod-piano')) renderPiano(); }
+  }
+}
 async function silentPull(){
   // Non pullare mentre la preview fattura è aperta
   if(document.getElementById('fatt-preview')&&document.getElementById('fatt-preview').style.display!=='none')return;
@@ -1396,22 +1416,7 @@ async function silentPull(){
       buildCfgCollabList();
       buildCollabFormPresenze();
     }
-    if(json.spazioInfo && typeof json.spazioInfo==='object'){
-      spazioInfo = {...spazioInfo, ...json.spazioInfo};
-      sv('spazioInfo', spazioInfo);
-    }
-    if(json.aziendeDB && Array.isArray(json.aziendeDB)){
-      aziendeDB = json.aziendeDB;
-      sv('aziendeDB', aziendeDB);
-      buildCfgAziendeList();
-      _buildAziendaDatalist();
-    }
-    if(json.pianiProduzione && typeof json.pianiProduzione==='object'){
-      // piano per piano: vince la versione più recente (ts)
-      Object.keys(json.pianiProduzione).forEach(k=>{ const r=json.pianiProduzione[k], l=pianiProduzione[k]; if(!l || IS_COLLAB || (r.ts||0)>=(l.ts||0)) pianiProduzione[k]=r; });
-      sv('pianiProduzione', pianiProduzione);
-      if(document.getElementById('panel-prod')?.classList.contains('active')) renderPianiCreati();
-    }
+    _applicaConfigExtra(json);
     if(json.manifCustom && Array.isArray(json.manifCustom)){
       const existing=JSON.parse(localStorage.getItem('manifCustom')||'[]');
       const merged=[...new Set([...existing,...json.manifCustom])];
@@ -2836,6 +2841,7 @@ async function pullSheets(){
       buildCfgCollabList();
       buildCollabFormPresenze();
     }
+    _applicaConfigExtra(json);
     if(json.lastAuthor){
       updateSyncInfo(json.lastAuthor, json.lastModified||Date.now());
       toast(`✓ ${imported.length} spettacoli (ult: ${json.lastAuthor})`);
@@ -2847,7 +2853,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v50 ──
+  return `// ── SPETTACOLI APP SCRIPT v52 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7342,7 +7348,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v59</span>
+    <span>Report generato da GammaFucker v61</span>
   </div>
   </body></html>`;
 
@@ -7448,7 +7454,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v59</span>
+    <span>Report generato da GammaFucker v61</span>
   </div>
   </body></html>`;
 
@@ -7525,7 +7531,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v59</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v61</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -8114,20 +8120,23 @@ function apriInvioInfoSpazio(spettId){
   if(!s){ toast('Spettacolo non trovato', true); return; }
   _invioSpettId = spettId;
 
-  // Raccoglie TUTTI gli spazi con scheda compilata per questo spettacolo nel mese
-  const mese = s.data.substring(0,7);
-  const altriEventi = data.filter(x =>
-    x.data && x.data.substring(0,7) === mese && x.spett === s.spett
-  );
+  // Raccoglie TUTTE le piazze dello spettacolo nella stagione (tournée su più teatri): stesso titolo, qualsiasi data
+  const stag = _stagioneDa(s.data), tit = _normTxt(s.spett);
+  const altriEventi = data.filter(x => x.data && _stagioneDa(x.data)===stag && _normTxt(x.spett)===tit && !x.premontaggio)
+                          .sort((a,b)=>a.data.localeCompare(b.data));
   const spaziUnici = [];
   const visti = new Set();
   [s, ...altriEventi].forEach(x=>{
     const k = x.citta+'||'+(x.teatro||'');
     if(!visti.has(k)){
       visti.add(k);
-      spaziUnici.push({citta:x.citta, teatro:x.teatro||'', data:x.data, id:x.id});
+      spaziUnici.push({citta:x.citta, teatro:x.teatro||'', data:x.data, id:x.id, date:[]});
     }
+    const sp = spaziUnici.find(u=>u.citta+'||'+u.teatro===k);
+    if(sp && !sp.date.includes(x.data)) sp.date.push(x.data);
   });
+  spaziUnici.sort((a,b)=>a.date[0].localeCompare(b.date[0]));
+  spaziUnici.forEach(sp=>{ sp.date.sort(); sp.data = sp.date.map(d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'short'}); }catch{ return d; } }).join(', '); });
   // Aggiungi anche spazi con scheda non presenti nella lista eventi (es. premontaggio stesso spazio)
   // non necessario — i checkbox coprono tutto
 
@@ -8165,12 +8174,13 @@ function _aggiornaPreviewMail(){
     // Se c'è checkbox, rispetta la selezione; altrimenti includi sempre
     if(chk && !chk.checked) return;
     spettacoliSelezionati++;
-    const testo = _buildTestoSpazio(sp.citta, sp.teatro);
+    let testo = _buildTestoSpazio(sp.citta, sp.teatro);
+    if(testo && sp.data) testo = testo.replace(/━━━━+\n\n/, m=>m+'📅 '+(sp.date&&sp.date.length>1?'Date: ':'Data: ')+sp.data+'\n\n');
     if(testo) corpoSpazi += testo + '\n';
   });
 
   const corpo = corpoSpazi
-    ? `Carissimi,\n\nvi inoltro le informazioni ${spettacoliSelezionati===1?'dello spazio':'degli spazi'} in cui andrà in scena il vostro spettacolo.\n\n` +
+    ? `Carissimi,\n\nvi inoltro le informazioni ${spettacoliSelezionati===1?'dello spazio':'degli spazi'} in cui andrà in scena il vostro spettacolo${spettacoliSelezionati>1?', in ordine di data':''}.\n\n` +
       corpoSpazi +
       `Disponibile per qualsiasi ulteriore chiarimento, in attesa di un vostro riscontro, vi saluto caramente.\n\n` +
       (IS_COLLAB ? `${ld('nomeUtente','')||'Coordinamento tecnico'}\ncoordinamento tecnico Amat` : `Aldo Bernardini\ncoordinamento tecnico Amat\nmob. 3477086550`)
@@ -9348,8 +9358,9 @@ function apriPiano(key, focusId){
   if(!pianiProduzione[key]){
     if(IS_COLLAB){ toast('Piano non ancora creato', true); return; }
     const [m, st] = key.split('||');
-    pianiProduzione[key] = {manif:m, stagione:st, responsabile:'', serviceGenerale:'', noteGenerali:'', creato:new Date().toISOString()};
+    pianiProduzione[key] = {manif:m, stagione:st, responsabile:'', noteGenerali:'', creato:new Date().toISOString(), ts:Date.now()};
     sv('pianiProduzione', pianiProduzione);
+    if(ld('sheetsUrl','')) setTimeout(()=>pushConfig(true), 500);   // il piano compare subito anche sugli altri dispositivi
   }
   renderPiano();
   renderPianiCreati();
@@ -9440,14 +9451,17 @@ function renderPiano(){
   });
   box.innerHTML = h; box.style.display = 'block';
 }
-function _prodGen(campo, v){ if(!_prodKey) return; pianiProduzione[_prodKey][campo]=v; pianiProduzione[_prodKey].ts=Date.now(); sv('pianiProduzione', pianiProduzione); }
-function _prodSet(id, campo, v){ const s=data.find(x=>String(x.id)===String(id)); if(!s) return; _prodDi(s)[campo]=v; sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; }
-function _prodZtl(id, campo, v){ const s=data.find(x=>String(x.id)===String(id)); if(!s) return; const z=_prodDi(s).ztl; z[campo]=v; if(campo==='richiesta'&&v&&!z.dataRichiesta) z.dataRichiesta=new Date().toISOString().slice(0,10); if(campo==='richiesta'&&!v) delete z.dataRichiesta; sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; renderPiano(); }
-function salvaPiano(){
+let _prodSaveTimer=null;
+function _prodAutoSave(){ if(IS_COLLAB) return; clearTimeout(_prodSaveTimer); _prodSaveTimer=setTimeout(()=>salvaPiano(true), 4000); }
+function _prodGen(campo, v){ if(!_prodKey) return; pianiProduzione[_prodKey][campo]=v; pianiProduzione[_prodKey].ts=Date.now(); sv('pianiProduzione', pianiProduzione); _prodAutoSave(); }
+function _prodSet(id, campo, v){ const s=data.find(x=>String(x.id)===String(id)); if(!s) return; _prodDi(s)[campo]=v; sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; _prodAutoSave(); }
+function _prodZtl(id, campo, v){ const s=data.find(x=>String(x.id)===String(id)); if(!s) return; const z=_prodDi(s).ztl; z[campo]=v; if(campo==='richiesta'&&v&&!z.dataRichiesta) z.dataRichiesta=new Date().toISOString().slice(0,10); if(campo==='richiesta'&&!v) delete z.dataRichiesta; sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; renderPiano(); _prodAutoSave(); }
+function salvaPiano(silent){
+  clearTimeout(_prodSaveTimer);
   sv('spettacoli', data); sv('pianiProduzione', pianiProduzione);
   window._pullBlockUntil = Date.now() + 30000;
   if(ld('sheetsUrl','')){ pushSheets(true); setTimeout(()=>pushConfig(true), 800); }
-  toast('✓ Piano salvato');
+  if(!silent) toast('✓ Piano salvato');
 }
 
 // ── ZTL: richiesta permesso via mail (indicizzata sullo spettacolo) ──
