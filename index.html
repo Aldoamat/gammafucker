@@ -233,7 +233,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v62</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v63</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1739,12 +1739,34 @@ function attachRubrica(inputId, onPick, opts={}){
 // ════════════════════ DOCUMENTI: upload su Drive ════════════════════
 const UPLOAD_MAX_MB = 25;
 function _fileToB64(file){ return new Promise((ok,ko)=>{ const r=new FileReader(); r.onload=()=>ok(String(r.result).split(',')[1]); r.onerror=ko; r.readAsDataURL(file); }); }
-async function caricaDocumento(file, cartella){
+const UPLOAD_CHUNK = 2*1024*1024;   // sopra questa soglia il file viaggia a pezzi (i PDF grandi fallivano in un colpo solo)
+function _mimeDi(file){
+  if(file.type) return file.type;
+  const ext=(file.name.split('.').pop()||'').toLowerCase();
+  return {pdf:'application/pdf',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',xls:'application/vnd.ms-excel',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',dwg:'image/vnd.dwg'}[ext]||'application/octet-stream';
+}
+async function caricaDocumento(file, cartella, onProgress){
   const url = ld('sheetsUrl',''); if(!url) throw new Error('Configura Sheets URL');
   if(file.size > UPLOAD_MAX_MB*1024*1024) throw new Error(file.name+' supera '+UPLOAD_MAX_MB+' MB');
-  const b64 = await _fileToB64(file);
-  const res = await fetch(url, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({action:'uploadFile', cartella, nome:file.name, mime:file.type||'application/octet-stream', b64})});
-  const j = await res.json(); if(j.error) throw new Error(j.error);
+  const mime = _mimeDi(file);
+  const post = async body=>{
+    const res = await fetch(url, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(body)});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j = await res.json(); if(j.error) throw new Error(j.error);
+    return j;
+  };
+  if(file.size <= UPLOAD_CHUNK){
+    const b64 = await _fileToB64(file);
+    return post({action:'uploadFile', cartella, nome:file.name, mime, b64});
+  }
+  const total = Math.ceil(file.size/UPLOAD_CHUNK);
+  let fileId = null, j = null;
+  for(let i=0;i<total;i++){
+    const b64 = await _fileToB64(file.slice(i*UPLOAD_CHUNK, Math.min(file.size,(i+1)*UPLOAD_CHUNK)));
+    if(onProgress) onProgress(i+1, total);
+    j = await post({action:'uploadChunk', cartella, nome:file.name, mime, b64, idx:i, total, fileId});
+    fileId = j.id;
+  }
   return j; // {url,id,nome,cartella}
 }
 async function caricaFileSpazio(files){
@@ -1756,7 +1778,7 @@ async function caricaFileSpazio(files){
   for(const f of Array.from(files)){
     st.textContent='⏳ carico '+f.name+'…';
     try{
-      const r = await caricaDocumento(f, 'Spazi/'+citta+' - '+teatro);
+      const r = await caricaDocumento(f, 'Spazi/'+citta+' - '+teatro, (i,n)=>{ st.textContent='⏳ carico '+f.name+'… '+i+'/'+n; });
       const d = spazioInfo[_spazioInfoKey] || {};
       const links = [...(d.links||[]), {label: f.name.replace(/\.[^.]+$/,''), url: r.url}];
       spazioInfo[_spazioInfoKey] = {...d, links}; sv('spazioInfo', spazioInfo); _buildLinksList(links); n++;
@@ -2854,7 +2876,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v53 ──
+  return `// ── SPETTACOLI APP SCRIPT v54 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -2995,6 +3017,11 @@ function doPost(e) {
       var ra; try { ra = applicaAnagrafica(body.remaps); } catch(errA) { ra = { error: errA.message }; }
       lock.releaseLock();
       return ContentService.createTextOutput(JSON.stringify(ra)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (body.action === 'uploadChunk') {
+      lock.releaseLock();
+      var rc; try { rc = caricaChunk(body.cartella, body.nome, body.mime, body.b64, +body.idx, +body.total, body.fileId); } catch(errC) { rc = { error: errC.message }; }
+      return ContentService.createTextOutput(JSON.stringify(rc)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'uploadFile') {
       lock.releaseLock();
@@ -4134,17 +4161,38 @@ function testRubrica() { var r = leggiRubrica(true); Logger.log(r.length + ' con
 // Salva un file in "GammaFucker Documenti/<cartella>" con link di sola lettura
 // per chi ha il link. Sostituisce il copia-incolla dei link Dropbox.
 var DOC_CARTELLA = 'GammaFucker Documenti';
-function caricaDocumento(cartella, nome, mime, b64) {
-  if (!nome || !b64) return { error: 'file mancante' };
+function _cartellaDoc(cartella) {
   var it = DriveApp.getFoldersByName(DOC_CARTELLA);
   var root = it.hasNext() ? it.next() : DriveApp.createFolder(DOC_CARTELLA);
   var sub = String(cartella || 'Varie').replace(/[\\\\/:*?"<>|]/g, ' ').trim().substring(0, 80) || 'Varie';
   var it2 = root.getFoldersByName(sub);
-  var folder = it2.hasNext() ? it2.next() : root.createFolder(sub);
+  return { folder: it2.hasNext() ? it2.next() : root.createFolder(sub), sub: sub };
+}
+function caricaDocumento(cartella, nome, mime, b64) {
+  if (!nome || !b64) return { error: 'file mancante' };
+  var c = _cartellaDoc(cartella);
   var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime || 'application/octet-stream', nome);
-  var f = folder.createFile(blob);
+  var f = c.folder.createFile(blob);
   try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {}
-  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: sub };
+  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: c.sub };
+}
+// Upload a pezzi (file grandi: planimetrie PDF ecc.): il primo pezzo crea il file, i successivi lo allungano.
+function caricaChunk(cartella, nome, mime, b64, idx, total, fileId) {
+  if (!nome || !b64) return { error: 'pezzo mancante' };
+  var bytes = Utilities.base64Decode(b64);
+  var f, sub = '';
+  if (idx === 0 || !fileId) {
+    var c = _cartellaDoc(cartella); sub = c.sub;
+    f = c.folder.createFile(Utilities.newBlob(bytes, mime || 'application/octet-stream', nome));
+  } else {
+    f = DriveApp.getFileById(fileId);
+    var tutti = f.getBlob().getBytes().concat(bytes);
+    Drive.Files.update({}, fileId, Utilities.newBlob(tutti, mime || 'application/octet-stream', nome));
+    f = DriveApp.getFileById(fileId);
+  }
+  var done = idx >= total - 1;
+  if (done) { try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {} }
+  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: sub, done: done, size: f.getSize() };
 }
 
 // ════════════════════ ANAGRAFICA: verifica e unificazione ════════════════════
@@ -7349,7 +7397,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v62</span>
+    <span>Report generato da GammaFucker v63</span>
   </div>
   </body></html>`;
 
@@ -7455,7 +7503,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v62</span>
+    <span>Report generato da GammaFucker v63</span>
   </div>
   </body></html>`;
 
@@ -7532,7 +7580,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v62</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v63</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');

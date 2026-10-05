@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v53 ──
+// ── SPETTACOLI APP SCRIPT v54 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -139,6 +139,11 @@ function doPost(e) {
       var ra; try { ra = applicaAnagrafica(body.remaps); } catch(errA) { ra = { error: errA.message }; }
       lock.releaseLock();
       return ContentService.createTextOutput(JSON.stringify(ra)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (body.action === 'uploadChunk') {
+      lock.releaseLock();
+      var rc; try { rc = caricaChunk(body.cartella, body.nome, body.mime, body.b64, +body.idx, +body.total, body.fileId); } catch(errC) { rc = { error: errC.message }; }
+      return ContentService.createTextOutput(JSON.stringify(rc)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'uploadFile') {
       lock.releaseLock();
@@ -1278,17 +1283,38 @@ function testRubrica() { var r = leggiRubrica(true); Logger.log(r.length + ' con
 // Salva un file in "GammaFucker Documenti/<cartella>" con link di sola lettura
 // per chi ha il link. Sostituisce il copia-incolla dei link Dropbox.
 var DOC_CARTELLA = 'GammaFucker Documenti';
-function caricaDocumento(cartella, nome, mime, b64) {
-  if (!nome || !b64) return { error: 'file mancante' };
+function _cartellaDoc(cartella) {
   var it = DriveApp.getFoldersByName(DOC_CARTELLA);
   var root = it.hasNext() ? it.next() : DriveApp.createFolder(DOC_CARTELLA);
   var sub = String(cartella || 'Varie').replace(/[\\/:*?"<>|]/g, ' ').trim().substring(0, 80) || 'Varie';
   var it2 = root.getFoldersByName(sub);
-  var folder = it2.hasNext() ? it2.next() : root.createFolder(sub);
+  return { folder: it2.hasNext() ? it2.next() : root.createFolder(sub), sub: sub };
+}
+function caricaDocumento(cartella, nome, mime, b64) {
+  if (!nome || !b64) return { error: 'file mancante' };
+  var c = _cartellaDoc(cartella);
   var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime || 'application/octet-stream', nome);
-  var f = folder.createFile(blob);
+  var f = c.folder.createFile(blob);
   try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {}
-  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: sub };
+  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: c.sub };
+}
+// Upload a pezzi (file grandi: planimetrie PDF ecc.): il primo pezzo crea il file, i successivi lo allungano.
+function caricaChunk(cartella, nome, mime, b64, idx, total, fileId) {
+  if (!nome || !b64) return { error: 'pezzo mancante' };
+  var bytes = Utilities.base64Decode(b64);
+  var f, sub = '';
+  if (idx === 0 || !fileId) {
+    var c = _cartellaDoc(cartella); sub = c.sub;
+    f = c.folder.createFile(Utilities.newBlob(bytes, mime || 'application/octet-stream', nome));
+  } else {
+    f = DriveApp.getFileById(fileId);
+    var tutti = f.getBlob().getBytes().concat(bytes);
+    Drive.Files.update({}, fileId, Utilities.newBlob(tutti, mime || 'application/octet-stream', nome));
+    f = DriveApp.getFileById(fileId);
+  }
+  var done = idx >= total - 1;
+  if (done) { try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {} }
+  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: sub, done: done, size: f.getSize() };
 }
 
 // ════════════════════ ANAGRAFICA: verifica e unificazione ════════════════════
