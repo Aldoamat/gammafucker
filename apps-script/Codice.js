@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v52 ──
+// ── SPETTACOLI APP SCRIPT v53 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();

@@ -233,7 +233,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v61</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v62</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1056,6 +1056,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
         <div style="font-size:11px;color:var(--text2);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;">🏢 Ditte Fornitrici</div>
         <div id="si-ditte-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
         <div style="display:flex;flex-direction:column;gap:4px;">
+          <select id="si-ditta-pick" style="width:100%;font-size:12px;" onchange="_scegliDittaDaElenco(this.value)"><option value="">— pesca dall'elenco fornitori / aziende —</option></select>
           <input id="si-new-ditta-servizio" type="text" placeholder="Servizio (es. Facchinaggio, Luci)" style="width:100%;box-sizing:border-box;">
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
             <span class="rb-wrap" style="flex:1;min-width:120px;display:block;"><input id="si-new-ditta-nome" type="text" placeholder="Nome ditta (cerca in aziende e rubrica)" autocomplete="off" style="width:100%;box-sizing:border-box;" oninput="_onAziendaSelected()"></span>
@@ -2853,7 +2854,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v52 ──
+  return `// ── SPETTACOLI APP SCRIPT v53 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7348,7 +7349,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v61</span>
+    <span>Report generato da GammaFucker v62</span>
   </div>
   </body></html>`;
 
@@ -7454,7 +7455,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v61</span>
+    <span>Report generato da GammaFucker v62</span>
   </div>
   </body></html>`;
 
@@ -7531,7 +7532,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v61</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v62</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -7971,6 +7972,7 @@ function _caricaFormSpazio(key){
   document.getElementById('si-note').value            = d.note            || '';
   _buildLinksList(d.links || []);
   _buildDitteList(d.ditte || []);
+  _buildDittaPick();
 }
 
 function _buildLinksList(links){
@@ -8014,6 +8016,30 @@ function _rimuoviDitta(idx){
   _buildDitteList(ditte);
 }
 
+// elenco fornitori per la scheda spazio: aziende (con contatti) + ditte dell'archivio fatture
+function _buildDittaPick(){
+  const sel=document.getElementById('si-ditta-pick'); if(!sel) return;
+  const az=(aziendeDB||[]).map(a=>({v:'az:'+a.id, label:a.nome+(a.servizi?' · '+a.servizi:''), nome:a.nome})).sort((a,b)=>a.nome.localeCompare(b.nome));
+  const noti=new Set(az.map(a=>a.nome.toUpperCase()));
+  const ditte=(dittaDB||[]).filter(n=>n && !noti.has(String(n).toUpperCase())).sort().map(n=>({v:'dt:'+n, label:n}));
+  const esc=v=>String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  sel.innerHTML='<option value="">— pesca dall\'elenco fornitori / aziende —</option>'
+    +(az.length?'<optgroup label="Aziende (con contatti)">'+az.map(a=>`<option value="${esc(a.v)}">${esc(a.label)}</option>`).join('')+'</optgroup>':'')
+    +(ditte.length?'<optgroup label="Fornitori dalle fatture">'+ditte.map(d=>`<option value="${esc(d.v)}">${esc(d.label)}</option>`).join('')+'</optgroup>':'');
+}
+function _scegliDittaDaElenco(v){
+  if(!v) return;
+  const set=(id,val)=>{ const el=document.getElementById(id); if(el && val!==undefined) el.value=val; };
+  if(v.startsWith('az:')){
+    const a=(aziendeDB||[]).find(x=>String(x.id)===v.slice(3)); if(!a) return;
+    set('si-new-ditta-nome', a.nome); set('si-new-ditta-tel', a.tel||''); set('si-new-ditta-email', a.email||'');
+    if(a.servizi && !document.getElementById('si-new-ditta-servizio').value) set('si-new-ditta-servizio', a.servizi.split(',')[0].trim());
+  } else {
+    set('si-new-ditta-nome', v.slice(3)); set('si-new-ditta-tel',''); set('si-new-ditta-email','');
+  }
+  document.getElementById('si-ditta-pick').value='';
+  document.getElementById(document.getElementById('si-new-ditta-servizio').value?'si-new-ditta-tel':'si-new-ditta-servizio').focus();
+}
 function aggiungiDittaSpazio(){
   const servizio = document.getElementById('si-new-ditta-servizio').value.trim();
   const nome     = document.getElementById('si-new-ditta-nome').value.trim();
