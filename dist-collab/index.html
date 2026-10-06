@@ -26,6 +26,8 @@ body{font-family:'JetBrains Mono',monospace;background:var(--bg);color:var(--tex
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 600px 400px at 80% -10%,rgba(74,158,255,.07) 0%,transparent 60%),radial-gradient(ellipse 400px 600px at -10% 80%,rgba(255,107,53,.05) 0%,transparent 60%);pointer-events:none;z-index:0;}
 body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(74,158,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(74,158,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
 .app{position:relative;z-index:1;max-width:520px;margin:0 auto;display:flex;flex-direction:column;min-height:100vh;}
+/* su schermi larghi (PC, tablet orizzontale) l'app si allarga; sul telefono resta com'è */
+@media (min-width:900px){ .app{max-width:860px;} .modal{max-width:640px!important;} }
 
 /* HEADER */
 .hdr{padding:18px 18px 0;display:flex;align-items:center;justify-content:space-between;}
@@ -233,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v65</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v66</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -695,6 +697,20 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <label id="mc-info-lbl" style="display:flex;gap:8px;align-items:center;font-size:12px;cursor:pointer;"><input type="checkbox" id="mc-info" style="width:15px;height:15px;"> 🏛 Includi le informazioni dello spazio (scarico, ZTL, referente…)</label>
       <div id="mc-allegati"></div>
       <div style="display:flex;gap:8px;"><button class="btn btn-p" id="mc-btn" style="flex:1;" onclick="inviaMailCompagnia()">📤 Invia</button><button class="btn btn-o" onclick="document.getElementById('mail-comp-ov').classList.remove('open')">Annulla</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="mover" id="manif-pick-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:440px;padding:20px;">
+    <div class="mtitle">🎬 A quale manifestazione appartiene?</div>
+    <div id="mp-titolo" style="font-size:11px;color:var(--text2);margin-bottom:10px;"></div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.5;">Lo spettacolo non ha una manifestazione: il piano di produzione è per manifestazione e stagione, quindi scegline una (o scrivine una nuova) e lo spettacolo verrà aggiornato.</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <select id="mp-sel" style="width:100%;font-size:12px;"></select>
+      <input id="mp-nuova" type="text" placeholder="oppure nuova manifestazione…" style="width:100%;box-sizing:border-box;">
+      <label style="display:flex;gap:8px;align-items:center;font-size:11px;cursor:pointer;"><input type="checkbox" id="mp-tutte" checked style="width:14px;height:14px;"> assegna anche alle altre date dello stesso spettacolo senza manifestazione</label>
+      <div style="display:flex;gap:8px;"><button class="btn btn-p" style="flex:1;" onclick="confermaManifPerPiano()">✓ Assegna e apri il piano</button><button class="btn btn-o" onclick="document.getElementById('manif-pick-ov').classList.remove('open')">Annulla</button></div>
     </div>
   </div>
 </div>
@@ -2428,7 +2444,7 @@ function _buildCard(s){
       ${!IS_COLLAB&&!s.premontaggio&&!s.replicaOf?`<button class="iBtn" style="color:#fb923c;border-color:rgba(251,146,60,.35);" onclick="aggiungiPremontaggio(${s.id})">🔧 Premontaggio</button>`:''}
       ${!IS_COLLAB&&!s.replicaOf?`<button class="iBtn" style="color:#6366f1;border-color:rgba(99,102,241,.35);" onclick="aggiungiReplica(${s.id})">➕ Replica</button>`:''}
       <button class="iBtn" style="color:var(--accent);border-color:rgba(124,58,237,.3);" onclick="apriInvioInfoSpazio(${s.id})">📧 Info spazio</button>
-      ${s.manif&&s.manif!=='GESTIONE'&&(!IS_COLLAB||pianiProduzione[_prodKeyDi(s)])?`<button class="iBtn" style="color:#c084fc;border-color:rgba(192,132,252,.35);" onclick="apriPianoSpettacolo(${s.id})">🎬 Piano</button>`:''}
+      ${s.manif!=='GESTIONE'&&(!IS_COLLAB||(s.manif&&pianiProduzione[_prodKeyDi(s)]))?`<button class="iBtn" style="color:#c084fc;border-color:rgba(192,132,252,.35);" onclick="apriPianoSpettacolo(${s.id})">🎬 Piano</button>`:''}
       ${IS_COLLAB?'':`<button class="iBtn" style="color:var(--purple);border-color:rgba(124,58,237,.35);" onclick="apriVoceFornitore(${s.id})">🧾 Voce fornitore</button>
       <button class="iBtn ed" onclick="editSpett(${s.id})">✏️ Modifica</button>
       <button class="iBtn dl" onclick="delSpett(${s.id})">🗑</button>`}
@@ -2907,7 +2923,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v56 ──
+  return `// ── SPETTACOLI APP SCRIPT v57 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7460,7 +7476,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v65</span>
+    <span>Report generato da GammaFucker v66</span>
   </div>
   </body></html>`;
 
@@ -7566,7 +7582,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v65</span>
+    <span>Report generato da GammaFucker v66</span>
   </div>
   </body></html>`;
 
@@ -7643,7 +7659,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v65</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v66</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9900,9 +9916,31 @@ function stampaSchedaGiornata(id){
   _prodStampa('Scheda giornata — '+s.spett, _prodFmtD(s.data)+' · '+s.citta+(s.teatro?' · '+s.teatro:'')+(s.manif?' · '+s.manif:''), _prodBloccoHtml(s,g));
 }
 // dal bottone sulla card dello spettacolo
+let _mpId=null;
+function _scegliManifPerPiano(s){
+  _mpId=s.id;
+  const opts=[...new Set([...[...document.querySelectorAll('#f-manif option')].map(o=>o.value), ...data.map(x=>(x.manif||'').trim())].filter(m=>m && m!=='GESTIONE'))].sort();
+  const esc=v=>String(v).replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  document.getElementById('mp-titolo').textContent=s.spett+' · '+s.citta+' · '+s.data;
+  document.getElementById('mp-sel').innerHTML='<option value="">— scegli la manifestazione —</option>'+opts.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  document.getElementById('mp-nuova').value='';
+  document.getElementById('manif-pick-ov').classList.add('open');
+}
+function confermaManifPerPiano(){
+  const s=data.find(x=>String(x.id)===String(_mpId)); if(!s) return;
+  const m=(document.getElementById('mp-nuova').value.trim()||document.getElementById('mp-sel').value).trim();
+  if(!m){ toast('Scegli o scrivi una manifestazione', true); return; }
+  if(document.getElementById('mp-tutte').checked) _stessoSpettacolo(s).forEach(x=>{ if(!x.manif) x.manif=m; });
+  s.manif=m;
+  try{ const c=JSON.parse(ld('manifCustom','[]')); if(![...document.querySelectorAll('#f-manif option')].some(o=>o.value===m) && !c.includes(m)){ c.push(m); sv('manifCustom', JSON.stringify(c)); loadManifCustom(); } }catch(e){}
+  sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000;
+  document.getElementById('manif-pick-ov').classList.remove('open');
+  renderList(); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
+  apriPianoSpettacolo(s.id);
+}
 function apriPianoSpettacolo(id){
   const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
-  if(!s.manif){ toast('Assegna prima una manifestazione allo spettacolo', true); return; }
+  if(!s.manif){ if(IS_COLLAB){ toast('Spettacolo senza manifestazione', true); return; } _scegliManifPerPiano(s); return; }
   const key=_prodKeyDi(s);
   if(IS_COLLAB && !pianiProduzione[key]){ toast('Piano di produzione non ancora creato', true); return; }
   goTab('prod');
