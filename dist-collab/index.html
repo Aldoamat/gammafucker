@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v69</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v70</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1082,9 +1082,16 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
   <div class="modal" style="max-width:480px;max-height:85vh;overflow-y:auto;padding:20px;">
     <div class="mtitle">📧 Scheda Info Spazio: <span id="spazio-info-title" style="color:var(--accent);"></span></div>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <div class="field rb-wrap"><label>👤 Referente (nome) <span style="color:var(--text3);font-weight:normal;">— scrivi per cercare in rubrica</span></label><input type="text" id="si-referente-nome" placeholder="Mario Rossi" autocomplete="off"></div>
-      <div class="field"><label>📧 Email referente</label><input type="email" id="si-referente-email" placeholder="mario@teatro.it"></div>
-      <div class="field"><label>📱 Telefono referente</label><input type="tel" id="si-referente-tel" placeholder="333 1234567"></div>
+      <div class="field rb-wrap"><label>🔧 Referente tecnico (nome) <span style="color:var(--text3);font-weight:normal;">— scrivi per cercare in rubrica</span></label><input type="text" id="si-referente-nome" placeholder="Mario Rossi" autocomplete="off"></div>
+      <div style="display:flex;gap:8px;">
+        <div class="field" style="flex:1;"><label>📧 Email</label><input type="email" id="si-referente-email" placeholder="mario@teatro.it"></div>
+        <div class="field" style="flex:1;"><label>📱 Telefono</label><input type="tel" id="si-referente-tel" placeholder="333 1234567"></div>
+      </div>
+      <div class="field rb-wrap"><label>🚚 Referente logistico (nome) <span style="color:var(--text3);font-weight:normal;">— accessi, scarico, ZTL</span></label><input type="text" id="si-referente2-nome" placeholder="Luca Bianchi" autocomplete="off"></div>
+      <div style="display:flex;gap:8px;">
+        <div class="field" style="flex:1;"><label>📧 Email</label><input type="email" id="si-referente2-email" placeholder="luca@comune.it"></div>
+        <div class="field" style="flex:1;"><label>📱 Telefono</label><input type="tel" id="si-referente2-tel" placeholder="333 7654321"></div>
+      </div>
       <div class="field"><label>🚚 Tipologia di scarico</label><input type="text" id="si-scarico" placeholder="es. Via laterale, mezzo max 3.5t"></div>
       <div class="field">
         <label>🅿️ Libretto per accesso ZTL</label>
@@ -1746,6 +1753,7 @@ function _rubricaStato(){ const st=document.getElementById('rubrica-stato'); if(
 function _initRubrica(){
   setTimeout(()=>caricaRubrica(false), 3500);
   attachRubrica('si-referente-nome', c=>{ _setVal('si-referente-email', c.email); _setVal('si-referente-tel', c.tel); }, {aziende:false});
+  attachRubrica('si-referente2-nome', c=>{ _setVal('si-referente2-email', c.email); _setVal('si-referente2-tel', c.tel); }, {aziende:false});
   attachRubrica('si-new-ditta-nome', c=>{ _setVal('si-new-ditta-tel', c.tel); _setVal('si-new-ditta-email', c.email); if(c.servizi && !document.getElementById('si-new-ditta-servizio').value) document.getElementById('si-new-ditta-servizio').value=c.servizi.split(',')[0].trim(); }, {aziende:true});
   attachRubrica('cfg-az-nome', c=>{ _setVal('cfg-az-tel', c.tel); _setVal('cfg-az-email', c.email); }, {aziende:false});
 }
@@ -2945,7 +2953,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v60 ──
+  return `// ── SPETTACOLI APP SCRIPT v61 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7498,7 +7506,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v69</span>
+    <span>Report generato da GammaFucker v70</span>
   </div>
   </body></html>`;
 
@@ -7604,7 +7612,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v69</span>
+    <span>Report generato da GammaFucker v70</span>
   </div>
   </body></html>`;
 
@@ -7681,7 +7689,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v69</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v70</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -8115,6 +8123,9 @@ function _caricaFormSpazio(key){
   document.getElementById('si-referente-nome').value  = d.referente_nome  || '';
   document.getElementById('si-referente-email').value = d.referente_email || '';
   document.getElementById('si-referente-tel').value   = d.referente_tel   || '';
+  document.getElementById('si-referente2-nome').value  = d.referente2_nome  || '';
+  document.getElementById('si-referente2-email').value = d.referente2_email || '';
+  document.getElementById('si-referente2-tel').value   = d.referente2_tel   || '';
   document.getElementById('si-scarico').value         = d.scarico         || '';
   document.getElementById('si-ztl').value             = d.ztl             || 'non_necessario';
   document.getElementById('si-ztl-email').value       = d.ztl_email       || '';
@@ -8224,6 +8235,9 @@ function salvaSpazioInfo(){
     referente_nome:  document.getElementById('si-referente-nome').value.trim(),
     referente_email: document.getElementById('si-referente-email').value.trim(),
     referente_tel:   document.getElementById('si-referente-tel').value.trim(),
+    referente2_nome:  document.getElementById('si-referente2-nome').value.trim(),
+    referente2_email: document.getElementById('si-referente2-email').value.trim(),
+    referente2_tel:   document.getElementById('si-referente2-tel').value.trim(),
     scarico:         document.getElementById('si-scarico').value.trim(),
     ztl:             document.getElementById('si-ztl').value,
     ztl_email:       document.getElementById('si-ztl-email').value.trim(),
@@ -8264,10 +8278,17 @@ function _buildTestoSpazio(citta, teatro){
   t += `📍 ${teatro} — ${citta}\n`;
   t += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
   if(d.referente_nome || d.referente_email || d.referente_tel){
-    t += `👤 REFERENTE SPAZIO\n`;
+    t += `🔧 REFERENTE TECNICO\n`;
     if(d.referente_nome)  t += `   ${d.referente_nome}\n`;
     if(d.referente_email) t += `   ${d.referente_email}\n`;
     if(d.referente_tel)   t += `   Tel. ${d.referente_tel}\n`;
+    t += `\n`;
+  }
+  if(d.referente2_nome || d.referente2_email || d.referente2_tel){
+    t += `🚚 REFERENTE LOGISTICO (accessi, scarico, ZTL)\n`;
+    if(d.referente2_nome)  t += `   ${d.referente2_nome}\n`;
+    if(d.referente2_email) t += `   ${d.referente2_email}\n`;
+    if(d.referente2_tel)   t += `   Tel. ${d.referente2_tel}\n`;
     t += `\n`;
   }
   if(d.scarico){
@@ -9484,7 +9505,9 @@ function _prodDefault(s){
   const c = (s.contatti||[])[0];
   if(c) p.refComp = [c.nome, c.compagnia, c.telefono, c.email].filter(Boolean).join(' · ');
   const si = spazioInfo[(s.citta||'')+'||'+(s.teatro||'')] || {};
-  if(si.referente_nome || si.referente_tel) p.refTeatro = [si.referente_nome, si.referente_tel, si.referente_email].filter(Boolean).join(' · ');
+  const rt=[si.referente_nome, si.referente_tel, si.referente_email].filter(Boolean).join(' · ');
+  const rl=[si.referente2_nome, si.referente2_tel, si.referente2_email].filter(Boolean).join(' · ');
+  if(rt || rl) p.refTeatro = [rt?'tecnico: '+rt:'', rl?'logistico: '+rl:''].filter(Boolean).join(' | ');
   if(si.ztl === 'necessario') p.ztl.serve = true;
   const tec = [];
   if(s.nm) tec.push(s.nm+' macchinist'+(s.nm>1?'i':'a'));
@@ -9655,7 +9678,7 @@ function apriRichiestaZtl(id){
   const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
   _ztlId = s.id; const p=_prodDi(s);
   const si = spazioInfo[(s.citta||'')+'||'+(s.teatro||'')] || {};
-  document.getElementById('ztl-dest').value = si.ztl_email || si.referente_email || '';
+  document.getElementById('ztl-dest').value = si.ztl_email || si.referente2_email || si.referente_email || '';
   document.getElementById('ztl-ogg').value = `Richiesta permesso ZTL — ${s.spett} — ${s.citta}${s.teatro?' '+s.teatro:''} — ${_prodFmtD(s.data)}`;
   document.getElementById('ztl-testo').value =
 `Buongiorno,
@@ -9716,7 +9739,8 @@ function apriInoltro(id){
   // destinatari suggeriti: referente teatro, email ZTL, service/aziende della scheda spazio
   const si=spazioInfo[(s.citta||'')+'||'+(s.teatro||'')]||{};
   const sugg=[]; const add=(lab,em)=>{ if(em && !sugg.some(x=>x.em===em)) sugg.push({lab,em}); };
-  add('🏛 '+(si.referente_nome||'referente teatro'), si.referente_email);
+  add('🔧 '+(si.referente_nome||'referente tecnico'), si.referente_email);
+  add('🚚 '+(si.referente2_nome||'referente logistico'), si.referente2_email);
   (si.ditte||[]).forEach(d=>add('🏢 '+(d.nome||d.servizio), d.email));
   const serv=(s.prod&&s.prod.service)||''; if(serv){ const a=(aziendeDB||[]).find(x=>x.nome.toUpperCase()===serv.toUpperCase()); if(a) add('🔧 '+a.nome, a.email); }
   document.getElementById('in-dest').value=sugg.length&&si.referente_email?si.referente_email:'';
@@ -9729,7 +9753,8 @@ function apriInoltro(id){
   else {
     vuoto.style.display='none'; box.style.display='flex';
     const tels=[]; const addT=(lab,tel)=>{ if(tel && !tels.some(x=>x.tel===tel)) tels.push({lab,tel}); };
-    addT('🏛 '+(si.referente_nome||'referente teatro'), si.referente_tel);
+    addT('🔧 '+(si.referente_nome||'referente tecnico'), si.referente_tel);
+    addT('🚚 '+(si.referente2_nome||'referente logistico'), si.referente2_tel);
     (si.ditte||[]).forEach(d=>addT('🏢 '+(d.nome||d.servizio), d.tel));
     if(serv){ const a=(aziendeDB||[]).find(x=>x.nome.toUpperCase()===serv.toUpperCase()); if(a) addT('🔧 '+a.nome, a.tel); }
     document.getElementById('in-wa-dest').innerHTML=tels.map(t=>`<option value="${esc(t.tel)}">${esc(t.lab)} (${esc(t.tel)})</option>`).join('')+'<option value="__altro">altro numero…</option>';
