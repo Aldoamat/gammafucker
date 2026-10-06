@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v54 ──
+// ── SPETTACOLI APP SCRIPT v55 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -107,7 +107,8 @@ function doPost(e) {
       var subject = body.subject || '';
       var message = body.message || '';
       if(!to || !subject || !message){ lock.releaseLock(); return resp('missing fields'); }
-      var opt = { to: to, subject: subject, body: message, htmlBody: message.split(String.fromCharCode(10)).join('<br>') };
+      // il testo può contenere bottoni HTML (link "Scarica"): nel corpo testuale restano solo le parole
+      var opt = { to: to, subject: subject, body: message.replace(/<a [^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/g, '$2: $1').replace(/<[^>]+>/g, ''), htmlBody: message.split(String.fromCharCode(10)).join('<br>') };
       if (COPIA_MAIL_A && to.toLowerCase().indexOf(COPIA_MAIL_A.toLowerCase()) < 0) opt.bcc = COPIA_MAIL_A;   // copia di ogni mail inviata dall'app
       var att = [];
       (body.allegati || []).forEach(function(u) {

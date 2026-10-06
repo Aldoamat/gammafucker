@@ -233,7 +233,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v63</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v64</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -695,6 +695,22 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <label id="mc-info-lbl" style="display:flex;gap:8px;align-items:center;font-size:12px;cursor:pointer;"><input type="checkbox" id="mc-info" style="width:15px;height:15px;"> 🏛 Includi le informazioni dello spazio (scarico, ZTL, referente…)</label>
       <div id="mc-allegati"></div>
       <div style="display:flex;gap:8px;"><button class="btn btn-p" id="mc-btn" style="flex:1;" onclick="inviaMailCompagnia()">📤 Invia</button><button class="btn btn-o" onclick="document.getElementById('mail-comp-ov').classList.remove('open')">Annulla</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="mover" id="contatti-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:480px;max-height:90vh;overflow-y:auto;padding:20px;">
+    <div class="mtitle">👤 Referenti compagnia</div>
+    <div id="ct-titolo" style="font-size:11px;color:var(--text2);margin-bottom:10px;"></div>
+    <div id="ct-lista" style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;"></div>
+    <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">Aggiungi</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <span class="rb-wrap" style="display:block;"><input id="ct-nome" type="text" placeholder="Nome (cerca anche in rubrica)" autocomplete="off" style="width:100%;box-sizing:border-box;"></span>
+      <input id="ct-comp" type="text" placeholder="Compagnia / ruolo" style="width:100%;box-sizing:border-box;">
+      <div style="display:flex;gap:6px;"><input id="ct-tel" type="tel" placeholder="Cellulare" style="flex:1;"><input id="ct-email" type="email" placeholder="Email" style="flex:1;"></div>
+      <label style="display:flex;gap:8px;align-items:center;font-size:11px;cursor:pointer;"><input type="checkbox" id="ct-tutte" checked style="width:14px;height:14px;"> aggiungi anche alle altre date dello stesso spettacolo in stagione</label>
+      <div style="display:flex;gap:8px;"><button class="btn btn-p" style="flex:1;" onclick="salvaContatto()">➕ Aggiungi</button><button class="btn btn-o" onclick="document.getElementById('contatti-ov').classList.remove('open')">Chiudi</button></div>
     </div>
   </div>
 </div>
@@ -2377,7 +2393,7 @@ function _buildCard(s){
     ${(s.mails&&s.mails.length)?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">${s.mails.map((mm,mi)=>`
       <a href="${mm.file||mm.link}" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;color:#60a5fa;border-color:rgba(96,165,250,.3);font-size:10px;padding:2px 7px;">${mm.tipo==='scheda'?'📎':'✉'} ${mm.og.length>26?mm.og.substring(0,26)+'…':mm.og}</a>`).join('')}
       ${IS_COLLAB?'':`<button class="iBtn" style="font-size:10px;padding:2px 6px;color:var(--text3);" onclick="gestisciMail(${s.id})">⚙</button>`}</div>`:''}
-    ${(s.contatti&&s.contatti.length)?`<div style="margin-top:4px;">${_contattiChips(s.contatti)}</div>`:''}
+    ${(s.contatti&&s.contatti.length)||!IS_COLLAB?`<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${_contattiChips(s.contatti||[])}${IS_COLLAB?'':`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#a78bfa;border-color:rgba(167,139,250,.35);" onclick="apriContatti(${s.id})" title="Referenti compagnia">👤 ${(s.contatti&&s.contatti.length)?'✎':'+ referente'}</button>`}</div>`:''}
     ${(()=>{ if(!s.note) return ''; const righe=s.note.split('|').map(l=>l.trim()).filter(Boolean); const fR=righe.filter(l=>l.toLowerCase().includes('fattura')); const gR=righe.filter(l=>!l.toLowerCase().includes('fattura')); let h=''; if(gR.length) h+='<div class="spnote">'+gR.join('<br>')+'</div>'; if(fR.length) h+='<div class="spnote-fatt">'+fR.join('<br><br>')+'</div>'; { const w=_discrepanzaCosti(s); if(w) h+=w; } if(fR.length) h+=`<button class="iBtn" style="font-size:10px;margin-top:3px;border-color:rgba(124,58,237,.4);color:var(--purple);" onclick="reportFattureNote(${s.id})">📋 Fatture in nota</button>`; return h; })()}
     <div class="sptags">
       ${s.manif?`<span class="tag m">${s.manif}</span>`:''}
@@ -2876,7 +2892,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v54 ──
+  return `// ── SPETTACOLI APP SCRIPT v55 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -2985,7 +3001,8 @@ function doPost(e) {
       var subject = body.subject || '';
       var message = body.message || '';
       if(!to || !subject || !message){ lock.releaseLock(); return resp('missing fields'); }
-      var opt = { to: to, subject: subject, body: message, htmlBody: message.split(String.fromCharCode(10)).join('<br>') };
+      // il testo può contenere bottoni HTML (link "Scarica"): nel corpo testuale restano solo le parole
+      var opt = { to: to, subject: subject, body: message.replace(/<a [^>]*href="([^"]+)"[^>]*>([^<]*)<\\/a>/g, '$2: $1').replace(/<[^>]+>/g, ''), htmlBody: message.split(String.fromCharCode(10)).join('<br>') };
       if (COPIA_MAIL_A && to.toLowerCase().indexOf(COPIA_MAIL_A.toLowerCase()) < 0) opt.bcc = COPIA_MAIL_A;   // copia di ogni mail inviata dall'app
       var att = [];
       (body.allegati || []).forEach(function(u) {
@@ -7397,7 +7414,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v63</span>
+    <span>Report generato da GammaFucker v64</span>
   </div>
   </body></html>`;
 
@@ -7503,7 +7520,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v63</span>
+    <span>Report generato da GammaFucker v64</span>
   </div>
   </body></html>`;
 
@@ -7580,7 +7597,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v63</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v64</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -8143,6 +8160,17 @@ function closeSpazioInfo(e){
 }
 
 // ── Costruisce il testo della mail per uno spazio ──
+// Link a un documento → bottone "Scarica <nome>" nelle mail (Drive: link di download diretto; Dropbox: dl=1)
+function _linkDownload(url){
+  const m = String(url||'').match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?.*id=)([-\w]{20,})/);
+  if(m) return 'https://drive.google.com/uc?export=download&id='+m[1];
+  if(/dropbox\.com/.test(url)) return url.replace(/[?&]dl=0/,'').replace(/dropbox\.com\/s\//,'dropbox.com/scl/fi/') + (url.includes('?')?'&dl=1':'?dl=1');
+  return url;
+}
+function _bottoneScarica(label, url){
+  const esc=v=>String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  return `<a href="${esc(_linkDownload(url))}" style="display:inline-block;padding:6px 12px;background:#4c1d95;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:bold;margin:2px 0;">⬇️ Scarica ${esc(String(label||'file').replace(/^[^\w(]+\s*/,''))}</a>`;
+}
 function _buildTestoSpazio(citta, teatro){
   const key = citta + '||' + teatro;
   const d   = spazioInfo[key];
@@ -8170,8 +8198,7 @@ function _buildTestoSpazio(citta, teatro){
   if(d.links && d.links.length){
     t += `📎 DOCUMENTI TECNICI\n`;
     d.links.forEach(l => { 
-      const dlUrl = l.url.replace(/[?&]dl=0/,'').replace(/dropbox\.com\/s\//,'dropbox.com/scl/fi/') + (l.url.includes('?')?'&dl=1':'?dl=1');
-      t += `   • <a href="${dlUrl}" style="display:inline-block;padding:6px 12px;background:#0061FF;color:white;border-radius:4px;text-decoration:none;font-weight:bold;margin:2px 0;">⬇️ ${l.label}</a>\n`; 
+      t += `   • ${_bottoneScarica(l.label, l.url)}\n`; 
     });
     t += `\n`;
   }
@@ -9588,6 +9615,48 @@ async function allegaPermesso(id, files){
     toast('✓ Permesso allegato'); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
   }catch(e){ toast('Errore: '+e.message, true); }
 }
+// ── referenti compagnia a mano (oltre a quelli letti da schede e mail) ──
+let _ctId=null;
+function apriContatti(id){
+  const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
+  _ctId=s.id;
+  document.getElementById('ct-titolo').textContent=s.spett+' · '+s.citta+' · '+s.data;
+  ['ct-nome','ct-comp','ct-tel','ct-email'].forEach(i=>document.getElementById(i).value='');
+  _renderContatti();
+  if(!window._ctRubrica){ window._ctRubrica=true; attachRubrica('ct-nome', c=>{ _setVal('ct-tel', c.tel); _setVal('ct-email', c.email); if(c.org&&c.org!=='azienda') _setVal('ct-comp', c.org); }, {aziende:false}); }
+  document.getElementById('contatti-ov').classList.add('open');
+  setTimeout(()=>document.getElementById('ct-nome').focus(),100);
+}
+function _renderContatti(){
+  const s=data.find(x=>String(x.id)===String(_ctId)); if(!s) return;
+  const esc=v=>String(v||'').replace(/</g,'&lt;');
+  document.getElementById('ct-lista').innerHTML=(s.contatti||[]).length ? (s.contatti||[]).map((c,i)=>`<div style="display:flex;gap:8px;align-items:center;font-size:12px;padding:6px 8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;">
+      <div style="flex:1;"><b>${esc(c.nome||'—')}</b>${c.compagnia?' · '+esc(c.compagnia):''}${c.ruolo&&c.ruolo!=='mittente'?' · '+esc(c.ruolo):''}<div style="font-size:10px;color:var(--text3);">${esc(c.telefono||'')}${c.telefono&&c.email?' · ':''}${esc(c.email||'')}</div></div>
+      <button class="iBtn" style="font-size:10px;padding:2px 7px;color:var(--red);" onclick="rimuoviContatto(${i})">✕</button></div>`).join('') : '<div style="font-size:11px;color:var(--text3);">Nessun referente ancora.</div>';
+}
+function _stessoSpettacolo(s){ const st=_stagioneDa(s.data), t=_normTxt(s.spett); return data.filter(x=>x!==s && _stagioneDa(x.data)===st && _normTxt(x.spett)===t); }
+function salvaContatto(){
+  const s=data.find(x=>String(x.id)===String(_ctId)); if(!s) return;
+  const c={nome:document.getElementById('ct-nome').value.trim(), compagnia:document.getElementById('ct-comp').value.trim(), telefono:document.getElementById('ct-tel').value.trim(), email:document.getElementById('ct-email').value.trim().toLowerCase(), ruolo:'referente', manuale:true};
+  if(!c.nome && !c.telefono && !c.email){ toast('Inserisci almeno nome, cellulare o email', true); return; }
+  const dup=(lista,c)=>lista.some(o=>(c.email&&(o.email||'').toLowerCase()===c.email)||(!c.email&&c.telefono&&(o.telefono||'').replace(/\s/g,'')===c.telefono.replace(/\s/g,'')));
+  const target=[s, ...(document.getElementById('ct-tutte').checked?_stessoSpettacolo(s):[])];
+  let n=0; target.forEach(x=>{ x.contatti=x.contatti||[]; if(!dup(x.contatti,c)){ x.contatti.push({...c}); n++; } });
+  sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000;
+  ['ct-nome','ct-comp','ct-tel','ct-email'].forEach(i=>document.getElementById(i).value='');
+  _renderContatti(); renderList(); if(_prodKey) renderPiano();
+  toast('✓ Referente aggiunto'+(n>1?' a '+n+' date':''));
+  if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
+}
+function rimuoviContatto(i){
+  const s=data.find(x=>String(x.id)===String(_ctId)); if(!s||!s.contatti) return;
+  const c=s.contatti[i]; if(!c) return;
+  if(!confirm('Togliere '+(c.nome||c.email||c.telefono)+' da questo spettacolo?')) return;
+  s.contatti.splice(i,1); sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000;
+  _renderContatti(); renderList(); if(_prodKey) renderPiano();
+  if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
+}
+
 // ── allegati disponibili per uno spettacolo: scheda tecnica, permesso ZTL, documenti dello spazio, file caricati ora ──
 let _allegatiExtra = {};   // id spettacolo → [{label,url}] caricati al momento
 function _allegatiDi(s){
@@ -9615,7 +9684,7 @@ async function caricaAllegatoExtra(prefix, id, files){
   toast('✓ file caricato'); if(prefix==='wa') _waAggiorna();
 }
 function _allegatiScelti(prefix){ return [...document.querySelectorAll('.'+prefix+'-all:checked')].map(c=>({label:c.dataset.label, url:c.dataset.url})); }
-function _testoAllegati(lista){ return lista.length ? '\n\nDocumenti:\n'+lista.map(a=>'- '+a.label.replace(/^[^\w]+/,'')+': '+a.url).join('\n') : ''; }
+function _testoAllegati(lista, html){ return lista.length ? '\n\nDocumenti:\n'+lista.map(a=> html ? '   • '+_bottoneScarica(a.label, a.url) : '- '+a.label.replace(/^[^\w]+/,'')+': '+a.url).join('\n') : ''; }
 function _testoInfoSpazioDi(s){ const t=_buildTestoSpazio(s.citta, s.teatro||''); return t ? '\n\nInformazioni dello spazio:\n'+t : ''; }
 
 // mail alla compagnia dal piano (parte dall'account Google dell'app, resta in Gmail)
@@ -9639,7 +9708,7 @@ async function inviaMailCompagnia(){
   const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
   const all=_allegatiScelti('mc');
   if(document.getElementById('mc-info').checked) testo+=_testoInfoSpazioDi(s);
-  testo+=_testoAllegati(all);
+  testo+=_testoAllegati(all, true);
   const btn=document.getElementById('mc-btn'); btn.disabled=true; btn.textContent='⏳ Invio…';
   try{
     const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'sendEmail', to:dest, subject:ogg, message:testo, allegati:all.map(a=>a.url)})});
@@ -9693,7 +9762,7 @@ async function inviaPermessoCompagnia(id){
   const dest=prompt('Invio permesso ZTL a (email, anche più di una separate da virgola):', (s.contatti||[]).map(c=>c.email).filter(Boolean).join(', '));
   if(!dest) return;
   const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
-  const testo=`Buongiorno,\nin allegato (link) il permesso di accesso alla ZTL di ${s.citta} per lo spettacolo "${s.spett}" del ${_prodFmtD(s.data)}${s.teatro?' presso '+s.teatro:''}:\n${z.permessoUrl}\n\nDa tenere a bordo del mezzo.\n\n${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}\ncoordinamento tecnico Amat`;
+  const testo=`Buongiorno,\nin allegato il permesso di accesso alla ZTL di ${s.citta} per lo spettacolo "${s.spett}" del ${_prodFmtD(s.data)}${s.teatro?' presso '+s.teatro:''}:\n${_bottoneScarica(z.permessoNome||'permesso ZTL', z.permessoUrl)}\n\nDa tenere a bordo del mezzo.\n\n${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}\ncoordinamento tecnico Amat`;
   try{
     const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'sendEmail', to:dest, subject:`Permesso ZTL — ${s.spett} — ${_prodFmtD(s.data)}`, message:testo})});
     const j=await res.json(); if(j.result!=='sent') throw new Error(j.result||j.error||'errore');
