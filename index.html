@@ -233,7 +233,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v64</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v65</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -695,6 +695,20 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <label id="mc-info-lbl" style="display:flex;gap:8px;align-items:center;font-size:12px;cursor:pointer;"><input type="checkbox" id="mc-info" style="width:15px;height:15px;"> 🏛 Includi le informazioni dello spazio (scarico, ZTL, referente…)</label>
       <div id="mc-allegati"></div>
       <div style="display:flex;gap:8px;"><button class="btn btn-p" id="mc-btn" style="flex:1;" onclick="inviaMailCompagnia()">📤 Invia</button><button class="btn btn-o" onclick="document.getElementById('mail-comp-ov').classList.remove('open')">Annulla</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="mover" id="inoltra-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto;padding:20px;">
+    <div class="mtitle">↪ Inoltra la mail della compagnia</div>
+    <div id="in-titolo" style="font-size:11px;color:var(--text2);margin-bottom:10px;"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="field"><label>Mail da inoltrare</label><select id="in-mail" style="width:100%;font-size:12px;"></select></div>
+      <div class="field"><label>Destinatari (referente teatro, service, tecnici…)</label><input type="text" id="in-dest" placeholder="email1, email2"><div id="in-suggeriti" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;"></div></div>
+      <div class="field"><label>Oggetto</label><input type="text" id="in-ogg"></div>
+      <div class="field"><label>Testo introduttivo (la mail originale con gli allegati va in coda)</label><textarea id="in-testo" style="min-height:120px;font-size:12px;"></textarea></div>
+      <div style="display:flex;gap:8px;"><button class="btn btn-p" id="in-btn" style="flex:1;" onclick="inviaInoltro()">↪ Inoltra</button><button class="btn btn-o" onclick="document.getElementById('inoltra-ov').classList.remove('open')">Annulla</button></div>
     </div>
   </div>
 </div>
@@ -2392,6 +2406,7 @@ function _buildCard(s){
     ${s.accordi?`<div style="font-size:10px;color:#60a5fa;margin-top:4px;padding:4px 6px;background:rgba(96,165,250,.06);border-left:2px solid rgba(96,165,250,.3);border-radius:3px;">📋 ${s.accordi}</div>`:''}
     ${(s.mails&&s.mails.length)?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">${s.mails.map((mm,mi)=>`
       <a href="${mm.file||mm.link}" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;color:#60a5fa;border-color:rgba(96,165,250,.3);font-size:10px;padding:2px 7px;">${mm.tipo==='scheda'?'📎':'✉'} ${mm.og.length>26?mm.og.substring(0,26)+'…':mm.og}</a>`).join('')}
+      ${s.mails.some(m=>m.link)?`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#f59e0b;border-color:rgba(245,158,11,.4);" onclick="apriInoltro(${s.id})" title="Inoltra la mail della compagnia ai referenti">↪ Inoltra</button>`:''}
       ${IS_COLLAB?'':`<button class="iBtn" style="font-size:10px;padding:2px 6px;color:var(--text3);" onclick="gestisciMail(${s.id})">⚙</button>`}</div>`:''}
     ${(s.contatti&&s.contatti.length)||!IS_COLLAB?`<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${_contattiChips(s.contatti||[])}${IS_COLLAB?'':`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#a78bfa;border-color:rgba(167,139,250,.35);" onclick="apriContatti(${s.id})" title="Referenti compagnia">👤 ${(s.contatti&&s.contatti.length)?'✎':'+ referente'}</button>`}</div>`:''}
     ${(()=>{ if(!s.note) return ''; const righe=s.note.split('|').map(l=>l.trim()).filter(Boolean); const fR=righe.filter(l=>l.toLowerCase().includes('fattura')); const gR=righe.filter(l=>!l.toLowerCase().includes('fattura')); let h=''; if(gR.length) h+='<div class="spnote">'+gR.join('<br>')+'</div>'; if(fR.length) h+='<div class="spnote-fatt">'+fR.join('<br><br>')+'</div>'; { const w=_discrepanzaCosti(s); if(w) h+=w; } if(fR.length) h+=`<button class="iBtn" style="font-size:10px;margin-top:3px;border-color:rgba(124,58,237,.4);color:var(--purple);" onclick="reportFattureNote(${s.id})">📋 Fatture in nota</button>`; return h; })()}
@@ -2892,7 +2907,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v55 ──
+  return `// ── SPETTACOLI APP SCRIPT v56 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -3044,6 +3059,11 @@ function doPost(e) {
       lock.releaseLock();
       var ru; try { ru = caricaDocumento(body.cartella, body.nome, body.mime, body.b64); } catch(errU) { ru = { error: errU.message }; }
       return ContentService.createTextOutput(JSON.stringify(ru)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (body.action === 'inoltraMail') {
+      lock.releaseLock();
+      var rf2; try { rf2 = inoltraMailThread(body.link, body.fonte, body.to, body.testo, body.oggetto); } catch(errF) { rf2 = { error: errF.message }; }
+      return ContentService.createTextOutput(JSON.stringify(rf2)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'leggiScheda') {
       lock.releaseLock();   // la lettura dura anche un minuto: non bloccare le sync dei colleghi
@@ -3883,6 +3903,32 @@ function scansionaSchede(maxMin) {
 
 // Lettura forzata di un singolo thread (dall'app: pulsante sulla segnalazione).
 // Ignora il filtro "sembra scheda" e l'etichetta: legge tutti i PDF/Word del thread.
+// Trova la conversazione Gmail dal link salvato sullo spettacolo (o dall'oggetto)
+function _threadDaLink(link, fonte) {
+  var th = null;
+  var id = String(link || '').split(/[\\/#]/).pop();
+  if (id) { try { th = GmailApp.getThreadById(id); } catch(e) {} }
+  if (!th && fonte) {
+    var ogg = String(fonte).split(' | ')[0].replace(/^\\s*((I|R|RE|FW|FWD|TR|Fwd|Re|I):\\s*)+/i, '').replace(/"/g, '').trim();
+    if (ogg.length > 6) { var found = GmailApp.search('subject:"' + ogg.substring(0, 80) + '" newer_than:365d', 0, 3); if (found.length) th = found[0]; }
+  }
+  return th;
+}
+// Inoltra ai referenti (teatro, service…) la mail della compagnia con tutti gli allegati, più un testo introduttivo
+function inoltraMailThread(link, fonte, to, testo, oggetto) {
+  if (!to) return { error: 'destinatario mancante' };
+  var th = _threadDaLink(link, fonte);
+  if (!th) return { error: 'mail non trovata (né link né oggetto corrispondente)' };
+  // il messaggio con allegati (di solito la scheda tecnica), altrimenti l'ultimo
+  var msgs = th.getMessages(), msg = msgs[msgs.length - 1];
+  for (var i = msgs.length - 1; i >= 0; i--) { if (msg.getAttachments().length) break; if (msgs[i].getAttachments().length) { msg = msgs[i]; break; } }
+  var intro = String(testo || '');
+  var opt = { htmlBody: intro.replace(/\\n/g, '<br>') + '<br><br>---------- Messaggio inoltrato ----------<br>' + msg.getBody() };
+  if (oggetto) opt.subject = oggetto;
+  if (COPIA_MAIL_A && String(to).toLowerCase().indexOf(COPIA_MAIL_A.toLowerCase()) < 0) opt.bcc = COPIA_MAIL_A;
+  msg.forward(to, opt);
+  return { ok: true, oggetto: oggetto || ('Fwd: ' + msg.getSubject()), allegati: msg.getAttachments().length, da: msg.getFrom() };
+}
 function leggiSchedaThread(link, fonte) {
   var th = null;
   var id = String(link || '').split(/[\\/#]/).pop();
@@ -7414,7 +7460,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v64</span>
+    <span>Report generato da GammaFucker v65</span>
   </div>
   </body></html>`;
 
@@ -7520,7 +7566,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v64</span>
+    <span>Report generato da GammaFucker v65</span>
   </div>
   </body></html>`;
 
@@ -7597,7 +7643,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v64</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v65</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9525,6 +9571,7 @@ function renderPiano(){
         <div style="display:flex;gap:4px;flex-wrap:wrap;">
           ${scheda?`<a href="${_prodEsc(scheda.file||scheda.link)}" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;font-size:10px;padding:3px 8px;color:#60a5fa;border-color:rgba(96,165,250,.35);">📄 Scheda tecnica</a>`:(RO?`<span class="iBtn" style="font-size:10px;padding:3px 8px;color:var(--text3);border-style:dashed;">📄 scheda non arrivata</span>`:`<label class="iBtn" style="font-size:10px;padding:3px 8px;cursor:pointer;color:#60a5fa;border-color:rgba(96,165,250,.35);border-style:dashed;">📎 Allega scheda tecnica<input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="display:none" onchange="allegaSchedaTecnica(${s.id},this.files)"></label>`)}
           <button class="iBtn" style="font-size:10px;padding:3px 8px;" onclick="${RO?`apriInvioInfoSpazio(${s.id})`:`openSpazioInfoTiatro('${_prodEsc(s.citta)}','${_prodEsc(s.teatro||'')}')`}">🏛 Info spazio</button>
+          ${(s.mails||[]).some(m=>m.link)?`<button class="iBtn" style="font-size:10px;padding:3px 8px;color:#f59e0b;border-color:rgba(245,158,11,.4);" onclick="apriInoltro(${s.id})">↪ Inoltra ai referenti</button>`:''}
           <button class="iBtn" style="font-size:10px;padding:3px 8px;" onclick="stampaSchedaGiornata(${s.id})">🖨 Scheda giornata</button>
           ${contattiBtn}
         </div></div>
@@ -9615,6 +9662,47 @@ async function allegaPermesso(id, files){
     toast('✓ Permesso allegato'); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
   }catch(e){ toast('Errore: '+e.message, true); }
 }
+// ── inoltro della mail della compagnia (scheda tecnica e allegati) ai referenti ──
+let _inId=null;
+function apriInoltro(id){
+  const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
+  const mails=(s.mails||[]).filter(m=>m.link);
+  if(!mails.length){ toast('Nessuna mail agganciata a questo spettacolo', true); return; }
+  _inId=s.id;
+  document.getElementById('in-titolo').textContent=s.spett+' · '+s.citta+(s.teatro?' · '+s.teatro:'')+' · '+_prodFmtD(s.data);
+  const esc=v=>String(v||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const sel=document.getElementById('in-mail');
+  sel.innerHTML=mails.map((m,i)=>`<option value="${i}"${m.tipo==='scheda'?' selected':''}>${m.tipo==='scheda'?'📎 ':'✉ '}${esc(m.og)}</option>`).join('');
+  const m=mails[+sel.value]||mails[0];
+  document.getElementById('in-ogg').value='Fwd: '+String(m.og||'').replace(/^Scheda tecnica — /,'')+' — '+s.spett+' '+_prodFmtD(s.data);
+  // destinatari suggeriti: referente teatro, email ZTL, service/aziende della scheda spazio
+  const si=spazioInfo[(s.citta||'')+'||'+(s.teatro||'')]||{};
+  const sugg=[]; const add=(lab,em)=>{ if(em && !sugg.some(x=>x.em===em)) sugg.push({lab,em}); };
+  add('🏛 '+(si.referente_nome||'referente teatro'), si.referente_email);
+  (si.ditte||[]).forEach(d=>add('🏢 '+(d.nome||d.servizio), d.email));
+  const serv=(s.prod&&s.prod.service)||''; if(serv){ const a=(aziendeDB||[]).find(x=>x.nome.toUpperCase()===serv.toUpperCase()); if(a) add('🔧 '+a.nome, a.email); }
+  document.getElementById('in-dest').value=sugg.length&&si.referente_email?si.referente_email:'';
+  document.getElementById('in-suggeriti').innerHTML=sugg.map(x=>`<button class="iBtn" style="font-size:10px;padding:2px 7px;" onclick="_inAddDest('${esc(x.em)}')">${esc(x.lab)}</button>`).join('');
+  document.getElementById('in-testo').value=`Buongiorno,\nvi inoltro la mail della compagnia con la scheda tecnica e le informazioni per lo spettacolo "${s.spett}" del ${_prodFmtD(s.data)}${s.teatro?' al '+s.teatro:''}.\n\nRestiamo a disposizione.\n\n${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}\ncoordinamento tecnico Amat${IS_COLLAB?'':'\nmob. 3477086550'}`;
+  document.getElementById('inoltra-ov').classList.add('open');
+}
+function _inAddDest(em){ const el=document.getElementById('in-dest'); const cur=el.value.split(/[,;]/).map(x=>x.trim()).filter(Boolean); if(!cur.includes(em)) cur.push(em); el.value=cur.join(', '); }
+async function inviaInoltro(){
+  const s=data.find(x=>String(x.id)===String(_inId)); if(!s) return;
+  const mails=(s.mails||[]).filter(m=>m.link); const m=mails[+document.getElementById('in-mail').value]; if(!m) return;
+  const dest=document.getElementById('in-dest').value.split(/[,;]/).map(x=>x.trim()).filter(Boolean).join(',');
+  if(!dest){ toast('Inserisci almeno un destinatario', true); return; }
+  const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
+  const btn=document.getElementById('in-btn'); btn.disabled=true; btn.textContent='⏳ Inoltro…';
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'inoltraMail', link:m.link, fonte:m.og, to:dest, testo:document.getElementById('in-testo').value, oggetto:document.getElementById('in-ogg').value.trim()})});
+    const j=await res.json(); if(j.error) throw new Error(j.error);
+    document.getElementById('inoltra-ov').classList.remove('open');
+    toast('✓ Inoltrata a '+dest+(j.allegati?' con '+j.allegati+' allegati':''));
+  }catch(e){ toast('Errore: '+e.message, true); }
+  finally{ btn.disabled=false; btn.textContent='↪ Inoltra'; }
+}
+
 // ── referenti compagnia a mano (oltre a quelli letti da schede e mail) ──
 let _ctId=null;
 function apriContatti(id){

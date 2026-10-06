@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v55 ──
+// ── SPETTACOLI APP SCRIPT v56 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -150,6 +150,11 @@ function doPost(e) {
       lock.releaseLock();
       var ru; try { ru = caricaDocumento(body.cartella, body.nome, body.mime, body.b64); } catch(errU) { ru = { error: errU.message }; }
       return ContentService.createTextOutput(JSON.stringify(ru)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (body.action === 'inoltraMail') {
+      lock.releaseLock();
+      var rf2; try { rf2 = inoltraMailThread(body.link, body.fonte, body.to, body.testo, body.oggetto); } catch(errF) { rf2 = { error: errF.message }; }
+      return ContentService.createTextOutput(JSON.stringify(rf2)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'leggiScheda') {
       lock.releaseLock();   // la lettura dura anche un minuto: non bloccare le sync dei colleghi
@@ -989,6 +994,32 @@ function scansionaSchede(maxMin) {
 
 // Lettura forzata di un singolo thread (dall'app: pulsante sulla segnalazione).
 // Ignora il filtro "sembra scheda" e l'etichetta: legge tutti i PDF/Word del thread.
+// Trova la conversazione Gmail dal link salvato sullo spettacolo (o dall'oggetto)
+function _threadDaLink(link, fonte) {
+  var th = null;
+  var id = String(link || '').split(/[\/#]/).pop();
+  if (id) { try { th = GmailApp.getThreadById(id); } catch(e) {} }
+  if (!th && fonte) {
+    var ogg = String(fonte).split(' | ')[0].replace(/^\s*((I|R|RE|FW|FWD|TR|Fwd|Re|I):\s*)+/i, '').replace(/"/g, '').trim();
+    if (ogg.length > 6) { var found = GmailApp.search('subject:"' + ogg.substring(0, 80) + '" newer_than:365d', 0, 3); if (found.length) th = found[0]; }
+  }
+  return th;
+}
+// Inoltra ai referenti (teatro, service…) la mail della compagnia con tutti gli allegati, più un testo introduttivo
+function inoltraMailThread(link, fonte, to, testo, oggetto) {
+  if (!to) return { error: 'destinatario mancante' };
+  var th = _threadDaLink(link, fonte);
+  if (!th) return { error: 'mail non trovata (né link né oggetto corrispondente)' };
+  // il messaggio con allegati (di solito la scheda tecnica), altrimenti l'ultimo
+  var msgs = th.getMessages(), msg = msgs[msgs.length - 1];
+  for (var i = msgs.length - 1; i >= 0; i--) { if (msg.getAttachments().length) break; if (msgs[i].getAttachments().length) { msg = msgs[i]; break; } }
+  var intro = String(testo || '');
+  var opt = { htmlBody: intro.replace(/\n/g, '<br>') + '<br><br>---------- Messaggio inoltrato ----------<br>' + msg.getBody() };
+  if (oggetto) opt.subject = oggetto;
+  if (COPIA_MAIL_A && String(to).toLowerCase().indexOf(COPIA_MAIL_A.toLowerCase()) < 0) opt.bcc = COPIA_MAIL_A;
+  msg.forward(to, opt);
+  return { ok: true, oggetto: oggetto || ('Fwd: ' + msg.getSubject()), allegati: msg.getAttachments().length, da: msg.getFrom() };
+}
 function leggiSchedaThread(link, fonte) {
   var th = null;
   var id = String(link || '').split(/[\/#]/).pop();
