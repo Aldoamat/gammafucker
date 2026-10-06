@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v63 ──
+// ── SPETTACOLI APP SCRIPT v64 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -151,6 +151,13 @@ function doPost(e) {
       var ru; try { ru = caricaDocumento(body.cartella, body.nome, body.mime, body.b64); } catch(errU) { ru = { error: errU.message }; }
       return ContentService.createTextOutput(JSON.stringify(ru)).setMimeType(ContentService.MimeType.JSON);
     }
+    if (body.action === 'setMittenti') {
+      var lista = (body.mittenti || []).map(function(x){ return String(x || '').trim().toLowerCase(); }).filter(function(x){ return /^[^@\s]+@[^@\s]+$/.test(x); });
+      if (!lista.length) { lock.releaseLock(); return ContentService.createTextOutput(JSON.stringify({ error: 'nessun indirizzo valido' })).setMimeType(ContentService.MimeType.JSON); }
+      props.setProperty('mittentiCalendari', JSON.stringify(lista));
+      lock.releaseLock();
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, mittenti: lista })).setMimeType(ContentService.MimeType.JSON);
+    }
     if (body.action === 'inoltraMail') {
       lock.releaseLock();
       var rf2; try { rf2 = inoltraMailThread(body.link, body.fonte, body.to, body.testo, body.oggetto); } catch(errF) { rf2 = { error: errF.message }; }
@@ -232,6 +239,9 @@ function doGet(e) {
     var cb = e.parameter.callback;
     if(cb) return ContentService.createTextOutput(cb+'('+payload+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
     return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
+  }
+  if(action === 'mittenti') {
+    return ContentService.createTextOutput(JSON.stringify({ mittenti: _mittenti() })).setMimeType(ContentService.MimeType.JSON);
   }
   if(action === 'auditDate') {
     try { return ContentService.createTextOutput(JSON.stringify(auditDateProposte())).setMimeType(ContentService.MimeType.JSON); }
@@ -327,7 +337,7 @@ function test() {
   sh.getRange(1,1).setValue('TEST OK');
 }
 function testLetturaWord() {
-  var threads = GmailApp.search('from:(r.cantarini@amat.marche.it OR m.osimani@amat.marche.it OR d.sepe@amat.marche.it) has:attachment', 0, 20);
+  var threads = GmailApp.search(_fromMittenti() + ' has:attachment', 0, 20);
   for (var t = 0; t < threads.length; t++) {
     var msgs = threads[t].getMessages();
     for (var m = 0; m < msgs.length; m++) {
@@ -359,7 +369,7 @@ function testEstrazione() {
   if (!anagrafica) anagrafica = '(vuota)';
   Logger.log('--- ANAGRAFICA ---\n' + anagrafica + '\n');
 
-  var threads = GmailApp.search('from:(r.cantarini@amat.marche.it OR m.osimani@amat.marche.it OR d.sepe@amat.marche.it) has:attachment', 0, 20);
+  var threads = GmailApp.search(_fromMittenti() + ' has:attachment', 0, 20);
 
   for (var t = 0; t < threads.length; t++) {
     var msgs = threads[t].getMessages();
@@ -739,7 +749,7 @@ function scansionaMail(maxMin) {
   Logger.log('Chiavi note: ' + Object.keys(esistenti).length);
 
   var label = GmailApp.getUserLabelByName('GF-vista') || GmailApp.createLabel('GF-vista');
-  var threads = GmailApp.search('from:(r.cantarini@amat.marche.it OR m.osimani@amat.marche.it OR d.sepe@amat.marche.it) has:attachment after:' + DA_DATA + ' -label:GF-vista', 0, 300);
+  var threads = GmailApp.search(_fromMittenti() + ' has:attachment after:' + DA_DATA + ' -label:GF-vista', 0, 300);
   Logger.log('Thread da esaminare: ' + threads.length + '\n');
 
   var scritte = 0, dup = 0, fatti = 0, senzaSpazio = 0, interrotto = false;
@@ -859,7 +869,7 @@ function analizzaCorpoMail() {
   }
 
   var lbl = GmailApp.getUserLabelByName('GF-corpo') || GmailApp.createLabel('GF-corpo');
-  var threads = GmailApp.search('from:(r.cantarini@amat.marche.it OR m.osimani@amat.marche.it OR d.sepe@amat.marche.it) newer_than:60d -label:GF-corpo', 0, 30);
+  var threads = GmailApp.search(_fromMittenti() + ' newer_than:60d -label:GF-corpo', 0, 30);
   if (!threads.length) return 'Corpo mail: nessuna nuova';
 
   var mails = [];
@@ -1592,6 +1602,14 @@ function scansionaOra() {
 // l'Elenco Ordini Eventi del 16/09/2026. Da eseguire UNA volta: correggiDateDST()
 // Ogni mail inviata dall'app (info spazio, richieste ZTL, mail alle compagnie, riepiloghi) va in copia nascosta qui.
 var COPIA_MAIL_A = 'aldoamat@gmail.com';
+
+// Colleghi che inviano programmazione e calendari (modificabili dall'app: Config → Mittenti programmazione)
+var MITTENTI_DEFAULT = ['r.cantarini@amat.marche.it', 'm.osimani@amat.marche.it', 'd.sepe@amat.marche.it'];
+function _mittenti() {
+  try { var m = JSON.parse(PropertiesService.getScriptProperties().getProperty('mittentiCalendari') || 'null'); if (m && m.length) return m; } catch(e) {}
+  return MITTENTI_DEFAULT;
+}
+function _fromMittenti() { return 'from:(' + _mittenti().join(' OR ') + ')'; }
 
 var DATE_DA_CORREGGERE = [
  {

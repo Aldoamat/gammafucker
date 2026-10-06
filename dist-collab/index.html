@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v71</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v72</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -463,6 +463,17 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <span id="anag-stato" style="font-size:10px;color:var(--text3);"></span>
     </div>
     <div id="anag-report"></div>
+  </div>
+
+  <div class="fc">
+    <div class="fct">📬 Mittenti programmazione</div>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.5;">Indirizzi dei colleghi da cui arrivano calendari e programmazione: la scansione delle proposte legge solo le mail di questi mittenti (le schede tecniche invece da chiunque). Uno per riga.</p>
+    <textarea id="cfg-mittenti" style="width:100%;min-height:80px;font-size:12px;box-sizing:border-box;" placeholder="r.cantarini@amat.marche.it"></textarea>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;">
+      <button class="btn btn-o btn-sm" onclick="caricaMittenti()">🔄 Carica</button>
+      <button class="btn btn-p btn-sm" onclick="salvaMittenti()">💾 Salva mittenti</button>
+      <span id="mittenti-stato" style="font-size:10px;color:var(--text3);"></span>
+    </div>
   </div>
 
   <div class="fc">
@@ -1688,6 +1699,24 @@ async function applicaAudit(){
     st.textContent='✓ fatto: '+r.righe+' righe nel foglio, '+n+' record locali';
     toast('✓ Anagrafica unificata');
     document.getElementById('anag-report').innerHTML=''; _audit=null;
+  }catch(e){ st.textContent='errore: '+e.message; toast('Errore: '+e.message, true); }
+}
+
+// ════════════════════ MITTENTI PROGRAMMAZIONE (colleghi che mandano i calendari) ════════════════════
+async function caricaMittenti(){
+  const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
+  const st=document.getElementById('mittenti-stato'); st.textContent='⏳';
+  try{ const r=await fetch(url+'?action=mittenti&t='+Date.now()); const j=await r.json(); if(j.error) throw new Error(j.error);
+    document.getElementById('cfg-mittenti').value=(j.mittenti||[]).join('\n'); st.textContent=(j.mittenti||[]).length+' mittenti';
+  }catch(e){ st.textContent='errore: '+e.message; }
+}
+async function salvaMittenti(){
+  const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
+  const lista=document.getElementById('cfg-mittenti').value.split(/[\n,;]/).map(x=>x.trim()).filter(Boolean);
+  if(!lista.length){ toast('Inserisci almeno un indirizzo', true); return; }
+  const st=document.getElementById('mittenti-stato'); st.textContent='⏳ salvo…';
+  try{ const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'setMittenti', mittenti:lista})}); const j=await r.json(); if(j.error) throw new Error(j.error);
+    document.getElementById('cfg-mittenti').value=j.mittenti.join('\n'); st.textContent='✓ salvati '+j.mittenti.length+' mittenti'; toast('✓ Mittenti aggiornati: la prossima scansione leggerà anche le loro mail');
   }catch(e){ st.textContent='errore: '+e.message; toast('Errore: '+e.message, true); }
 }
 
@@ -2953,7 +2982,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v63 ──
+  return `// ── SPETTACOLI APP SCRIPT v64 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -3106,6 +3135,13 @@ function doPost(e) {
       var ru; try { ru = caricaDocumento(body.cartella, body.nome, body.mime, body.b64); } catch(errU) { ru = { error: errU.message }; }
       return ContentService.createTextOutput(JSON.stringify(ru)).setMimeType(ContentService.MimeType.JSON);
     }
+    if (body.action === 'setMittenti') {
+      var lista = (body.mittenti || []).map(function(x){ return String(x || '').trim().toLowerCase(); }).filter(function(x){ return /^[^@\\s]+@[^@\\s]+$/.test(x); });
+      if (!lista.length) { lock.releaseLock(); return ContentService.createTextOutput(JSON.stringify({ error: 'nessun indirizzo valido' })).setMimeType(ContentService.MimeType.JSON); }
+      props.setProperty('mittentiCalendari', JSON.stringify(lista));
+      lock.releaseLock();
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, mittenti: lista })).setMimeType(ContentService.MimeType.JSON);
+    }
     if (body.action === 'inoltraMail') {
       lock.releaseLock();
       var rf2; try { rf2 = inoltraMailThread(body.link, body.fonte, body.to, body.testo, body.oggetto); } catch(errF) { rf2 = { error: errF.message }; }
@@ -3187,6 +3223,9 @@ function doGet(e) {
     var cb = e.parameter.callback;
     if(cb) return ContentService.createTextOutput(cb+'('+payload+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
     return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
+  }
+  if(action === 'mittenti') {
+    return ContentService.createTextOutput(JSON.stringify({ mittenti: _mittenti() })).setMimeType(ContentService.MimeType.JSON);
   }
   if(action === 'auditDate') {
     try { return ContentService.createTextOutput(JSON.stringify(auditDateProposte())).setMimeType(ContentService.MimeType.JSON); }
@@ -3282,7 +3321,7 @@ function test() {
   sh.getRange(1,1).setValue('TEST OK');
 }
 function testLetturaWord() {
-  var threads = GmailApp.search('from:(r.cantarini@amat.marche.it OR m.osimani@amat.marche.it OR d.sepe@amat.marche.it) has:attachment', 0, 20);
+  var threads = GmailApp.search(_fromMittenti() + ' has:attachment', 0, 20);
   for (var t = 0; t < threads.length; t++) {
     var msgs = threads[t].getMessages();
     for (var m = 0; m < msgs.length; m++) {
@@ -3314,7 +3353,7 @@ function testEstrazione() {
   if (!anagrafica) anagrafica = '(vuota)';
   Logger.log('--- ANAGRAFICA ---\\n' + anagrafica + '\\n');
 
-  var threads = GmailApp.search('from:(r.cantarini@amat.marche.it OR m.osimani@amat.marche.it OR d.sepe@amat.marche.it) has:attachment', 0, 20);
+  var threads = GmailApp.search(_fromMittenti() + ' has:attachment', 0, 20);
 
   for (var t = 0; t < threads.length; t++) {
     var msgs = threads[t].getMessages();
@@ -3694,7 +3733,7 @@ function scansionaMail(maxMin) {
   Logger.log('Chiavi note: ' + Object.keys(esistenti).length);
 
   var label = GmailApp.getUserLabelByName('GF-vista') || GmailApp.createLabel('GF-vista');
-  var threads = GmailApp.search('from:(r.cantarini@amat.marche.it OR m.osimani@amat.marche.it OR d.sepe@amat.marche.it) has:attachment after:' + DA_DATA + ' -label:GF-vista', 0, 300);
+  var threads = GmailApp.search(_fromMittenti() + ' has:attachment after:' + DA_DATA + ' -label:GF-vista', 0, 300);
   Logger.log('Thread da esaminare: ' + threads.length + '\\n');
 
   var scritte = 0, dup = 0, fatti = 0, senzaSpazio = 0, interrotto = false;
@@ -3814,7 +3853,7 @@ function analizzaCorpoMail() {
   }
 
   var lbl = GmailApp.getUserLabelByName('GF-corpo') || GmailApp.createLabel('GF-corpo');
-  var threads = GmailApp.search('from:(r.cantarini@amat.marche.it OR m.osimani@amat.marche.it OR d.sepe@amat.marche.it) newer_than:60d -label:GF-corpo', 0, 30);
+  var threads = GmailApp.search(_fromMittenti() + ' newer_than:60d -label:GF-corpo', 0, 30);
   if (!threads.length) return 'Corpo mail: nessuna nuova';
 
   var mails = [];
@@ -4547,6 +4586,14 @@ function scansionaOra() {
 // l'Elenco Ordini Eventi del 16/09/2026. Da eseguire UNA volta: correggiDateDST()
 // Ogni mail inviata dall'app (info spazio, richieste ZTL, mail alle compagnie, riepiloghi) va in copia nascosta qui.
 var COPIA_MAIL_A = 'aldoamat@gmail.com';
+
+// Colleghi che inviano programmazione e calendari (modificabili dall'app: Config → Mittenti programmazione)
+var MITTENTI_DEFAULT = ['r.cantarini@amat.marche.it', 'm.osimani@amat.marche.it', 'd.sepe@amat.marche.it'];
+function _mittenti() {
+  try { var m = JSON.parse(PropertiesService.getScriptProperties().getProperty('mittentiCalendari') || 'null'); if (m && m.length) return m; } catch(e) {}
+  return MITTENTI_DEFAULT;
+}
+function _fromMittenti() { return 'from:(' + _mittenti().join(' OR ') + ')'; }
 
 var DATE_DA_CORREGGERE = [
  {
@@ -7506,7 +7553,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v71</span>
+    <span>Report generato da GammaFucker v72</span>
   </div>
   </body></html>`;
 
@@ -7612,7 +7659,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v71</span>
+    <span>Report generato da GammaFucker v72</span>
   </div>
   </body></html>`;
 
@@ -7689,7 +7736,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v71</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v72</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -10038,7 +10085,7 @@ function goTab(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===`panel-${name}`));
   if(name==='list')renderList();
   if(name==='exp')buildRepMeseSelect();
-  if(name==='set')buildCfgDittaSel();
+  if(name==='set'){ buildCfgDittaSel(); if(ld('sheetsUrl','') && !IS_COLLAB && !document.getElementById('cfg-mittenti').value) caricaMittenti(); }
   if(name==='forn'){ buildFornSelect(); if(ld('sheetsUrl','')) setTimeout(()=>pushConfig(true),300); }
   if(name==='collab'){ buildCollabMeseSelect(); renderCollabMese(); }
   if(name==='agenda'){ buildAgendaSelects(); renderAgenda(); }
