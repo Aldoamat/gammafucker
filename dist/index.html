@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v67</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v69</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -725,6 +725,17 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <div class="field"><label>Oggetto</label><input type="text" id="in-ogg"></div>
       <div class="field"><label>Testo introduttivo (la mail originale con gli allegati va in coda)</label><textarea id="in-testo" style="min-height:120px;font-size:12px;"></textarea></div>
       <div style="display:flex;gap:8px;"><button class="btn btn-p" id="in-btn" style="flex:1;" onclick="inviaInoltro()">↪ Inoltra</button><button class="btn btn-o" onclick="document.getElementById('inoltra-ov').classList.remove('open')">Annulla</button></div>
+      <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:10px;">
+        <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">💬 Oppure via WhatsApp (scheda tecnica e documenti come link)</div>
+        <div id="in-wa-vuoto" style="font-size:11px;color:var(--text3);display:none;">Nessun documento su Drive da condividere per questo spettacolo.</div>
+        <div id="in-wa-box" style="display:flex;flex-direction:column;gap:6px;">
+          <select id="in-wa-dest" style="width:100%;font-size:12px;" onchange="_inWaAggiorna()"></select>
+          <input type="tel" id="in-wa-num" placeholder="numero con prefisso, es. 3331234567" style="display:none;" oninput="_inWaAggiorna()">
+          <textarea id="in-wa-testo" style="min-height:70px;font-size:12px;" oninput="_inWaAggiorna()"></textarea>
+          <div id="in-wa-doc" style="display:flex;flex-direction:column;gap:2px;"></div>
+          <a id="in-wa-apri" href="#" target="_blank" rel="noopener" class="btn btn-p" style="text-align:center;text-decoration:none;background:#25d366;">💬 Apri WhatsApp</a>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1796,10 +1807,19 @@ async function caricaDocumento(file, cartella, onProgress){
   if(file.size > UPLOAD_MAX_MB*1024*1024) throw new Error(file.name+' supera '+UPLOAD_MAX_MB+' MB');
   const mime = _mimeDi(file);
   const post = async body=>{
-    const res = await fetch(url, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(body)});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const j = await res.json(); if(j.error) throw new Error(j.error);
-    return j;
+    // un tentativo, e in caso di errore di rete/404 (es. script in aggiornamento) un secondo dopo 2,5 s
+    let ultimo = null;
+    for(let t=0; t<2; t++){
+      try{
+        const res = await fetch(url, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(body)});
+        const txt = await res.text();
+        let j = null; try{ j = JSON.parse(txt); }catch(_){}
+        if(j && j.error) throw new Error(j.error);
+        if(j && (j.url || j.id)) return j;
+        throw new Error('HTTP '+res.status+(txt?' — '+txt.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().substring(0,120):''));
+      }catch(e){ ultimo = e; if(t===0 && !/supera|mancante/.test(e.message)) await new Promise(r=>setTimeout(r,2500)); }
+    }
+    throw ultimo;
   };
   if(file.size <= UPLOAD_CHUNK){
     const b64 = await _fileToB64(file);
@@ -2925,7 +2945,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v58 ──
+  return `// ── SPETTACOLI APP SCRIPT v60 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7478,7 +7498,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v67</span>
+    <span>Report generato da GammaFucker v69</span>
   </div>
   </body></html>`;
 
@@ -7584,7 +7604,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v67</span>
+    <span>Report generato da GammaFucker v69</span>
   </div>
   </body></html>`;
 
@@ -7661,7 +7681,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v67</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v69</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9702,7 +9722,31 @@ function apriInoltro(id){
   document.getElementById('in-dest').value=sugg.length&&si.referente_email?si.referente_email:'';
   document.getElementById('in-suggeriti').innerHTML=sugg.map(x=>`<button class="iBtn" style="font-size:10px;padding:2px 7px;" onclick="_inAddDest('${esc(x.em)}')">${esc(x.lab)}</button>`).join('');
   document.getElementById('in-testo').value=`Buongiorno,\nvi inoltro la mail della compagnia con la scheda tecnica e le informazioni per lo spettacolo "${s.spett}" del ${_prodFmtD(s.data)}${s.teatro?' al '+s.teatro:''}.\n\nRestiamo a disposizione.\n\n${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}\ncoordinamento tecnico Amat${IS_COLLAB?'':'\nmob. 3477086550'}`;
+  // WhatsApp ai referenti dello spazio: documenti su Drive (scheda tecnica, permesso, documenti spazio) come link
+  const docs=_allegatiDi(s);
+  const vuoto=document.getElementById('in-wa-vuoto'), box=document.getElementById('in-wa-box');
+  if(!docs.length){ vuoto.style.display='block'; box.style.display='none'; }
+  else {
+    vuoto.style.display='none'; box.style.display='flex';
+    const tels=[]; const addT=(lab,tel)=>{ if(tel && !tels.some(x=>x.tel===tel)) tels.push({lab,tel}); };
+    addT('🏛 '+(si.referente_nome||'referente teatro'), si.referente_tel);
+    (si.ditte||[]).forEach(d=>addT('🏢 '+(d.nome||d.servizio), d.tel));
+    if(serv){ const a=(aziendeDB||[]).find(x=>x.nome.toUpperCase()===serv.toUpperCase()); if(a) addT('🔧 '+a.nome, a.tel); }
+    document.getElementById('in-wa-dest').innerHTML=tels.map(t=>`<option value="${esc(t.tel)}">${esc(t.lab)} (${esc(t.tel)})</option>`).join('')+'<option value="__altro">altro numero…</option>';
+    document.getElementById('in-wa-num').value='';
+    document.getElementById('in-wa-doc').innerHTML=docs.map((d,i)=>`<label style="display:flex;gap:6px;align-items:center;font-size:11px;cursor:pointer;"><input type="checkbox" class="in-wa-d" data-url="${esc(d.url)}" data-label="${esc(d.label)}" ${/scheda tecnica/i.test(d.label)?'checked':''} style="width:14px;height:14px;" onchange="_inWaAggiorna()"> ${esc(d.label)}</label>`).join('');
+    document.getElementById('in-wa-testo').value=`Buongiorno, le invio la scheda tecnica e i documenti per lo spettacolo "${s.spett}" del ${_prodFmtD(s.data)}${s.teatro?' al '+s.teatro:''}. ${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}, coordinamento tecnico AMAT.`;
+    _inWaAggiorna();
+  }
   document.getElementById('inoltra-ov').classList.add('open');
+}
+function _inWaAggiorna(){
+  const sel=document.getElementById('in-wa-dest'), numEl=document.getElementById('in-wa-num');
+  numEl.style.display = sel.value==='__altro' ? 'block' : 'none';
+  const docs=[...document.querySelectorAll('.in-wa-d:checked')].map(c=>({label:c.dataset.label, url:c.dataset.url}));
+  const testo=document.getElementById('in-wa-testo').value+_testoAllegati(docs,false);
+  const num=_waNumero(sel.value==='__altro'?numEl.value:sel.value);
+  const a=document.getElementById('in-wa-apri'); a.href='https://wa.me/'+num+'?text='+encodeURIComponent(testo); a.style.opacity=num?'1':'.5';
 }
 function _inAddDest(em){ const el=document.getElementById('in-dest'); const cur=el.value.split(/[,;]/).map(x=>x.trim()).filter(Boolean); if(!cur.includes(em)) cur.push(em); el.value=cur.join(', '); }
 async function inviaInoltro(){
