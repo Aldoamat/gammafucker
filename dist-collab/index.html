@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v70</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v71</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -2953,7 +2953,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v61 ──
+  return `// ── SPETTACOLI APP SCRIPT v63 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7506,7 +7506,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v70</span>
+    <span>Report generato da GammaFucker v71</span>
   </div>
   </body></html>`;
 
@@ -7612,7 +7612,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v70</span>
+    <span>Report generato da GammaFucker v71</span>
   </div>
   </body></html>`;
 
@@ -7689,7 +7689,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v70</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v71</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9860,7 +9860,15 @@ async function caricaAllegatoExtra(prefix, id, files){
 }
 function _allegatiScelti(prefix){ return [...document.querySelectorAll('.'+prefix+'-all:checked')].map(c=>({label:c.dataset.label, url:c.dataset.url})); }
 function _testoAllegati(lista, html){ return lista.length ? '\n\nDocumenti:\n'+lista.map(a=> html ? '   • '+_bottoneScarica(a.label, a.url) : '- '+a.label.replace(/^[^\w]+/,'')+': '+a.url).join('\n') : ''; }
-function _testoInfoSpazioDi(s){ const t=_buildTestoSpazio(s.citta, s.teatro||''); return t ? '\n\nInformazioni dello spazio:\n'+t : ''; }
+function _testoInfoSpazioDi(s, plain){
+  let t=_buildTestoSpazio(s.citta, s.teatro||''); if(!t) return '';
+  if(plain){
+    // per WhatsApp: i bottoni "Scarica" diventano "Nome: link" (link di visualizzazione, non di download)
+    t=t.replace(/<a [^>]*href="([^"]+)"[^>]*>[^<]*Scarica ([^<]*)<\/a>/g, (m,u,l)=>l.trim()+': '+String(u).replace(/&amp;/g,'&').replace(/https:\/\/drive\.google\.com\/uc\?export=download&id=([-\w]+)/,'https://drive.google.com/file/d/$1/view'))
+     .replace(/<[^>]+>/g,'').replace(/━+\n/g,'').replace(/\n{3,}/g,'\n\n').trim();
+  }
+  return '\n\nInformazioni dello spazio:\n'+t;
+}
 
 // mail alla compagnia dal piano (parte dall'account Google dell'app, resta in Gmail)
 function apriMailCompagnia(id){
@@ -9913,8 +9921,9 @@ function _waAggiorna(){
   const sel=document.getElementById('wa-dest'); const numEl=document.getElementById('wa-num');
   numEl.style.display = sel.value==='__altro' ? 'block' : 'none';
   let testo=document.getElementById('wa-testo').value;
-  if(document.getElementById('wa-info').checked) testo+=_testoInfoSpazioDi(s);
-  testo+=_testoAllegati(_allegatiScelti('wa'));
+  if(document.getElementById('wa-info').checked) testo+=_testoInfoSpazioDi(s, true);
+  const idDi=u=>{ const m=String(u||'').match(/[-\w]{25,}/); return m?m[0]:u; };
+  testo+=_testoAllegati(_allegatiScelti('wa').filter(a=>!testo.includes(idDi(a.url))));
   const num=_waNumero(sel.value==='__altro'?numEl.value:sel.value);
   const a=document.getElementById('wa-apri'); a.href='https://wa.me/'+num+'?text='+encodeURIComponent(testo); a.style.opacity=num?'1':'.5';
   document.getElementById('wa-anteprima').textContent=testo;
