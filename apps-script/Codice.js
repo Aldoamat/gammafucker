@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v64 ──
+// ── SPETTACOLI APP SCRIPT v65 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -116,6 +116,8 @@ function doPost(e) {
         if (!m) return;
         try { var f = DriveApp.getFileById(m[0]); if (f.getSize() < 20 * 1024 * 1024) att.push(f.getBlob()); } catch(e) {}
       });
+      // documento HTML (es. piano di produzione) da allegare come PDF
+      if (body.pdfHtml) { try { att.push(Utilities.newBlob(body.pdfHtml, 'text/html', 'doc.html').getAs('application/pdf').setName(body.pdfNome || 'documento.pdf')); } catch(e) {} }
       if (att.length) opt.attachments = att;
       MailApp.sendEmail(opt);
       lock.releaseLock();
