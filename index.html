@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v75</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v77</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1857,10 +1857,17 @@ function _calTeatro(sala, citta){
   const hit=lista.find(t=>{ const tn=_normTxt(t).replace(/^(TEATRO|SALA|CHIESA) /,'').replace(/^(DELLA|DELL|DEL|DI) /,''); return tn===n||tn.includes(n)||n.includes(tn); });
   return hit||_normTxt(sala);
 }
+// confronto con l'archivio: "stesso" = stesso evento già inserito (titolo simile); "spazio" = quel giorno in quello
+// spazio c'è già un altro evento (possibile doppia prenotazione o voce diversa da controllare)
 function _calGiaPresente(ev){
   const teatro=_calTeatro(ev.sala, ev.citta);
   const parole=_fattTokens(ev.testo).filter(t=>t.length>=5);
-  return data.filter(s=>s.data===ev.data && _cittaEq(s.citta,ev.citta)).filter(s=>_teatroEq(s.teatro||'',teatro) || _simTitolo(ev.testo,s.spett)>=.6 || parole.some(w=>_normTxt(s.spett).includes(w)));
+  const giorno=data.filter(s=>s.data===ev.data && _cittaEq(s.citta,ev.citta));
+  const stesso=giorno.filter(s=>_simTitolo(ev.testo,s.spett)>=.6 || parole.some(w=>_normTxt(s.spett).includes(w)));
+  if(stesso.length){ ev.stato='stesso'; return stesso; }
+  const spazio=giorno.filter(s=>_teatroEq(s.teatro||'',teatro));
+  ev.stato = spazio.length ? 'spazio' : 'nuovo';
+  return spazio;
 }
 let _calVoci=[];
 async function importaCalendarioWord(files){
@@ -1877,22 +1884,32 @@ async function importaCalendarioWord(files){
   }
   _calVoci.sort((a,b)=>a.data.localeCompare(b.data)||a.sala.localeCompare(b.sala));
   _calVoci.forEach(v=>{ v.teatro=_calTeatro(v.sala, v.citta); v.match=_calGiaPresente(v); });
-  const mancanti=_calVoci.filter(v=>!v.match.length);
-  const nT=mancanti.filter(v=>v.tipo==='terzi').length, nA=mancanti.filter(v=>v.tipo==='amat').length, nI=mancanti.filter(v=>v.tipo==='interno').length;
-  st.textContent=`${_calVoci.length} voci lette · ${_calVoci.length-mancanti.length} già in archivio · mancanti: ${nT} terzi, ${nA} Amat, ${nI} interne`+(errori.length?' · errori: '+errori.join('; '):'');
+  const mancanti=_calVoci.filter(v=>v.stato!=='stesso');
+  const presenti=_calVoci.filter(v=>v.stato==='stesso');
+  const nT=mancanti.filter(v=>v.tipo==='terzi').length, nA=mancanti.filter(v=>v.tipo==='amat').length, nI=mancanti.filter(v=>v.tipo==='interno').length, nS=mancanti.filter(v=>v.stato==='spazio'&&v.tipo!=='interno').length;
+  st.textContent=`${_calVoci.length} voci lette · ${presenti.length} già in archivio · mancanti: ${nT} terzi, ${nA} Amat, ${nI} interne`+(nS?` · ⚠ ${nS} con un altro evento già in archivio nello stesso spazio`:'')+(errori.length?' · errori: '+errori.join('; '):'');
   if(!mancanti.length){ box.innerHTML='<div style="font-size:11px;color:var(--text3);">Tutto già presente in archivio.</div>'; return; }
   const esc=v=>String(v||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
   const manifs=[...new Set([...[...document.querySelectorAll('#f-manif option')].map(o=>o.value), ...data.map(x=>(x.manif||'').trim())].filter(m=>m&&m!=='GESTIONE'))].sort();
   const fd=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit'}); }catch{ return d; } };
   const col={terzi:'#34d399',amat:'#f59e0b',interno:'var(--text3)'}, lab={terzi:'TERZI',amat:'AMAT',interno:'INTERNO'};
   let h=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:11px;">
-    <label>Manifestazione per gli eventi di terzi: <input id="cal-manif" list="cal-manif-list" value="EVENTI TERZI" style="font-size:11px;padding:3px 6px;width:180px;"><datalist id="cal-manif-list">${manifs.map(m=>`<option value="${esc(m)}">`).join('')}</datalist></label>
+    <label>Manifestazione per gli eventi di terzi (se non scelta voce per voce): <input id="cal-manif" list="cal-manif-list" value="EVENTI TERZI" style="font-size:11px;padding:3px 6px;width:160px;"><datalist id="cal-manif-list">${manifs.map(m=>`<option value="${esc(m)}">`).join('')}</datalist></label>
     <label style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" onchange="document.querySelectorAll('.cal-chk').forEach(c=>c.checked=this.checked)" style="width:14px;height:14px;"> tutte</label>
   </div>`;
-  h+=mancanti.map(v=>{ const i=_calVoci.indexOf(v); return `<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px;font-size:11px;cursor:pointer;background:var(--bg);">
-      <input type="checkbox" class="cal-chk" data-i="${i}" ${v.tipo==='terzi'?'checked':''} style="width:15px;height:15px;margin-top:2px;">
+  h+=mancanti.map(v=>{ const i=_calVoci.indexOf(v); const conf=v.stato==='spazio'&&v.tipo!=='interno'; return `<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border:1px solid ${conf?'rgba(239,68,68,.5)':'var(--border)'};border-radius:6px;margin-bottom:4px;font-size:11px;cursor:pointer;background:${conf?'rgba(239,68,68,.07)':'var(--bg)'};">
+      <input type="checkbox" class="cal-chk" data-i="${i}" ${v.tipo==='terzi'&&!conf?'checked':''} style="width:15px;height:15px;margin-top:2px;">
       <div style="flex:1;"><div><span style="color:var(--gold);">${fd(v.data)}</span> · <b>${esc(v.citta)} · ${esc(v.teatro)}</b>${v.ora?' · '+v.ora:''} <span style="font-size:9px;padding:1px 6px;border-radius:10px;border:1px solid ${col[v.tipo]};color:${col[v.tipo]};margin-left:4px;">${lab[v.tipo]}</span></div>
-      <input value="${esc(v.testo)}" oninput="_calVoci[${i}].titolo=this.value" onclick="event.preventDefault();this.focus()" style="width:100%;font-size:11px;padding:3px 6px;margin-top:3px;box-sizing:border-box;" title="titolo con cui verrà inserito (modificabile)"></div></label>`; }).join('');
+      ${v.stato==='spazio'?`<div style="font-size:10px;color:${conf?'#ef4444':'var(--text3)'};margin-top:2px;">⚠ stesso giorno e spazio in archivio: ${esc(v.match.map(m=>m.spett+(m.manif?' ['+m.manif+']':'')).join(' · '))}</div>`:''}
+      <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap;">
+        <input value="${esc(v.testo)}" oninput="_calVoci[${i}].titolo=this.value" onclick="event.preventDefault();this.focus()" style="flex:2;min-width:160px;font-size:11px;padding:3px 6px;box-sizing:border-box;" title="titolo con cui verrà inserito (modificabile)">
+        <select onchange="_calVoci[${i}].manif=this.value" onclick="event.preventDefault();event.stopPropagation()" style="flex:1;min-width:120px;font-size:11px;padding:3px 6px;" title="manifestazione per questa voce">
+          <option value="">${v.tipo==='interno'?'GESTIONE':v.tipo==='terzi'?'(eventi terzi)':'— manifestazione —'}</option>
+          <option value="GESTIONE">GESTIONE</option>
+          ${manifs.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')}
+        </select>
+      </div></div></label>`; }).join('');
+  if(presenti.length) h+=`<details style="margin-top:8px;font-size:11px;"><summary style="cursor:pointer;color:var(--text3);">✓ ${presenti.length} voci già in archivio (riconosciute per titolo)</summary><div style="margin-top:4px;color:var(--text3);">${presenti.map(v=>`${fd(v.data)} · ${esc(v.teatro)} · ${esc(v.testo.slice(0,50))} → <i>${esc(v.match[0].spett)}</i>`).join('<br>')}</div></details>`;
   h+=`<div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-p" style="flex:1;" onclick="confermaCalendarioWord()">✓ Inserisci le voci selezionate</button><button class="btn btn-o" onclick="document.getElementById('cal-word-box').innerHTML='';document.getElementById('cal-word-stato').textContent='';">Chiudi</button></div>`;
   box.innerHTML=h;
 }
@@ -1907,7 +1924,7 @@ function confermaCalendarioWord(){
     if(!teatriDB[c]) teatriDB[c]=[];
     if(!teatriDB[c].some(t=>_teatroEq(t,v.teatro))) teatriDB[c].push(v.teatro);
     data.push({id:Date.now()+Math.random(), data:v.data, citta:c, teatro:v.teatro, spett:titolo.toUpperCase(),
-      manif: v.tipo==='terzi'?manifTerzi:(v.tipo==='interno'?'GESTIONE':''),
+      manif: v.manif || (v.tipo==='terzi'?manifTerzi:(v.tipo==='interno'?'GESTIONE':'')),
       nm:0,tm:tariffe.m,sm:0,ne:0,te:tariffe.e,se:0,nf:0,tf:tariffe.f,sf:0,totale:0,
       note:(v.ora?'Orari: '+v.ora+' | ':'')+(v.org?'Organizzatore: '+v.org+' | ':'')+'Da calendario '+v.file.replace(/\.(docx|xlsx?)$/i,'')+(v.tipo==='interno'?' (voce interna)':''),
       fatturato:false, fromCal:true, ts:new Date().toISOString()});
@@ -3185,7 +3202,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v69 ──
+  return `// ── SPETTACOLI APP SCRIPT v71 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7758,7 +7775,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v75</span>
+    <span>Report generato da GammaFucker v77</span>
   </div>
   </body></html>`;
 
@@ -7864,7 +7881,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v75</span>
+    <span>Report generato da GammaFucker v77</span>
   </div>
   </body></html>`;
 
@@ -7941,7 +7958,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v75</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v77</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
