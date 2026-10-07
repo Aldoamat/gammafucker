@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v73</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v75</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -668,6 +668,15 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       Spettacoli estratti automaticamente dalle mail di programmazione. Nessuno viene inserito finché non lo approvi.
     </p>
     <div id="prop-scan-stato" style="font-size:10px;color:var(--text3);margin-bottom:12px;"></div>
+    <div class="admin-only" style="margin-bottom:12px;padding:10px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rsm);">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+        <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);">📂 Calendari dei teatri (Word Pesaro · Excel Urbino/Fabriano)</div>
+        <label class="btn btn-o btn-sm" style="cursor:pointer;">📂 Scegli file<input type="file" accept=".docx,.xlsx,.xls" multiple style="display:none" onchange="importaCalendarioWord(this.files);this.value=''"></label>
+      </div>
+      <div style="font-size:10px;color:var(--text2);margin-top:4px;">Legge i calendari dei colleghi (Word mensili di Pesaro, Excel annuali tipo "Calendario Teatro Sanzio 26-27"), li confronta con l'archivio e propone solo le voci mancanti: eventi di terzi già spuntati, voci Amat e interne da valutare.</div>
+      <div id="cal-word-stato" style="font-size:10px;color:var(--text3);margin-top:6px;"></div>
+      <div id="cal-word-box" style="margin-top:6px;"></div>
+    </div>
     <div id="schede-lista"></div>
     <div id="segn-lista"></div>
     <div id="prop-lista"></div>
@@ -1732,6 +1741,186 @@ async function salvaMittenti(){
   try{ const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'setMittenti', mittenti:lista})}); const j=await r.json(); if(j.error) throw new Error(j.error);
     document.getElementById('cfg-mittenti').value=j.mittenti.join('\n'); st.textContent='✓ salvati '+j.mittenti.length+' mittenti'; toast('✓ Mittenti aggiornati: la prossima scansione leggerà anche le loro mail');
   }catch(e){ st.textContent='errore: '+e.message; toast('Errore: '+e.message, true); }
+}
+
+// ════════════════════ CALENDARI WORD (Pesaro): lettura .docx nel browser e confronto ════════════════════
+// Il file mensile è una tabella: riga = giorno, coppie di colonne (evento, orario) per ogni sala.
+// Il .docx è uno zip: estraggo word/document.xml con DecompressionStream, poi leggo la tabella.
+async function _zipEntry(buf, nome){
+  const dv=new DataView(buf), u8=new Uint8Array(buf);
+  // central directory
+  let eocd=-1; for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-66000);i--){ if(dv.getUint32(i,true)===0x06054b50){ eocd=i; break; } }
+  if(eocd<0) throw new Error('file non valido (zip)');
+  const n=dv.getUint16(eocd+10,true), cdOff=dv.getUint32(eocd+16,true);
+  let p=cdOff;
+  for(let k=0;k<n;k++){
+    if(dv.getUint32(p,true)!==0x02014b50) break;
+    const method=dv.getUint16(p+10,true), csize=dv.getUint32(p+20,true), usize=dv.getUint32(p+24,true);
+    const nl=dv.getUint16(p+28,true), el=dv.getUint16(p+30,true), cl=dv.getUint16(p+32,true), lho=dv.getUint32(p+42,true);
+    const fname=new TextDecoder().decode(u8.subarray(p+46,p+46+nl));
+    if(fname===nome){
+      const lnl=dv.getUint16(lho+26,true), lel=dv.getUint16(lho+28,true);
+      const start=lho+30+lnl+lel; const comp=u8.subarray(start,start+csize);
+      if(method===0) return new TextDecoder().decode(comp);
+      if(method!==8) throw new Error('compressione non supportata');
+      const ds=new DecompressionStream('deflate-raw');
+      const out=await new Response(new Blob([comp]).stream().pipeThrough(ds)).arrayBuffer();
+      return new TextDecoder().decode(out);
+    }
+    p+=46+nl+el+cl;
+  }
+  throw new Error(nome+' non trovato nel file');
+}
+function _docxTabella(xml){
+  const doc=new DOMParser().parseFromString(xml,'application/xml');
+  const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const tbl=doc.getElementsByTagNameNS(W,'tbl')[0]; if(!tbl) return null;
+  const righe=[];
+  for(const tr of tbl.getElementsByTagNameNS(W,'tr')){
+    if(tr.parentNode!==tbl) continue;
+    const celle=[];
+    for(const tc of tr.getElementsByTagNameNS(W,'tc')){
+      if(tc.parentNode!==tr) continue;
+      const par=[]; for(const pp of tc.getElementsByTagNameNS(W,'p')){ let t=''; for(const x of pp.getElementsByTagNameNS(W,'t')) t+=x.textContent; par.push(t); }
+      celle.push(par.join(' / ').replace(/\s+/g,' ').trim());
+      // celle unite orizzontalmente (gridSpan): ripeti il valore per tenere allineate le colonne
+      const gs=tc.getElementsByTagNameNS(W,'gridSpan')[0]; const span=gs?+gs.getAttribute('w:val')||+gs.getAttributeNS(W,'val')||1:1;
+      for(let i=1;i<span;i++) celle.push('');
+    }
+    righe.push(celle);
+  }
+  return righe;
+}
+const _MESI_IT={GENNAIO:1,FEBBRAIO:2,MARZO:3,APRILE:4,MAGGIO:5,GIUGNO:6,LUGLIO:7,AGOSTO:8,SETTEMBRE:9,OTTOBRE:10,NOVEMBRE:11,DICEMBRE:12};
+function _calTipo(ev){
+  const e=ev.toLowerCase();
+  if(/^(allestiment|riallestiment|preallestiment|premontaggio|prem\s*\?|prem$|montagg|smontagg|scarico|foto\b|vendita biglietti|nuovi abbonati|prove\b|pulizie|manutenzione|chiuso)/.test(e) || /\b(montaggio|allestimento)\b/.test(e) && e.length<40) return 'interno';
+  if(/\bamat\b/.test(e)) return 'amat';
+  return 'terzi';
+}
+function _calOra(o){ const m=String(o||'').match(/(\d{1,2})[.,:h](\d{2})/); return m?m[1].padStart(2,'0')+':'+m[2]:(String(o||'').match(/^\d{1,2}$/)?o.padStart(2,'0')+':00':''); }
+async function leggiCalendarioWord(file){
+  const buf=await file.arrayBuffer();
+  const xml=await _zipEntry(buf,'word/document.xml');
+  const righe=_docxTabella(xml); if(!righe||righe.length<2) throw new Error('nessuna tabella in '+file.name);
+  const hdr=righe[0];
+  // mese e anno: dall'intestazione (es. "OTTOBRE / 2026") o dal nome file
+  const testa=(hdr[0]+' '+file.name).toUpperCase();
+  const mm=Object.keys(_MESI_IT).find(k=>testa.includes(k)); const ya=testa.match(/20\d\d/);
+  if(!mm||!ya) throw new Error('mese/anno non riconosciuti in '+file.name);
+  const mese=_MESI_IT[mm], anno=+ya[0];
+  // coppie (sala, orario): prima colonna non vuota dopo le due del giorno, poi ogni 2
+  const sedi=[]; for(let i=2;i<hdr.length;i+=2){ const nome=hdr[i].replace(/\s*\/\s*$/,'').trim(); if(nome && !sedi.some(s=>s.nome===nome)) sedi.push({i, nome}); }
+  const eventi=[];
+  righe.slice(1).forEach(c=>{
+    const g=parseInt(c[1]); if(!g||g<1||g>31) return;
+    const data=`${anno}-${String(mese).padStart(2,'0')}-${String(g).padStart(2,'0')}`;
+    sedi.forEach(s=>{ const ev=(c[s.i]||'').trim(); if(!ev) return; eventi.push({data, sala:s.nome, testo:ev, ora:_calOra(c[s.i+1]||''), tipo:_calTipo(ev), file:file.name}); });
+  });
+  return {mese, anno, sedi:sedi.map(s=>s.nome), eventi};
+}
+// Calendari Excel (Urbino, Fabriano…): un foglio per mese; riga 1 "CALENDARIO CITTÀ - TEATRO X", riga 2 intestazioni
+// (MESE: …, EVENTO, ORGANIZZATORE, OPERATORE), poi una riga per giorno con la data in colonna A.
+function _calOraDaTesto(t){ const m=String(t||'').match(/\bore?\s*(\d{1,2})(?:[:.,h](\d{2}))?/i); return m?m[1].padStart(2,'0')+':'+(m[2]||'00'):''; }
+async function leggiCalendarioExcel(file){
+  if(typeof XLSX==='undefined') throw new Error('libreria Excel non caricata (serve connessione)');
+  const wb=XLSX.read(await file.arrayBuffer(), {type:'array', cellDates:true});
+  const eventi=[]; let citta='', teatro='';
+  wb.SheetNames.forEach(nome=>{
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[nome], {header:1, raw:true, defval:''});
+    if(!rows.length) return;
+    const titolo=String(rows[0][0]||'').toUpperCase();
+    const mt=titolo.match(/CALENDARIO\s+([A-ZÀ-Ù' ]+?)\s*[-–]\s*(.+)$/);
+    if(mt){ citta=mt[1].trim(); teatro=mt[2].trim(); }
+    const hdrRow=rows.findIndex(r=>String(r[0]||'').toUpperCase().startsWith('MESE'));
+    const hdr=(rows[hdrRow]||[]).map(x=>String(x||'').toUpperCase().trim());
+    const iE=Math.max(1,hdr.indexOf('EVENTO')), iO=hdr.indexOf('ORGANIZZATORE');
+    rows.slice(hdrRow+1).forEach(r=>{
+      let d=r[0]; let data='';
+      if(d instanceof Date) data=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      else if(typeof d==='number'){ const x=new Date(Math.round((d-25569)*86400000)); data=x.toISOString().slice(0,10); }
+      else data=normalizeDate(String(d||''));
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(data)) return;
+      const ev=String(r[iE]||'').replace(/\s+/g,' ').trim(); if(!ev) return;
+      const org=iO>=0?String(r[iO]||'').trim():'';
+      const tipo=/\bamat\b/i.test(org)&&!/^(ri)?allestiment|^premontaggio|^prove|^pulizie|^scarico|^montagg/i.test(ev) ? 'amat' : _calTipo(ev);
+      eventi.push({data, sala:teatro, citta, testo:ev+(org&&!/amat/i.test(org)?' — '+org:''), org, ora:_calOraDaTesto(ev), tipo, file:file.name});
+    });
+  });
+  if(!citta) throw new Error('intestazione "CALENDARIO CITTÀ - TEATRO" non trovata in '+file.name);
+  return {citta, teatro, eventi};
+}
+function _calCittaCanon(c){ const k=Object.keys(teatriDB||{}).find(k=>_cittaEq(k,c)); return k||_normTxt(c); }
+// sala del calendario → teatro dell'anagrafica della città
+function _calTeatro(sala, citta){
+  const lista=teatriDB[citta||'PESARO']||[]; const n=_normTxt(sala).replace(/^(TEATRO|SALA|CHIESA) /,'').replace(/^(DELLA|DELL|DEL|DI) /,'');
+  const hit=lista.find(t=>{ const tn=_normTxt(t).replace(/^(TEATRO|SALA|CHIESA) /,'').replace(/^(DELLA|DELL|DEL|DI) /,''); return tn===n||tn.includes(n)||n.includes(tn); });
+  return hit||_normTxt(sala);
+}
+function _calGiaPresente(ev){
+  const teatro=_calTeatro(ev.sala, ev.citta);
+  const parole=_fattTokens(ev.testo).filter(t=>t.length>=5);
+  return data.filter(s=>s.data===ev.data && _cittaEq(s.citta,ev.citta)).filter(s=>_teatroEq(s.teatro||'',teatro) || _simTitolo(ev.testo,s.spett)>=.6 || parole.some(w=>_normTxt(s.spett).includes(w)));
+}
+let _calVoci=[];
+async function importaCalendarioWord(files){
+  if(!files||!files.length) return;
+  const box=document.getElementById('cal-word-box'), st=document.getElementById('cal-word-stato');
+  st.textContent='⏳ leggo '+files.length+' file…'; box.innerHTML='';
+  _calVoci=[]; const errori=[];
+  for(const f of Array.from(files)){
+    try{
+      const isX=/\.xlsx?$/i.test(f.name);
+      const r= isX ? await leggiCalendarioExcel(f) : await leggiCalendarioWord(f);
+      r.eventi.forEach(e=>{ e.citta=_calCittaCanon(e.citta||'PESARO'); _calVoci.push(e); });
+    }catch(e){ errori.push(f.name+': '+e.message); }
+  }
+  _calVoci.sort((a,b)=>a.data.localeCompare(b.data)||a.sala.localeCompare(b.sala));
+  _calVoci.forEach(v=>{ v.teatro=_calTeatro(v.sala, v.citta); v.match=_calGiaPresente(v); });
+  const mancanti=_calVoci.filter(v=>!v.match.length);
+  const nT=mancanti.filter(v=>v.tipo==='terzi').length, nA=mancanti.filter(v=>v.tipo==='amat').length, nI=mancanti.filter(v=>v.tipo==='interno').length;
+  st.textContent=`${_calVoci.length} voci lette · ${_calVoci.length-mancanti.length} già in archivio · mancanti: ${nT} terzi, ${nA} Amat, ${nI} interne`+(errori.length?' · errori: '+errori.join('; '):'');
+  if(!mancanti.length){ box.innerHTML='<div style="font-size:11px;color:var(--text3);">Tutto già presente in archivio.</div>'; return; }
+  const esc=v=>String(v||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const manifs=[...new Set([...[...document.querySelectorAll('#f-manif option')].map(o=>o.value), ...data.map(x=>(x.manif||'').trim())].filter(m=>m&&m!=='GESTIONE'))].sort();
+  const fd=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit'}); }catch{ return d; } };
+  const col={terzi:'#34d399',amat:'#f59e0b',interno:'var(--text3)'}, lab={terzi:'TERZI',amat:'AMAT',interno:'INTERNO'};
+  let h=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:11px;">
+    <label>Manifestazione per gli eventi di terzi: <input id="cal-manif" list="cal-manif-list" value="EVENTI TERZI" style="font-size:11px;padding:3px 6px;width:180px;"><datalist id="cal-manif-list">${manifs.map(m=>`<option value="${esc(m)}">`).join('')}</datalist></label>
+    <label style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" onchange="document.querySelectorAll('.cal-chk').forEach(c=>c.checked=this.checked)" style="width:14px;height:14px;"> tutte</label>
+  </div>`;
+  h+=mancanti.map(v=>{ const i=_calVoci.indexOf(v); return `<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px;font-size:11px;cursor:pointer;background:var(--bg);">
+      <input type="checkbox" class="cal-chk" data-i="${i}" ${v.tipo==='terzi'?'checked':''} style="width:15px;height:15px;margin-top:2px;">
+      <div style="flex:1;"><div><span style="color:var(--gold);">${fd(v.data)}</span> · <b>${esc(v.citta)} · ${esc(v.teatro)}</b>${v.ora?' · '+v.ora:''} <span style="font-size:9px;padding:1px 6px;border-radius:10px;border:1px solid ${col[v.tipo]};color:${col[v.tipo]};margin-left:4px;">${lab[v.tipo]}</span></div>
+      <input value="${esc(v.testo)}" oninput="_calVoci[${i}].titolo=this.value" onclick="event.preventDefault();this.focus()" style="width:100%;font-size:11px;padding:3px 6px;margin-top:3px;box-sizing:border-box;" title="titolo con cui verrà inserito (modificabile)"></div></label>`; }).join('');
+  h+=`<div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-p" style="flex:1;" onclick="confermaCalendarioWord()">✓ Inserisci le voci selezionate</button><button class="btn btn-o" onclick="document.getElementById('cal-word-box').innerHTML='';document.getElementById('cal-word-stato').textContent='';">Chiudi</button></div>`;
+  box.innerHTML=h;
+}
+function confermaCalendarioWord(){
+  const sel=[...document.querySelectorAll('.cal-chk:checked')].map(c=>_calVoci[+c.dataset.i]).filter(Boolean);
+  if(!sel.length){ toast('Nessuna voce selezionata', true); return; }
+  const manifTerzi=(document.getElementById('cal-manif').value||'EVENTI TERZI').trim().toUpperCase();
+  let n=0;
+  sel.forEach(v=>{
+    const titolo=(v.titolo||v.testo).trim(); if(!titolo) return;
+    const c=v.citta||'PESARO';
+    if(!teatriDB[c]) teatriDB[c]=[];
+    if(!teatriDB[c].some(t=>_teatroEq(t,v.teatro))) teatriDB[c].push(v.teatro);
+    data.push({id:Date.now()+Math.random(), data:v.data, citta:c, teatro:v.teatro, spett:titolo.toUpperCase(),
+      manif: v.tipo==='terzi'?manifTerzi:(v.tipo==='interno'?'GESTIONE':''),
+      nm:0,tm:tariffe.m,sm:0,ne:0,te:tariffe.e,se:0,nf:0,tf:tariffe.f,sf:0,totale:0,
+      note:(v.ora?'Orari: '+v.ora+' | ':'')+(v.org?'Organizzatore: '+v.org+' | ':'')+'Da calendario '+v.file.replace(/\.(docx|xlsx?)$/i,'')+(v.tipo==='interno'?' (voce interna)':''),
+      fatturato:false, fromCal:true, ts:new Date().toISOString()});
+    n++;
+  });
+  if(!n) return;
+  sv('teatriDB',teatriDB); data.sort((a,b)=>a.data.localeCompare(b.data)); sv('spettacoli',data);
+  window._pullBlockUntil=Date.now()+30000;
+  try{ const c=JSON.parse(ld('manifCustom','[]')); if(sel.some(v=>v.tipo==='terzi') && ![...document.querySelectorAll('#f-manif option')].some(o=>o.value===manifTerzi) && !c.includes(manifTerzi)){ c.push(manifTerzi); sv('manifCustom', JSON.stringify(c)); loadManifCustom(); } }catch(e){}
+  buildCityList(); buildCittaSel('f-citta'); buildCittaSel('fil-citta'); updateDatalist(); buildMesiFilter(); renderList();
+  document.getElementById('cal-word-box').innerHTML=''; document.getElementById('cal-word-stato').textContent='✓ inseriti '+n+' eventi';
+  toast('✓ '+n+' eventi inseriti da calendario Word');
+  if(ld('sheetsUrl','')){ setTimeout(()=>pushSheets(true),300); setTimeout(()=>pushConfig(true),900); }
 }
 
 // ════════════════════ VERIFICA DATE (spettacoli vs proposte) ════════════════════
@@ -2996,7 +3185,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v65 ──
+  return `// ── SPETTACOLI APP SCRIPT v69 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7569,7 +7758,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v73</span>
+    <span>Report generato da GammaFucker v75</span>
   </div>
   </body></html>`;
 
@@ -7675,7 +7864,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v73</span>
+    <span>Report generato da GammaFucker v75</span>
   </div>
   </body></html>`;
 
@@ -7752,7 +7941,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v73</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v75</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
