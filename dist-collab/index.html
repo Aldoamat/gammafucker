@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v77</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v78</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1854,8 +1854,17 @@ function _calCittaCanon(c){ const k=Object.keys(teatriDB||{}).find(k=>_cittaEq(k
 // sala del calendario → teatro dell'anagrafica della città
 function _calTeatro(sala, citta){
   const lista=teatriDB[citta||'PESARO']||[]; const n=_normTxt(sala).replace(/^(TEATRO|SALA|CHIESA) /,'').replace(/^(DELLA|DELL|DEL|DI) /,'');
-  const hit=lista.find(t=>{ const tn=_normTxt(t).replace(/^(TEATRO|SALA|CHIESA) /,'').replace(/^(DELLA|DELL|DEL|DI) /,''); return tn===n||tn.includes(n)||n.includes(tn); });
-  return hit||_normTxt(sala);
+  const strip=t=>_normTxt(t).replace(/^(TEATRO|SALA|CHIESA) /,'').replace(/^(DELLA|DELL|DEL|DI) /,'');
+  // priorità: nome identico > l'archivio inizia col nome del Word (es. "ROSSINI" vs "ROSSINI SALA GRANDE")
+  // > il Word inizia col nome dell'archivio > contenuto generico (il più corto). Così "Teatro Rossini"
+  // non finisce su "BALCONE CASA ROSSINI".
+  let best=null, bestScore=0;
+  lista.forEach(t=>{ const tn=strip(t); let sc=0;
+    if(tn===n) sc=4; else if(tn.startsWith(n+' ')) sc=3; else if(n.startsWith(tn+' ')) sc=2; else if(tn.includes(n)||n.includes(tn)) sc=1;
+    if(sc>bestScore||(sc===bestScore&&sc>0&&tn.length<strip(best).length)){ best=t; bestScore=sc; } });
+  if(bestScore>=2) return best;
+  // nessuna corrispondenza precisa: uso il nome del Word (verrà creato come nuovo spazio)
+  return _normTxt(sala);
 }
 // confronto con l'archivio: "stesso" = stesso evento già inserito (titolo simile); "spazio" = quel giorno in quello
 // spazio c'è già un altro evento (possibile doppia prenotazione o voce diversa da controllare)
@@ -3202,7 +3211,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v71 ──
+  return `// ── SPETTACOLI APP SCRIPT v72 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7775,7 +7784,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v77</span>
+    <span>Report generato da GammaFucker v78</span>
   </div>
   </body></html>`;
 
@@ -7881,7 +7890,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v77</span>
+    <span>Report generato da GammaFucker v78</span>
   </div>
   </body></html>`;
 
@@ -7958,7 +7967,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v77</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v78</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
