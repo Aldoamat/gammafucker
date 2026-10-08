@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v72 ──
+// ── SPETTACOLI APP SCRIPT v74 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -61,22 +61,7 @@ function doPost(e) {
         messages = [{role:'user', content: body.prompt}];
       }
 
-      var aiRes = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-        method: 'post',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-beta': 'pdfs-2024-09-25'
-        },
-        payload: JSON.stringify({
-          model: 'claude-opus-4-8',
-          max_tokens: 16000,
-          messages: messages
-        }),
-        muteHttpExceptions: true
-      });
-      var aiJson = JSON.parse(aiRes.getContentText());
+      var aiJson = _aiFetch(apiKey, { max_tokens: 16000, messages: messages }, body.action === 'ai_pdf' ? 'fatture/pdf' : 'testo');
       var text = '';
       if(aiJson.content && aiJson.content[0]){
         text = aiJson.content[0].text || '';
@@ -152,6 +137,12 @@ function doPost(e) {
       lock.releaseLock();
       var ru; try { ru = caricaDocumento(body.cartella, body.nome, body.mime, body.b64); } catch(errU) { ru = { error: errU.message }; }
       return ContentService.createTextOutput(JSON.stringify(ru)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (body.action === 'setModelloAI') {
+      var mod = String(body.modello || '').trim();
+      if (!mod) props.deleteProperty('modelloAI'); else props.setProperty('modelloAI', mod);
+      lock.releaseLock();
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, modello: _modelloAI() })).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'setMittenti') {
       var lista = (body.mittenti || []).map(function(x){ return String(x || '').trim().toLowerCase(); }).filter(function(x){ return /^[^@\s]+@[^@\s]+$/.test(x); });
@@ -241,6 +232,9 @@ function doGet(e) {
     var cb = e.parameter.callback;
     if(cb) return ContentService.createTextOutput(cb+'('+payload+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
     return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
+  }
+  if(action === 'consumoAI') {
+    return ContentService.createTextOutput(JSON.stringify(consumoAI())).setMimeType(ContentService.MimeType.JSON);
   }
   if(action === 'mittenti') {
     return ContentService.createTextOutput(JSON.stringify({ mittenti: _mittenti() })).setMimeType(ContentService.MimeType.JSON);
@@ -441,14 +435,7 @@ function estraiCalendario(testo, KEY, anagrafica) {
 '- IGNORA: abbonamenti, prezzi, riduzioni, trailer, link, sinossi lunghe.\n\n' +
 'DOCUMENTO:\n' + testo;
 
-  var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-    method: 'post',
-    headers: {'Content-Type':'application/json', 'x-api-key': KEY, 'anthropic-version':'2023-06-01'},
-    payload: JSON.stringify({model:'claude-opus-4-8', max_tokens:16000,
-      messages:[{role:'user', content: prompt}]}),
-    muteHttpExceptions: true
-  });
-  var j = JSON.parse(res.getContentText());
+  var j = _aiFetch(KEY, {max_tokens:16000, messages:[{role:'user', content: prompt}]}, 'calendari');
   if (j.error) return 'ERRORE API: ' + j.error.message;
   return j.content[0].text;
 }
@@ -906,14 +893,7 @@ function analizzaCorpoMail() {
 'MAIL:\n' +
 mails.map(function(m,i){ return '['+i+'] OGGETTO: '+m.og+'\nTESTO: '+m.tx; }).join('\n\n');
 
-  var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-    method:'post',
-    headers:{'Content-Type':'application/json','x-api-key':KEY,'anthropic-version':'2023-06-01'},
-    payload: JSON.stringify({model:'claude-opus-4-8', max_tokens:8000,
-      messages:[{role:'user', content:prompt}]}),
-    muteHttpExceptions:true
-  });
-  var jr = JSON.parse(res.getContentText());
+  var jr = _aiFetch(KEY, {max_tokens:8000, messages:[{role:'user', content:prompt}]}, 'corpo mail');
   if (jr.error) return 'Corpo mail — errore API: ' + jr.error.message;
 
   var arr;
@@ -1260,13 +1240,7 @@ function _analizzaScheda(KEY, elenco, k) {
   }
   content.push({ type: 'text', text: prompt });
 
-  var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-    method: 'post',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': KEY, 'anthropic-version': '2023-06-01' },
-    payload: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 3000, messages: [{ role: 'user', content: content }] }),
-    muteHttpExceptions: true
-  });
-  var jr; try { jr = JSON.parse(res.getContentText()); } catch(e) { return null; }
+  var jr = _aiFetch(KEY, { max_tokens: 3000, messages: [{ role: 'user', content: content }] }, 'schede');
   if (jr.error) { Logger.log('API: ' + jr.error.message); return null; }
   try { return JSON.parse(jr.content[0].text.replace(/```json|```/g, '').trim()); }
   catch(e) { Logger.log('JSON scheda non valido: ' + k.nome); return null; }
@@ -1322,6 +1296,55 @@ function leggiRubrica(refresh) {
   return out;
 }
 function testRubrica() { var r = leggiRubrica(true); Logger.log(r.length + ' contatti; primo: ' + JSON.stringify(r[0])); }
+
+
+// ════════════════════ MODELLO AI E CONSUMO ════════════════════
+// Tutte le chiamate a Claude passano di qui: un solo punto per modello, errori e conteggio token.
+// Il modello si cambia dall'app (Config → Consumo AI) e finisce nella proprietà 'modelloAI'.
+// Sonnet legge schede, fatture e mail con la stessa qualità di Opus a una frazione del costo.
+var MODELLO_AI_DEFAULT = 'claude-sonnet-4-5';
+var MODELLI_AI = { sonnet: 'claude-sonnet-4-5', opus: 'claude-opus-4-8', haiku: 'claude-haiku-4-5' };
+function _modelloAI() {
+  var m = PropertiesService.getScriptProperties().getProperty('modelloAI') || '';
+  return MODELLI_AI[m] || m || MODELLO_AI_DEFAULT;
+}
+function _aiFetch(KEY, payload, uso) {
+  var modello = payload.model || _modelloAI();
+  var chiama = function(m) {
+    payload.model = m;
+    var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+      method: 'post',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': KEY, 'anthropic-version': '2023-06-01' },
+      payload: JSON.stringify(payload), muteHttpExceptions: true
+    });
+    try { return JSON.parse(res.getContentText()); }
+    catch(e) { return { error: { type: 'http', message: 'risposta non valida dallo script (' + res.getResponseCode() + ')' } }; }
+  };
+  var j = chiama(modello);
+  // modello non più disponibile (nome vecchio): riprovo col predefinito, così l'app non si blocca
+  if (j.error && /not_found/i.test(String(j.error.type)) && modello !== MODELLO_AI_DEFAULT) { modello = MODELLO_AI_DEFAULT; j = chiama(modello); }
+  _registraConsumoAI(uso || 'altro', modello, j.usage, !!j.error);
+  return j;
+}
+// Registro per giorno: chiamate, token in/out, per uso e per modello. Tenuto per 90 giorni.
+function _registraConsumoAI(uso, modello, usage, errore) {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var reg = JSON.parse(props.getProperty('aiConsumo') || '{}');
+    var g = Utilities.formatDate(new Date(), 'Europe/Rome', 'yyyy-MM-dd');
+    var r = reg[g] = reg[g] || { chiamate: 0, errori: 0, input: 0, output: 0, usi: {}, modelli: {} };
+    var inp = (usage && usage.input_tokens) || 0, out = (usage && usage.output_tokens) || 0;
+    r.chiamate++; if (errore) r.errori++; r.input += inp; r.output += out;
+    var u = r.usi[uso] = r.usi[uso] || { chiamate: 0, input: 0, output: 0 }; u.chiamate++; u.input += inp; u.output += out;
+    var mm = r.modelli[modello] = r.modelli[modello] || { chiamate: 0, input: 0, output: 0 }; mm.chiamate++; mm.input += inp; mm.output += out;
+    var giorni = Object.keys(reg).sort(); while (giorni.length > 90) delete reg[giorni.shift()];
+    props.setProperty('aiConsumo', JSON.stringify(reg));
+  } catch(e) { Logger.log('consumo AI non registrato: ' + e.message); }
+}
+function consumoAI() {
+  var props = PropertiesService.getScriptProperties();
+  return { modello: _modelloAI(), modelloScelto: props.getProperty('modelloAI') || 'sonnet', modelli: MODELLI_AI, consumo: JSON.parse(props.getProperty('aiConsumo') || '{}') };
+}
 
 // ════════════════════ DOCUMENTI (upload su Drive) ════════════════════
 // Salva un file in "GammaFucker Documenti/<cartella>" con link di sola lettura

@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v78</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v80</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -463,6 +463,22 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <span id="anag-stato" style="font-size:10px;color:var(--text3);"></span>
     </div>
     <div id="anag-report"></div>
+  </div>
+
+  <div class="fc">
+    <div class="fct">🧠 Consumo AI</div>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.5;">Modello usato per leggere mail, schede tecniche e fatture, e quanto ha consumato giorno per giorno (token in ingresso/uscita). Sonnet costa una frazione di Opus con la stessa qualità su trascrizione ed estrazione.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select id="cfg-modello-ai" style="font-size:12px;">
+        <option value="sonnet">Sonnet (consigliato)</option>
+        <option value="haiku">Haiku (più economico, meno preciso)</option>
+        <option value="opus">Opus (il più caro)</option>
+      </select>
+      <button class="btn btn-o btn-sm" onclick="caricaConsumoAI()">🔄 Carica</button>
+      <button class="btn btn-p btn-sm" onclick="salvaModelloAI()">💾 Salva modello</button>
+      <span id="ai-stato" style="font-size:10px;color:var(--text3);"></span>
+    </div>
+    <div id="ai-consumo" style="margin-top:8px;font-size:11px;"></div>
   </div>
 
   <div class="fc">
@@ -1726,6 +1742,31 @@ async function applicaAudit(){
 }
 
 // ════════════════════ MITTENTI PROGRAMMAZIONE (colleghi che mandano i calendari) ════════════════════
+async function caricaConsumoAI(){
+  const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
+  const st=document.getElementById('ai-stato'); st.textContent='⏳';
+  try{ const r=await fetch(url+'?action=consumoAI&t='+Date.now()); const txt=await r.text(); let j; try{ j=JSON.parse(txt); }catch(_){ throw new Error('script in aggiornamento, riprova fra poco'); } if(j.error) throw new Error(j.error);
+    const sel=document.getElementById('cfg-modello-ai'); const chiave=Object.keys(j.modelli||{}).find(k=>j.modelli[k]===j.modello)||j.modelloScelto; if([...sel.options].some(o=>o.value===chiave)) sel.value=chiave;
+    st.textContent='in uso: '+j.modello;
+    const giorni=Object.keys(j.consumo||{}).sort().reverse().slice(0,14);
+    const fmt=n=>Number(n||0).toLocaleString('it-IT');
+    const box=document.getElementById('ai-consumo');
+    if(!giorni.length){ box.innerHTML='<div style="color:var(--text3);">nessuna chiamata registrata (il conteggio parte da questa versione)</div>'; return; }
+    const tot=giorni.reduce((a,g)=>{ const r=j.consumo[g]; a.c+=r.chiamate; a.i+=r.input; a.o+=r.output; return a; },{c:0,i:0,o:0});
+    box.innerHTML='<table style="width:100%;border-collapse:collapse;"><tr style="color:var(--text3);font-size:10px;"><th style="text-align:left;padding:2px 4px;">giorno</th><th style="text-align:right;padding:2px 4px;">chiamate</th><th style="text-align:right;padding:2px 4px;">token in</th><th style="text-align:right;padding:2px 4px;">token out</th><th style="text-align:left;padding:2px 4px;">per uso</th></tr>'
+      +giorni.map(g=>{ const r=j.consumo[g]; const usi=Object.keys(r.usi||{}).map(u=>u+' '+r.usi[u].chiamate+'×/'+fmt(r.usi[u].input)).join(', '); const mod=Object.keys(r.modelli||{}).map(m=>m.replace('claude-','')).join(', ');
+        return `<tr style="border-top:1px solid var(--border2);"><td style="padding:3px 4px;white-space:nowrap;">${g.split('-').reverse().slice(0,2).join('/')}</td><td style="text-align:right;padding:3px 4px;">${r.chiamate}${r.errori?' <span style="color:var(--red)">('+r.errori+' err)</span>':''}</td><td style="text-align:right;padding:3px 4px;">${fmt(r.input)}</td><td style="text-align:right;padding:3px 4px;">${fmt(r.output)}</td><td style="padding:3px 4px;color:var(--text2);font-size:10px;">${usi}${mod?' · '+mod:''}</td></tr>`; }).join('')
+      +`<tr style="border-top:1px solid var(--border);font-weight:700;"><td style="padding:3px 4px;">ultimi ${giorni.length} gg</td><td style="text-align:right;padding:3px 4px;">${tot.c}</td><td style="text-align:right;padding:3px 4px;">${fmt(tot.i)}</td><td style="text-align:right;padding:3px 4px;">${fmt(tot.o)}</td><td></td></tr></table>
+      <div style="color:var(--text3);font-size:10px;margin-top:4px;">Il costo in euro lo vedi su console.anthropic.com → Usage; qui i token servono a capire quale lettura pesa di più (le schede PDF sono quasi sempre il grosso dell'ingresso).</div>`;
+  }catch(e){ st.textContent='errore: '+e.message; }
+}
+async function salvaModelloAI(){
+  const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
+  const st=document.getElementById('ai-stato'); st.textContent='⏳ salvo…';
+  try{ const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'setModelloAI', modello:document.getElementById('cfg-modello-ai').value})}); const txt=await r.text(); let j; try{ j=JSON.parse(txt); }catch(_){ throw new Error('script in aggiornamento, riprova fra poco'); } if(j.error) throw new Error(j.error);
+    st.textContent='in uso: '+j.modello; toast('✓ Modello AI: '+j.modello);
+  }catch(e){ st.textContent='errore: '+e.message; toast('Errore: '+e.message, true); }
+}
 async function caricaMittenti(){
   const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
   const st=document.getElementById('mittenti-stato'); st.textContent='⏳';
@@ -2062,7 +2103,7 @@ function attachRubrica(inputId, onPick, opts={}){
 // ════════════════════ DOCUMENTI: upload su Drive ════════════════════
 const UPLOAD_MAX_MB = 25;
 function _fileToB64(file){ return new Promise((ok,ko)=>{ const r=new FileReader(); r.onload=()=>ok(String(r.result).split(',')[1]); r.onerror=ko; r.readAsDataURL(file); }); }
-const UPLOAD_CHUNK = 2*1024*1024;   // sopra questa soglia il file viaggia a pezzi (i PDF grandi fallivano in un colpo solo)
+const UPLOAD_CHUNK = 700*1024;   // sopra questa soglia il file viaggia a pezzi: un POST da più di ~1 MB verso lo script a volte muore con "Failed to fetch"
 function _mimeDi(file){
   if(file.type) return file.type;
   const ext=(file.name.split('.').pop()||'').toLowerCase();
@@ -2075,7 +2116,7 @@ async function caricaDocumento(file, cartella, onProgress){
   const post = async body=>{
     // un tentativo, e in caso di errore di rete/404 (es. script in aggiornamento) un secondo dopo 2,5 s
     let ultimo = null;
-    for(let t=0; t<2; t++){
+    for(let t=0; t<3; t++){
       try{
         const res = await fetch(url, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(body)});
         const txt = await res.text();
@@ -2083,8 +2124,9 @@ async function caricaDocumento(file, cartella, onProgress){
         if(j && j.error) throw new Error(j.error);
         if(j && (j.url || j.id)) return j;
         throw new Error('HTTP '+res.status+(txt?' — '+txt.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().substring(0,120):''));
-      }catch(e){ ultimo = e; if(t===0 && !/supera|mancante/.test(e.message)) await new Promise(r=>setTimeout(r,2500)); }
+      }catch(e){ ultimo = e; if(t<2 && !/supera|mancante/.test(e.message)) await new Promise(r=>setTimeout(r,2500*(t+1))); }
     }
+    if(/failed to fetch|networkerror|load failed/i.test(ultimo&&ultimo.message||'')) ultimo = new Error('lo script non ha risposto (rete assente, oppure script in aggiornamento dopo un deploy: riprova fra un paio di minuti)');
     throw ultimo;
   };
   if(file.size <= UPLOAD_CHUNK){
@@ -3211,7 +3253,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v72 ──
+  return `// ── SPETTACOLI APP SCRIPT v74 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -3274,22 +3316,7 @@ function doPost(e) {
         messages = [{role:'user', content: body.prompt}];
       }
 
-      var aiRes = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-        method: 'post',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-beta': 'pdfs-2024-09-25'
-        },
-        payload: JSON.stringify({
-          model: 'claude-opus-4-8',
-          max_tokens: 16000,
-          messages: messages
-        }),
-        muteHttpExceptions: true
-      });
-      var aiJson = JSON.parse(aiRes.getContentText());
+      var aiJson = _aiFetch(apiKey, { max_tokens: 16000, messages: messages }, body.action === 'ai_pdf' ? 'fatture/pdf' : 'testo');
       var text = '';
       if(aiJson.content && aiJson.content[0]){
         text = aiJson.content[0].text || '';
@@ -3365,6 +3392,12 @@ function doPost(e) {
       lock.releaseLock();
       var ru; try { ru = caricaDocumento(body.cartella, body.nome, body.mime, body.b64); } catch(errU) { ru = { error: errU.message }; }
       return ContentService.createTextOutput(JSON.stringify(ru)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (body.action === 'setModelloAI') {
+      var mod = String(body.modello || '').trim();
+      if (!mod) props.deleteProperty('modelloAI'); else props.setProperty('modelloAI', mod);
+      lock.releaseLock();
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, modello: _modelloAI() })).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'setMittenti') {
       var lista = (body.mittenti || []).map(function(x){ return String(x || '').trim().toLowerCase(); }).filter(function(x){ return /^[^@\\s]+@[^@\\s]+$/.test(x); });
@@ -3454,6 +3487,9 @@ function doGet(e) {
     var cb = e.parameter.callback;
     if(cb) return ContentService.createTextOutput(cb+'('+payload+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
     return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
+  }
+  if(action === 'consumoAI') {
+    return ContentService.createTextOutput(JSON.stringify(consumoAI())).setMimeType(ContentService.MimeType.JSON);
   }
   if(action === 'mittenti') {
     return ContentService.createTextOutput(JSON.stringify({ mittenti: _mittenti() })).setMimeType(ContentService.MimeType.JSON);
@@ -3654,14 +3690,7 @@ function estraiCalendario(testo, KEY, anagrafica) {
 '- IGNORA: abbonamenti, prezzi, riduzioni, trailer, link, sinossi lunghe.\\n\\n' +
 'DOCUMENTO:\\n' + testo;
 
-  var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-    method: 'post',
-    headers: {'Content-Type':'application/json', 'x-api-key': KEY, 'anthropic-version':'2023-06-01'},
-    payload: JSON.stringify({model:'claude-opus-4-8', max_tokens:16000,
-      messages:[{role:'user', content: prompt}]}),
-    muteHttpExceptions: true
-  });
-  var j = JSON.parse(res.getContentText());
+  var j = _aiFetch(KEY, {max_tokens:16000, messages:[{role:'user', content: prompt}]}, 'calendari');
   if (j.error) return 'ERRORE API: ' + j.error.message;
   return j.content[0].text;
 }
@@ -4119,14 +4148,7 @@ function analizzaCorpoMail() {
 'MAIL:\\n' +
 mails.map(function(m,i){ return '['+i+'] OGGETTO: '+m.og+'\\nTESTO: '+m.tx; }).join('\\n\\n');
 
-  var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-    method:'post',
-    headers:{'Content-Type':'application/json','x-api-key':KEY,'anthropic-version':'2023-06-01'},
-    payload: JSON.stringify({model:'claude-opus-4-8', max_tokens:8000,
-      messages:[{role:'user', content:prompt}]}),
-    muteHttpExceptions:true
-  });
-  var jr = JSON.parse(res.getContentText());
+  var jr = _aiFetch(KEY, {max_tokens:8000, messages:[{role:'user', content:prompt}]}, 'corpo mail');
   if (jr.error) return 'Corpo mail — errore API: ' + jr.error.message;
 
   var arr;
@@ -4473,13 +4495,7 @@ function _analizzaScheda(KEY, elenco, k) {
   }
   content.push({ type: 'text', text: prompt });
 
-  var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-    method: 'post',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': KEY, 'anthropic-version': '2023-06-01' },
-    payload: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 3000, messages: [{ role: 'user', content: content }] }),
-    muteHttpExceptions: true
-  });
-  var jr; try { jr = JSON.parse(res.getContentText()); } catch(e) { return null; }
+  var jr = _aiFetch(KEY, { max_tokens: 3000, messages: [{ role: 'user', content: content }] }, 'schede');
   if (jr.error) { Logger.log('API: ' + jr.error.message); return null; }
   try { return JSON.parse(jr.content[0].text.replace(/\`\`\`json|\`\`\`/g, '').trim()); }
   catch(e) { Logger.log('JSON scheda non valido: ' + k.nome); return null; }
@@ -4535,6 +4551,55 @@ function leggiRubrica(refresh) {
   return out;
 }
 function testRubrica() { var r = leggiRubrica(true); Logger.log(r.length + ' contatti; primo: ' + JSON.stringify(r[0])); }
+
+
+// ════════════════════ MODELLO AI E CONSUMO ════════════════════
+// Tutte le chiamate a Claude passano di qui: un solo punto per modello, errori e conteggio token.
+// Il modello si cambia dall'app (Config → Consumo AI) e finisce nella proprietà 'modelloAI'.
+// Sonnet legge schede, fatture e mail con la stessa qualità di Opus a una frazione del costo.
+var MODELLO_AI_DEFAULT = 'claude-sonnet-4-5';
+var MODELLI_AI = { sonnet: 'claude-sonnet-4-5', opus: 'claude-opus-4-8', haiku: 'claude-haiku-4-5' };
+function _modelloAI() {
+  var m = PropertiesService.getScriptProperties().getProperty('modelloAI') || '';
+  return MODELLI_AI[m] || m || MODELLO_AI_DEFAULT;
+}
+function _aiFetch(KEY, payload, uso) {
+  var modello = payload.model || _modelloAI();
+  var chiama = function(m) {
+    payload.model = m;
+    var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+      method: 'post',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': KEY, 'anthropic-version': '2023-06-01' },
+      payload: JSON.stringify(payload), muteHttpExceptions: true
+    });
+    try { return JSON.parse(res.getContentText()); }
+    catch(e) { return { error: { type: 'http', message: 'risposta non valida dallo script (' + res.getResponseCode() + ')' } }; }
+  };
+  var j = chiama(modello);
+  // modello non più disponibile (nome vecchio): riprovo col predefinito, così l'app non si blocca
+  if (j.error && /not_found/i.test(String(j.error.type)) && modello !== MODELLO_AI_DEFAULT) { modello = MODELLO_AI_DEFAULT; j = chiama(modello); }
+  _registraConsumoAI(uso || 'altro', modello, j.usage, !!j.error);
+  return j;
+}
+// Registro per giorno: chiamate, token in/out, per uso e per modello. Tenuto per 90 giorni.
+function _registraConsumoAI(uso, modello, usage, errore) {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var reg = JSON.parse(props.getProperty('aiConsumo') || '{}');
+    var g = Utilities.formatDate(new Date(), 'Europe/Rome', 'yyyy-MM-dd');
+    var r = reg[g] = reg[g] || { chiamate: 0, errori: 0, input: 0, output: 0, usi: {}, modelli: {} };
+    var inp = (usage && usage.input_tokens) || 0, out = (usage && usage.output_tokens) || 0;
+    r.chiamate++; if (errore) r.errori++; r.input += inp; r.output += out;
+    var u = r.usi[uso] = r.usi[uso] || { chiamate: 0, input: 0, output: 0 }; u.chiamate++; u.input += inp; u.output += out;
+    var mm = r.modelli[modello] = r.modelli[modello] || { chiamate: 0, input: 0, output: 0 }; mm.chiamate++; mm.input += inp; mm.output += out;
+    var giorni = Object.keys(reg).sort(); while (giorni.length > 90) delete reg[giorni.shift()];
+    props.setProperty('aiConsumo', JSON.stringify(reg));
+  } catch(e) { Logger.log('consumo AI non registrato: ' + e.message); }
+}
+function consumoAI() {
+  var props = PropertiesService.getScriptProperties();
+  return { modello: _modelloAI(), modelloScelto: props.getProperty('modelloAI') || 'sonnet', modelli: MODELLI_AI, consumo: JSON.parse(props.getProperty('aiConsumo') || '{}') };
+}
 
 // ════════════════════ DOCUMENTI (upload su Drive) ════════════════════
 // Salva un file in "GammaFucker Documenti/<cartella>" con link di sola lettura
@@ -7784,7 +7849,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v78</span>
+    <span>Report generato da GammaFucker v80</span>
   </div>
   </body></html>`;
 
@@ -7890,7 +7955,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v78</span>
+    <span>Report generato da GammaFucker v80</span>
   </div>
   </body></html>`;
 
@@ -7967,7 +8032,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v78</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v80</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9996,7 +10061,7 @@ async function allegaPermesso(id, files){
   const s=data.find(x=>String(x.id)===String(id)); if(!s||!files||!files[0]) return;
   const f=files[0]; toast('⏳ carico '+f.name+'…');
   try{
-    const r=await caricaDocumento(f, 'Permessi ZTL/'+_stagioneDa(s.data).replace('/','-')+' '+(s.citta||''));
+    const r=await caricaDocumento(f, 'Permessi ZTL/'+_stagioneDa(s.data).replace('/','-')+' '+(s.citta||''), (i,n)=>toast('⏳ carico '+f.name+'… '+i+'/'+n));
     const z=_prodDi(s).ztl; z.serve=true; z.richiesta=true; z.permessoUrl=r.url; z.permessoNome=f.name;
     sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; renderPiano();
     toast('✓ Permesso allegato'); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
@@ -10131,7 +10196,7 @@ async function caricaAllegatoExtra(prefix, id, files){
   const s=data.find(x=>String(x.id)===String(id)); if(!s||!files||!files.length) return;
   for(const f of Array.from(files)){
     toast('⏳ carico '+f.name+'…');
-    try{ const r=await caricaDocumento(f, 'Allegati/'+_stagioneDa(s.data).replace('/','-')+' '+(s.citta||'')); (_allegatiExtra[s.id]=_allegatiExtra[s.id]||[]).push({label:f.name, url:r.url}); }
+    try{ const r=await caricaDocumento(f, 'Allegati/'+_stagioneDa(s.data).replace('/','-')+' '+(s.citta||''), (i,n)=>toast('⏳ carico '+f.name+'… '+i+'/'+n)); (_allegatiExtra[s.id]=_allegatiExtra[s.id]||[]).push({label:f.name, url:r.url}); }
     catch(e){ toast('Errore '+f.name+': '+e.message, true); }
   }
   const box=document.getElementById(prefix+'-allegati'); if(box){ box.innerHTML=_allegatiHtml(prefix, s); box.querySelectorAll('.'+prefix+'-all').forEach(c=>{ if((_allegatiExtra[s.id]||[]).some(a=>a.url===c.dataset.url)) c.checked=true; }); }
@@ -10212,7 +10277,7 @@ async function allegaSchedaTecnica(id, files){
   const s=data.find(x=>String(x.id)===String(id)); if(!s||!files||!files[0]) return;
   const f=files[0]; toast('⏳ carico '+f.name+'…');
   try{
-    const r=await caricaDocumento(f, 'Schede tecniche/'+_stagioneDa(s.data).replace('/','-')+' '+(s.citta||''));
+    const r=await caricaDocumento(f, 'Schede tecniche/'+_stagioneDa(s.data).replace('/','-')+' '+(s.citta||''), (i,n)=>toast('⏳ carico '+f.name+'… '+i+'/'+n));
     if(!s.mails) s.mails=[];
     s.mails.push({og:'Scheda tecnica — '+f.name.replace(/\.[^.]+$/,''), link:'', tipo:'scheda', file:r.url, manuale:true});
     sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; renderPiano();
@@ -10363,7 +10428,7 @@ function goTab(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===`panel-${name}`));
   if(name==='list')renderList();
   if(name==='exp')buildRepMeseSelect();
-  if(name==='set'){ buildCfgDittaSel(); if(ld('sheetsUrl','') && !IS_COLLAB && !document.getElementById('cfg-mittenti').value) caricaMittenti(); }
+  if(name==='set'){ buildCfgDittaSel(); if(ld('sheetsUrl','') && !IS_COLLAB && !document.getElementById('cfg-mittenti').value){ caricaMittenti(); caricaConsumoAI(); } }
   if(name==='forn'){ buildFornSelect(); if(ld('sheetsUrl','')) setTimeout(()=>pushConfig(true),300); }
   if(name==='collab'){ buildCollabMeseSelect(); renderCollabMese(); }
   if(name==='agenda'){ buildAgendaSelects(); renderAgenda(); }
