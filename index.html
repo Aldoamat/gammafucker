@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v82</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v84</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -3256,7 +3256,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v76 ──
+  return `// ── SPETTACOLI APP SCRIPT v78 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7852,7 +7852,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v82</span>
+    <span>Report generato da GammaFucker v84</span>
   </div>
   </body></html>`;
 
@@ -7958,7 +7958,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v82</span>
+    <span>Report generato da GammaFucker v84</span>
   </div>
   </body></html>`;
 
@@ -8035,7 +8035,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v82</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v84</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9842,18 +9842,20 @@ function _prodShows(key){
 }
 function _prodDefault(s){
   // precompila da ciò che l'app sa già: note (orari/esigenze), contatti, scheda spazio, tecnici previsti
-  const p = {arrivo:'',montaggio:'',prove:'',inizio:'',smontaggio:'',service:'',tecnici:'',refComp:'',refTeatro:'',esigenze:'',note:'',ztl:{serve:false,richiesta:false},todo:[]};
+  const p = {arrivo:'',montaggio:'',prove:'',inizio:'',smontaggio:'',service:'',tecnici:'',refComp:'',refTec:'',refTeatro:'',esigenze:'',note:'',ztl:{serve:false,richiesta:false},todo:[]};
   const righe = (s.note||'').split('|').map(l=>l.trim()).filter(Boolean);
   const orari = righe.filter(l=>/^orari?\s*:/i.test(l)).map(l=>l.replace(/^orari?\s*:\s*/i,''));
   if(orari.length) p.inizio = orari.join(' · ');
   const esig = righe.filter(l=>/^⚠/.test(l)).map(l=>l.replace(/^⚠\s*/,''));
   if(esig.length) p.esigenze = esig.join('; ');
-  const c = (s.contatti||[])[0];
-  if(c) p.refComp = [c.nome, c.compagnia, c.telefono, c.email].filter(Boolean).join(' · ');
+  const contatti = (s.contatti||[]).filter(c=>c.ruolo!=='mittente');
+  const fmtC = c => [c.nome, c.compagnia, c.telefono, c.email].filter(Boolean).join(' · ');
+  const cTec = contatti.find(c=>/tecnic|scena|luci|audio|fonic/i.test(c.ruolo||''));
+  const cAltro = contatti.find(c=>c!==cTec);
+  if(cAltro) p.refComp = fmtC(cAltro);
+  if(cTec) p.refTec = fmtC(cTec);
   const si = spazioInfo[(s.citta||'')+'||'+(s.teatro||'')] || {};
-  const rt=[si.referente_nome, si.referente_tel, si.referente_email].filter(Boolean).join(' · ');
-  const rl=[si.referente2_nome, si.referente2_tel, si.referente2_email].filter(Boolean).join(' · ');
-  if(rt || rl) p.refTeatro = [rt?'tecnico: '+rt:'', rl?'logistico: '+rl:''].filter(Boolean).join(' | ');
+  p.refTeatro = _refTeatroSpazio(s);
   if(si.ztl === 'necessario') p.ztl.serve = true;
   const tec = [];
   if(s.nm) tec.push(s.nm+' macchinist'+(s.nm>1?'i':'a'));
@@ -9865,10 +9867,22 @@ function _prodDefault(s){
   if(tec.length) p.tecnici = tec.join(', ');
   return p;
 }
+function _refTeatroSpazio(s){
+  const si = spazioInfo[(s.citta||'')+'||'+(s.teatro||'')] || {};
+  const rt=[si.referente_nome, si.referente_tel, si.referente_email].filter(Boolean).join(' · ');
+  const rl=[si.referente2_nome, si.referente2_tel, si.referente2_email].filter(Boolean).join(' · ');
+  if(!rt && !rl) return '';
+  return (rt && rl) ? 'tecnico: '+rt+' | logistico: '+rl : (rt || rl);
+}
 function _prodDi(s){
   if(!s.prod) s.prod = _prodDefault(s);
   if(!s.prod.ztl) s.prod.ztl = {serve:false, richiesta:false};
   if(!s.prod.todo) s.prod.todo = [];
+  // piani creati prima del campo "referente tecnico compagnia": lo precompilo dai contatti, senza toccare il resto
+  if(s.prod.refTec===undefined){ s.prod.refTec = _prodDefault(s).refTec || ''; }
+  // il referente teatro segue sempre la scheda dello spazio (stesso teatro = stesso referente), a meno che
+  // tu non l'abbia scritto a mano in questo piano: prima era una fotografia fatta alla creazione del piano
+  if(!s.prod.refTeatroMan){ const rt=_refTeatroSpazio(s); if(rt) s.prod.refTeatro = rt; }
   return s.prod;
 }
 function _prodEsc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
@@ -9936,7 +9950,7 @@ function renderPiano(){
   const serviceList = `<datalist id="prod-service-list">${aziendeDB.map(a=>`<option value="${_prodEsc(a.nome)}">`).join('')}</datalist>`;
 
   let h = `<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-    <div><div style="font-size:15px;font-weight:800;">🎬 ${_prodEsc(m)} <span style="color:var(--text3);font-weight:400;font-size:12px;">stagione ${st} · ${shows.length} spettacoli</span></div></div>
+    <div><div style="font-size:15px;font-weight:800;">🎬 ${_prodEsc(m)} <span style="color:var(--text3);font-weight:400;font-size:12px;">stagione ${st} · ${_prodConta(shows)}</span></div></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
       <select id="prod-spazio" style="font-size:11px;padding:5px 8px;max-width:220px;" onchange="_prodSpazio=this.value;renderPiano()">
         <option value="">tutti gli spazi</option>
@@ -9997,6 +10011,9 @@ function renderPiano(){
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
         ${field(oi(s.id,'refComp'),'Referente compagnia',p.refComp,'nome · telefono')}
+        ${field(oi(s.id,'refTec'),'Referente tecnico compagnia',p.refTec||'','nome · telefono')}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
         ${field(oi(s.id,'refTeatro'),'Referente teatro',p.refTeatro,'nome · telefono')}
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;">
@@ -10011,7 +10028,7 @@ function renderPiano(){
 let _prodSaveTimer=null;
 function _prodAutoSave(){ if(IS_COLLAB) return; clearTimeout(_prodSaveTimer); _prodSaveTimer=setTimeout(()=>salvaPiano(true), 4000); }
 function _prodGen(campo, v){ if(!_prodKey) return; pianiProduzione[_prodKey][campo]=v; pianiProduzione[_prodKey].ts=Date.now(); sv('pianiProduzione', pianiProduzione); _prodAutoSave(); }
-function _prodSet(id, campo, v){ const s=data.find(x=>String(x.id)===String(id)); if(!s) return; _prodDi(s)[campo]=v; sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; _prodAutoSave(); }
+function _prodSet(id, campo, v){ const s=data.find(x=>String(x.id)===String(id)); if(!s) return; const p=_prodDi(s); p[campo]=v; if(campo==='refTeatro') p.refTeatroMan = (v.trim()!=='' && v.trim()!==_refTeatroSpazio(s)); sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; _prodAutoSave(); }
 function _prodZtl(id, campo, v){ const s=data.find(x=>String(x.id)===String(id)); if(!s) return; const z=_prodDi(s).ztl; z[campo]=v; if(campo==='richiesta'&&v&&!z.dataRichiesta) z.dataRichiesta=new Date().toISOString().slice(0,10); if(campo==='richiesta'&&!v) delete z.dataRichiesta; sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; renderPiano(); _prodAutoSave(); }
 function salvaPiano(silent){
   clearTimeout(_prodSaveTimer);
@@ -10330,7 +10347,7 @@ function _prodBloccoHtml(s, g){
       <span style="font-size:11px;color:#ddd6fe;">${_prodEsc(s.citta)}${s.teatro?' · '+_prodEsc(s.teatro):''}</span></div>
     <table style="width:100%;border-collapse:collapse;font-size:11px;">
       ${r('Arrivo compagnia',p.arrivo)}${r('Montaggio',p.montaggio)}${r('Prove',p.prove)}${r('Spettacolo',p.inizio)}${r('Smontaggio',p.smontaggio)}
-      ${r('Service',p.service)}${r('Tecnici',p.tecnici)}${r('Referente compagnia',p.refComp)}${r('Referente teatro',p.refTeatro)}
+      ${r('Service',p.service)}${r('Tecnici',p.tecnici)}${r('Referente compagnia',p.refComp)}${r('Ref. tecnico compagnia',p.refTec)}${r('Referente teatro',p.refTeatro)}
       ${r('Esigenze tecniche',p.esigenze)}${r('Note',p.note)}
       ${z.serve?r('ZTL', z.permessoUrl?'permesso ottenuto ('+(z.permessoNome||'allegato')+')':z.richiesta?'richiesta inviata'+(z.dataRichiesta?' il '+_prodFmtD(z.dataRichiesta):''):'DA RICHIEDERE'):''}
     </table></div>`;
@@ -10353,13 +10370,19 @@ function _prodStampa(titolo, sotto, corpo){
   w.document.write(html); w.document.close();
 }
 // piano (o piano dello spazio filtrato): titolo, sottotitolo, corpo HTML, spettacoli inclusi
+// "2 spettacoli (1 premontaggio)": premontaggi e repliche sono giornate dello stesso spettacolo, non spettacoli in più
+function _prodConta(shows){
+  const pre=shows.filter(x=>x.premontaggio).length, rep=shows.filter(x=>!x.premontaggio&&x.replicaOf).length;
+  const n=shows.length-pre-rep; const extra=[pre?pre+(pre>1?' premontaggi':' premontaggio'):'', rep?rep+(rep>1?' repliche':' replica'):''].filter(Boolean).join(', ');
+  return n+(n===1?' spettacolo':' spettacoli')+(extra?' ('+extra+')':'');
+}
 function _pianoDoc(){
   if(!_prodKey) return null; const [m,st]=_prodKey.split('||'); const g=pianiProduzione[_prodKey]||{};
   let shows=_prodShows(_prodKey); let sottoSp='';
   if(_prodSpazio){ shows=shows.filter(x=>((x.citta||'')+'||'+(x.teatro||''))===_prodSpazio); const [c,t]=_prodSpazio.split('||'); sottoSp=' · '+c+(t?' · '+t:''); }
   const gen = (g.responsabile||g.noteGenerali) ? `<div class="g">${g.responsabile?'<b>Responsabile:</b> '+_prodEsc(g.responsabile)+'<br>':''}${g.noteGenerali?'<b>Note:</b> '+_prodEsc(g.noteGenerali).replace(/\n/g,'<br>'):''}</div>` : '';
   const titolo='Piano di produzione — '+m+(_prodSpazio?' — '+_prodSpazio.split('||')[0]:'');
-  const sotto='stagione '+st+sottoSp+' · '+shows.length+' spettacoli';
+  const sotto='stagione '+st+sottoSp+' · '+_prodConta(shows);
   return { titolo, sotto, corpo: gen + shows.map(s=>_prodBloccoHtml(s,g)).join(''), shows, m, st };
 }
 function stampaPiano(){ const d=_pianoDoc(); if(d) _prodStampa(d.titolo, d.sotto, d.corpo); }
