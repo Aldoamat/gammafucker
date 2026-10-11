@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v80</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v81</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -742,7 +742,10 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div class="mtitle">📧 Invia piano di produzione</div>
     <div id="ip-titolo" style="font-size:11px;color:var(--text2);margin-bottom:10px;"></div>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <div class="field"><label>Destinatari</label><input type="text" id="ip-dest" placeholder="email1, email2"><div id="ip-suggeriti" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;"></div></div>
+      <div class="field"><label>Destinatari <span style="font-weight:400;color:var(--text3);">(tocca un nome per escluderlo o includerlo)</span></label>
+        <div id="ip-suggeriti" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;"></div>
+        <div class="rb-wrap" style="display:flex;gap:6px;align-items:center;"><input type="text" id="ip-dest" placeholder="aggiungi: nome dalla rubrica o indirizzo email" style="flex:1;" autocomplete="off"><button class="iBtn" style="font-size:11px;padding:4px 9px;white-space:nowrap;" onclick="_ipAggiungiDaInput()">➕</button></div>
+      </div>
       <div class="field"><label>Oggetto</label><input type="text" id="ip-ogg"></div>
       <div class="field"><label>Testo</label><textarea id="ip-testo" style="min-height:120px;font-size:12px;"></textarea></div>
       <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">ALLEGATI — il piano in PDF viene sempre allegato; in più:</div><div id="ip-doc"></div></div>
@@ -3253,7 +3256,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v74 ──
+  return `// ── SPETTACOLI APP SCRIPT v75 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7849,7 +7852,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v80</span>
+    <span>Report generato da GammaFucker v81</span>
   </div>
   </body></html>`;
 
@@ -7955,7 +7958,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v80</span>
+    <span>Report generato da GammaFucker v81</span>
   </div>
   </body></html>`;
 
@@ -8032,7 +8035,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v80</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v81</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -10353,7 +10356,11 @@ function apriInvioPiano(){
   [...new Set(d.shows.map(x=>(x.citta||'')+'||'+(x.teatro||'')))].forEach(k=>{ const si=spazioInfo[k]||{}; const [c,t]=k.split('||'); add('🔧 '+(si.referente_nome||'tecnico')+' · '+(t||c), si.referente_email); add('🚚 '+(si.referente2_nome||'logistico')+' · '+(t||c), si.referente2_email); (si.ditte||[]).forEach(dt=>add('🏢 '+(dt.nome||dt.servizio), dt.email)); });
   d.shows.forEach(x=>{ const serv=(x.prod&&x.prod.service)||''; if(serv){ const a=(aziendeDB||[]).find(z=>z.nome.toUpperCase()===serv.toUpperCase()); if(a) add('🔧 '+a.nome, a.email); } (x.contatti||[]).forEach(c=>add('🎭 '+(c.nome||c.email)+' · '+x.spett, c.email)); });
   document.getElementById('ip-dest').value='';
-  document.getElementById('ip-suggeriti').innerHTML=sugg.map(x=>`<button class="iBtn" style="font-size:10px;padding:2px 7px;" onclick="_ipAddDest('${esc(x.em)}')">${esc(x.lab)}</button>`).join('')||'<span style="font-size:10px;color:var(--text3);">nessun contatto noto: scrivi gli indirizzi</span>';
+  // tutti i suggeriti partono inclusi; un tocco li esclude (restano visibili, spenti) o li reinclude
+  _ipDest = sugg.map(x=>({lab:x.lab, em:x.em, on:true}));
+  _ipRenderDest();
+  if(!window._ipRubricaOk){ window._ipRubricaOk=true; attachRubrica('ip-dest', c=>{ if(c.email) _ipAddDest(c.email, (c._az?'🏢 ':'👤 ')+c.nome); else toast('Contatto senza email', true); document.getElementById('ip-dest').value=''; }, {aziende:true});
+    document.getElementById('ip-dest').addEventListener('keydown', e=>{ if(e.key==='Enter' && !document.querySelector('#invio-piano-ov .rb-dd .sel')){ e.preventDefault(); _ipAggiungiDaInput(); } }); }
   document.getElementById('ip-ogg').value=d.titolo+' · stagione '+d.st;
   document.getElementById('ip-testo').value=`Buongiorno,\nin allegato il piano di produzione${_prodSpazio?' per '+_prodSpazio.split('||').filter(Boolean).reverse().join(' · '):' della manifestazione '+d.m} (stagione ${d.st}) con le schede tecniche degli spettacoli.\n\nRestiamo a disposizione per ogni chiarimento.\n\n${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}\ncoordinamento tecnico Amat${IS_COLLAB?'':'\nmob. 3477086550'}`;
   // documenti: scheda tecnica di ogni spettacolo (spuntata), permessi ZTL e documenti spazio (non spuntati)
@@ -10364,11 +10371,31 @@ function apriInvioPiano(){
     +(senza.length?`<div style="font-size:10px;color:#f59e0b;margin-top:4px;">⚠ senza scheda tecnica: ${esc(senza.map(x=>x.spett).join(', '))}</div>`:'');
   document.getElementById('invio-piano-ov').classList.add('open');
 }
-function _ipAddDest(em){ const el=document.getElementById('ip-dest'); const cur=el.value.split(/[,;]/).map(x=>x.trim()).filter(Boolean); if(!cur.includes(em)) cur.push(em); el.value=cur.join(', '); }
+let _ipDest=[];
+function _ipRenderDest(){
+  const esc=v=>String(v||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const box=document.getElementById('ip-suggeriti');
+  box.innerHTML=_ipDest.length?_ipDest.map((x,i)=>`<button class="iBtn" title="${esc(x.em)}" style="font-size:10px;padding:2px 8px;${x.on?'color:var(--green);border-color:rgba(16,185,129,.5);background:rgba(16,185,129,.08);':'color:var(--text3);border-style:dashed;text-decoration:line-through;'}" onclick="_ipDest[${i}].on=!_ipDest[${i}].on;_ipRenderDest()">${x.on?'✓':'✕'} ${esc(x.lab)}</button>`).join(''):'<span style="font-size:10px;color:var(--text3);">nessun contatto noto: aggiungi gli indirizzi qui sotto</span>';
+  const n=_ipDest.filter(x=>x.on).length; const btn=document.getElementById('ip-btn'); if(btn && !btn.disabled) btn.textContent='📤 Invia piano'+(n?' ('+n+')':'');
+}
+function _ipAddDest(em, lab){
+  em=String(em||'').trim(); if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast('Indirizzo non valido: '+em, true); return; }
+  const k=_ipDest.find(x=>x.em.toLowerCase()===em.toLowerCase());
+  if(k) k.on=true; else _ipDest.push({lab:lab||em, em, on:true});
+  _ipRenderDest();
+}
+function _ipAggiungiDaInput(){
+  const el=document.getElementById('ip-dest'); const v=el.value.trim(); if(!v) return;
+  const parti=v.split(/[,;\s]+/).filter(Boolean); const mail=parti.filter(x=>x.includes('@'));
+  if(!mail.length){ toast('Scegli un contatto dall\'elenco o scrivi un indirizzo email', true); return; }
+  mail.forEach(m=>_ipAddDest(m)); el.value='';
+}
 async function inviaPiano(){
   const d=_pianoDoc(); if(!d) return;
-  const dest=document.getElementById('ip-dest').value.split(/[,;]/).map(x=>x.trim()).filter(Boolean).join(',');
-  if(!dest){ toast('Inserisci almeno un destinatario', true); return; }
+  // un indirizzo scritto ma non ancora aggiunto col ➕ viene preso lo stesso
+  const residuo=document.getElementById('ip-dest').value.trim(); if(residuo && residuo.includes('@')){ _ipAggiungiDaInput(); }
+  const dest=_ipDest.filter(x=>x.on).map(x=>x.em).join(',');
+  if(!dest){ toast('Nessun destinatario selezionato', true); return; }
   const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
   const docs=[...document.querySelectorAll('.ip-d:checked')].map(c=>({label:c.dataset.label, url:c.dataset.url}));
   const testo=document.getElementById('ip-testo').value + (docs.length ? '\n\nDocumenti allegati:\n'+docs.map(a=>'• '+a.label.replace(/^[^\w(]+\s*/,'')).join('\n') : '');
