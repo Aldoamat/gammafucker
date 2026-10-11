@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v84</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v85</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -3256,7 +3256,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v78 ──
+  return `// ── SPETTACOLI APP SCRIPT v79 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7852,7 +7852,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v84</span>
+    <span>Report generato da GammaFucker v85</span>
   </div>
   </body></html>`;
 
@@ -7958,7 +7958,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v84</span>
+    <span>Report generato da GammaFucker v85</span>
   </div>
   </body></html>`;
 
@@ -8035,7 +8035,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v84</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v85</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9850,7 +9850,8 @@ function _prodDefault(s){
   if(esig.length) p.esigenze = esig.join('; ');
   const contatti = (s.contatti||[]).filter(c=>c.ruolo!=='mittente');
   const fmtC = c => [c.nome, c.compagnia, c.telefono, c.email].filter(Boolean).join(' · ');
-  const cTec = contatti.find(c=>/tecnic|scena|luci|audio|fonic/i.test(c.ruolo||''));
+  // il ruolo può stare in "ruolo" (contatti letti dalle schede) o nel campo "Compagnia / ruolo" (contatti scritti a mano)
+  const cTec = contatti.find(c=>/tecnic|scena|luci|audio|fonic/i.test((c.ruolo||'')+' '+(c.compagnia||'')));
   const cAltro = contatti.find(c=>c!==cTec);
   if(cAltro) p.refComp = fmtC(cAltro);
   if(cTec) p.refTec = fmtC(cTec);
@@ -9879,7 +9880,7 @@ function _prodDi(s){
   if(!s.prod.ztl) s.prod.ztl = {serve:false, richiesta:false};
   if(!s.prod.todo) s.prod.todo = [];
   // piani creati prima del campo "referente tecnico compagnia": lo precompilo dai contatti, senza toccare il resto
-  if(s.prod.refTec===undefined){ s.prod.refTec = _prodDefault(s).refTec || ''; }
+  if(!s.prod.refTec && !s.prod.refTecMan){ const rt=_prodDefault(s).refTec; if(rt) s.prod.refTec = rt; else if(s.prod.refTec===undefined) s.prod.refTec=''; }
   // il referente teatro segue sempre la scheda dello spazio (stesso teatro = stesso referente), a meno che
   // tu non l'abbia scritto a mano in questo piano: prima era una fotografia fatta alla creazione del piano
   if(!s.prod.refTeatroMan){ const rt=_refTeatroSpazio(s); if(rt) s.prod.refTeatro = rt; }
@@ -10028,7 +10029,7 @@ function renderPiano(){
 let _prodSaveTimer=null;
 function _prodAutoSave(){ if(IS_COLLAB) return; clearTimeout(_prodSaveTimer); _prodSaveTimer=setTimeout(()=>salvaPiano(true), 4000); }
 function _prodGen(campo, v){ if(!_prodKey) return; pianiProduzione[_prodKey][campo]=v; pianiProduzione[_prodKey].ts=Date.now(); sv('pianiProduzione', pianiProduzione); _prodAutoSave(); }
-function _prodSet(id, campo, v){ const s=data.find(x=>String(x.id)===String(id)); if(!s) return; const p=_prodDi(s); p[campo]=v; if(campo==='refTeatro') p.refTeatroMan = (v.trim()!=='' && v.trim()!==_refTeatroSpazio(s)); sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; _prodAutoSave(); }
+function _prodSet(id, campo, v){ const s=data.find(x=>String(x.id)===String(id)); if(!s) return; const p=_prodDi(s); p[campo]=v; if(campo==='refTeatro') p.refTeatroMan = (v.trim()!=='' && v.trim()!==_refTeatroSpazio(s)); if(campo==='refTec') p.refTecMan = (v.trim()!==''); sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; _prodAutoSave(); }
 function _prodZtl(id, campo, v){ const s=data.find(x=>String(x.id)===String(id)); if(!s) return; const z=_prodDi(s).ztl; z[campo]=v; if(campo==='richiesta'&&v&&!z.dataRichiesta) z.dataRichiesta=new Date().toISOString().slice(0,10); if(campo==='richiesta'&&!v) delete z.dataRichiesta; sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; renderPiano(); _prodAutoSave(); }
 function salvaPiano(silent){
   clearTimeout(_prodSaveTimer);
