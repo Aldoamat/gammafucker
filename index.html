@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v81</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v82</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -3256,7 +3256,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v75 ──
+  return `// ── SPETTACOLI APP SCRIPT v76 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7852,7 +7852,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v81</span>
+    <span>Report generato da GammaFucker v82</span>
   </div>
   </body></html>`;
 
@@ -7958,7 +7958,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v81</span>
+    <span>Report generato da GammaFucker v82</span>
   </div>
   </body></html>`;
 
@@ -8035,7 +8035,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v81</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v82</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9958,7 +9958,7 @@ function renderPiano(){
   const visibili = _prodSpazio ? shows.filter(x=>((x.citta||'')+'||'+(x.teatro||''))===_prodSpazio) : shows;
   visibili.forEach(s=>{
     const p = _prodDi(s);
-    const scheda = (s.mails||[]).find(x=>x.tipo==='scheda');
+    const schede = (s.mails||[]).map((x,i)=>({...x,_i:i})).filter(x=>x.tipo==='scheda'&&(x.file||x.link));
     const tel = (s.contatti||[]).filter(c=>c.telefono);
     const mail = (s.contatti||[]).filter(c=>c.email);
     const contattiBtn = (tel.length?`<button class="iBtn" style="font-size:10px;padding:3px 8px;color:#25d366;border-color:rgba(37,211,102,.4);" onclick="apriWaCompagnia(${s.id})">💬 WhatsApp</button>`:'')
@@ -9977,7 +9977,8 @@ function renderPiano(){
           <div style="font-size:14px;font-weight:800;">${_prodEsc(s.spett)}</div>
           <div style="font-size:11px;color:var(--text2);">${_prodEsc(s.citta)}${s.teatro?' · '+_prodEsc(s.teatro):''}</div></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;">
-          ${scheda?`<a href="${_prodEsc(scheda.file||scheda.link)}" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;font-size:10px;padding:3px 8px;color:#60a5fa;border-color:rgba(96,165,250,.35);">📄 Scheda tecnica</a>`:(RO?`<span class="iBtn" style="font-size:10px;padding:3px 8px;color:var(--text3);border-style:dashed;">📄 scheda non arrivata</span>`:`<label class="iBtn" style="font-size:10px;padding:3px 8px;cursor:pointer;color:#60a5fa;border-color:rgba(96,165,250,.35);border-style:dashed;">📎 Allega scheda tecnica<input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="display:none" onchange="allegaSchedaTecnica(${s.id},this.files)"></label>`)}
+          ${schede.length?schede.map(m=>`<span style="display:inline-flex;align-items:stretch;"><a href="${_prodEsc(m.file||m.link)}" target="_blank" rel="noopener" class="iBtn" title="${_prodEsc(m.og||'')}" style="text-decoration:none;font-size:10px;padding:3px 8px;color:#60a5fa;border-color:rgba(96,165,250,.35);${RO?'':'border-radius:6px 0 0 6px;'}">📄 ${_prodEsc(_schedaNome(m, schede.length>1))}</a>${RO?'':`<button class="iBtn" title="Rimuovi questo documento" style="font-size:10px;padding:3px 6px;color:var(--red);border-color:rgba(239,68,68,.35);border-left:0;border-radius:0 6px 6px 0;" onclick="rimuoviSchedaTecnica(${s.id},${m._i})">✕</button>`}</span>`).join(''):(RO?`<span class="iBtn" style="font-size:10px;padding:3px 8px;color:var(--text3);border-style:dashed;">📄 scheda non arrivata</span>`:'')}
+          ${RO?'':`<label class="iBtn" style="font-size:10px;padding:3px 8px;cursor:pointer;color:#60a5fa;border-color:rgba(96,165,250,.35);border-style:dashed;">📎 ${schede.length?'Altro documento':'Allega scheda tecnica'}<input type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.dwg" style="display:none" onchange="allegaSchedaTecnica(${s.id},this.files)"></label>`}
           <button class="iBtn" style="font-size:10px;padding:3px 8px;" onclick="${RO?`apriInvioInfoSpazio(${s.id})`:`openSpazioInfoTiatro('${_js(s.citta)}','${_js(s.teatro||'')}')`}">🏛 Info spazio</button>
           ${(s.mails||[]).some(m=>m.link)?`<button class="iBtn" style="font-size:10px;padding:3px 8px;color:#f59e0b;border-color:rgba(245,158,11,.4);" onclick="apriInoltro(${s.id})">↪ Inoltra ai referenti</button>`:''}
           <button class="iBtn" style="font-size:10px;padding:3px 8px;" onclick="stampaSchedaGiornata(${s.id})">🖨 Scheda giornata</button>
@@ -10276,16 +10277,34 @@ function _waAggiorna(){
   document.getElementById('wa-anteprima').textContent=testo;
 }
 // scheda tecnica arrivata fuori dalla mail (WhatsApp ecc.): la carico su Drive e la aggancio allo spettacolo
+// nome breve del documento per il bottone: "Scheda tecnica" se è l'unico, altrimenti il nome del file
+function _schedaNome(m, dettaglio){
+  const n=String(m.og||'').replace(/^Scheda tecnica\s*[—-]\s*/i,'').trim();
+  return dettaglio && n ? (n.length>22?n.substring(0,22)+'…':n) : 'Scheda tecnica';
+}
 async function allegaSchedaTecnica(id, files){
-  const s=data.find(x=>String(x.id)===String(id)); if(!s||!files||!files[0]) return;
-  const f=files[0]; toast('⏳ carico '+f.name+'…');
-  try{
-    const r=await caricaDocumento(f, 'Schede tecniche/'+_stagioneDa(s.data).replace('/','-')+' '+(s.citta||''), (i,n)=>toast('⏳ carico '+f.name+'… '+i+'/'+n));
-    if(!s.mails) s.mails=[];
-    s.mails.push({og:'Scheda tecnica — '+f.name.replace(/\.[^.]+$/,''), link:'', tipo:'scheda', file:r.url, manuale:true});
-    sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; renderPiano();
-    toast('✓ Scheda tecnica agganciata'); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
-  }catch(e){ toast('Errore: '+e.message, true); }
+  const s=data.find(x=>String(x.id)===String(id)); if(!s||!files||!files.length) return;
+  let n=0;
+  for(const f of Array.from(files)){
+    toast('⏳ carico '+f.name+'…');
+    try{
+      const r=await caricaDocumento(f, 'Schede tecniche/'+_stagioneDa(s.data).replace('/','-')+' '+(s.citta||''), (i,t)=>toast('⏳ carico '+f.name+'… '+i+'/'+t));
+      if(!s.mails) s.mails=[];
+      s.mails.push({og:'Scheda tecnica — '+f.name.replace(/\.[^.]+$/,''), link:'', tipo:'scheda', file:r.url, manuale:true}); n++;
+    }catch(e){ toast('Errore '+f.name+': '+e.message, true); }
+  }
+  if(!n) return;
+  sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; renderPiano();
+  toast('✓ '+(n>1?n+' documenti agganciati':'Documento agganciato')); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
+}
+// toglie un documento dallo spettacolo (il file resta su Drive, così un link già inviato continua a funzionare)
+function rimuoviSchedaTecnica(id, idx){
+  const s=data.find(x=>String(x.id)===String(id)); if(!s||!s.mails||!s.mails[idx]) return;
+  const m=s.mails[idx];
+  if(!confirm('Togliere "'+(m.og||'documento')+'" da '+s.spett+'?\n(il file resta su Drive)')) return;
+  s.mails.splice(idx,1);
+  sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; renderPiano();
+  toast('✓ Documento rimosso'); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
 }
 async function inviaPermessoCompagnia(id){
   const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
