@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v85</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v86</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1011,12 +1011,9 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       </div>
       <button class="btn btn-r" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8);color:#fff;box-shadow:0 4px 20px rgba(14,165,233,.3);white-space:nowrap;" onclick="generaReportCitta()">🏙 Report Città</button>
     </div>
-    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-      <div class="field" style="margin-bottom:0;flex:1;min-width:120px;">
-        <label>Per stagione</label>
-        <select id="rep-stagione" style="font-size:12px;width:100%;"></select>
-      </div>
-      <button class="btn btn-r" style="background:linear-gradient(135deg,#059669,#34d399);color:#fff;box-shadow:0 4px 20px rgba(5,150,105,.3);white-space:nowrap;" onclick="generaReportStagione()">🎭 Report Stagione</button>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <div style="flex:1;min-width:160px;font-size:11px;color:var(--text2);line-height:1.5;">Segue i filtri impostati nella Lista (stagione, città, tipo, mese, stato): <span id="rep-filtri-desc" style="color:var(--gold);"></span>. Per ogni spettacolo riporta accordi contrattuali e cosa stiamo fatturando, senza note.<select id="rep-stagione" style="display:none;"></select></div>
+      <button class="btn btn-r" style="background:linear-gradient(135deg,#059669,#34d399);color:#fff;box-shadow:0 4px 20px rgba(5,150,105,.3);white-space:nowrap;" onclick="generaReportFiltri()">🎭 Report spettacoli</button>
     </div>
   </div>
   <div class="fc">
@@ -2756,7 +2753,7 @@ function _buildCard(s){
       ${s.mails.some(m=>m.link)?`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#f59e0b;border-color:rgba(245,158,11,.4);" onclick="apriInoltro(${s.id})" title="Inoltra la mail della compagnia ai referenti">↪ Inoltra</button>`:''}
       ${IS_COLLAB?'':`<button class="iBtn" style="font-size:10px;padding:2px 6px;color:var(--text3);" onclick="gestisciMail(${s.id})">⚙</button>`}</div>`:''}
     ${(s.contatti&&s.contatti.length)||!IS_COLLAB?`<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${_contattiChips(s.contatti||[])}${IS_COLLAB?'':`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#a78bfa;border-color:rgba(167,139,250,.35);" onclick="apriContatti(${s.id})" title="Referenti compagnia">👤 ${(s.contatti&&s.contatti.length)?'✎':'+ referente'}</button>`}</div>`:''}
-    ${(()=>{ if(!s.note) return ''; const righe=s.note.split('|').map(l=>l.trim()).filter(Boolean); const fR=righe.filter(l=>l.toLowerCase().includes('fattura')); const gR=righe.filter(l=>!l.toLowerCase().includes('fattura')); let h=''; if(gR.length) h+='<div class="spnote">'+gR.join('<br>')+'</div>'; if(fR.length) h+='<div class="spnote-fatt">'+fR.join('<br><br>')+'</div>'; { const w=_discrepanzaCosti(s); if(w) h+=w; } if(fR.length) h+=`<button class="iBtn" style="font-size:10px;margin-top:3px;border-color:rgba(124,58,237,.4);color:var(--purple);" onclick="reportFattureNote(${s.id})">📋 Fatture in nota</button>`; return h; })()}
+    ${(()=>{ if(!s.note) return ''; const righe=s.note.split('|').map(l=>l.trim()).filter(Boolean).filter(l=>IS_COLLAB||!/^⚠/.test(l)); const fR=righe.filter(l=>l.toLowerCase().includes('fattura')); const gR=righe.filter(l=>!l.toLowerCase().includes('fattura')); let h=''; if(gR.length) h+='<div class="spnote">'+gR.join('<br>')+'</div>'; if(fR.length) h+='<div class="spnote-fatt">'+fR.join('<br><br>')+'</div>'; { const w=_discrepanzaCosti(s); if(w) h+=w; } if(fR.length) h+=`<button class="iBtn" style="font-size:10px;margin-top:3px;border-color:rgba(124,58,237,.4);color:var(--purple);" onclick="reportFattureNote(${s.id})">📋 Fatture in nota</button>`; return h; })()}
     <div class="sptags">
       ${s.manif?`<span class="tag m">${s.manif}</span>`:''}
       ${isFat?`<span class="tag fat">✓ fatturato</span>`:hasTot?`<span class="tag s">€ fatturabile</span>`:''}
@@ -2794,20 +2791,14 @@ function _stagioneDa(dataISO){
 }
 
 
-function renderList(){
+// Filtri della Lista (ricerca, mese, città, tipo, stagione, settimana, stato): usati dalla lista e dal Report
+function _listaFiltrata(){
   const q=(document.getElementById('fil-q').value||'').toLowerCase();
-  // Se c'è una ricerca attiva, disabilita filtro settimana automaticamente
-  if(q && weekFilter){
-    weekFilter=false;
-    document.getElementById('chip-week').className='stato-chip';
-    document.getElementById('chip-all').className='stato-chip active-week';
-  }
   const ms=document.getElementById('fil-mese').value;
   const ci=document.getElementById('fil-citta').value;
   const ma=document.getElementById('fil-manif').value;
   const stEl=document.getElementById('fil-stagione');
   const st=stEl?stEl.value:'';
-
   let fil=data.filter(s=>
     (!q||s.spett.toLowerCase().includes(q)||s.citta.toLowerCase().includes(q)||(s.teatro||'').toLowerCase().includes(q)||(s.note||'').toLowerCase().includes(q)||(s.manif||'').toLowerCase().includes(q)||(s.accordi||'').toLowerCase().includes(q))&&
     (!ms||s.data.startsWith(ms))&&(!ci||s.citta===ci)&&(!ma||s.manif===ma)&&
@@ -2827,6 +2818,27 @@ function renderList(){
   if(statoFilter==='fatt') fil=fil.filter(s=>s.totale>0&&!s.fatturato);
   else if(statoFilter==='fat') fil=fil.filter(s=>s.fatturato);
   else if(statoFilter==='zero') fil=fil.filter(s=>!s.totale||s.totale===0);
+
+  const nm=['','gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+  const desc=[st?'stagione '+st:'', ci||'', ma||'', ms?nm[+ms.split('-')[1]]+' '+ms.split('-')[0]:'', weekFilter?'settimana corrente':'', statoFilter==='fatt'?'da fatturare':statoFilter==='fat'?'fatturati':statoFilter==='zero'?'da definire':'', q?'ricerca "'+q+'"':''].filter(Boolean);
+  return { lista: fil, descrizione: desc.join(' · ') || 'tutti gli spettacoli', stagione: st, citta: ci };
+}
+function renderList(){
+  const q=(document.getElementById('fil-q').value||'').toLowerCase();
+  // Se c'è una ricerca attiva, disabilita filtro settimana automaticamente
+  if(q && weekFilter){
+    weekFilter=false;
+    document.getElementById('chip-week').className='stato-chip';
+    document.getElementById('chip-all').className='stato-chip active-week';
+  }
+  const ms=document.getElementById('fil-mese').value;
+  const ci=document.getElementById('fil-citta').value;
+  const ma=document.getElementById('fil-manif').value;
+  const stEl=document.getElementById('fil-stagione');
+  const st=stEl?stEl.value:'';
+
+  const _lf=_listaFiltrata(); let fil=_lf.lista;
+  { const d=document.getElementById('rep-filtri-desc'); if(d) d.textContent=_lf.descrizione; }
 
   // Stats sempre su dati completi
   const totC=data.reduce((a,s)=>a+(s.totale||0),0);
@@ -3256,7 +3268,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v79 ──
+  return `// ── SPETTACOLI APP SCRIPT v80 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7852,7 +7864,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v85</span>
+    <span>Report generato da GammaFucker v86</span>
   </div>
   </body></html>`;
 
@@ -7958,7 +7970,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v85</span>
+    <span>Report generato da GammaFucker v86</span>
   </div>
   </body></html>`;
 
@@ -7967,6 +7979,69 @@ function generaReportCitta(){
   w.document.close();
 }
 
+// cosa stiamo fatturando: tecnici × tariffa + collaboratori a chiamata
+function _fatturazioneTesto(s){
+  const v=[]; const r=(n,t,sing,plur)=>{ if(+n>0) v.push(n+' '+(n>1?plur:sing)+(+t>0?' × €'+(+t).toLocaleString('it-IT'):'')); };
+  r(s.nm,s.tm,'macchinista','macchinisti'); r(s.ne,s.te,'elettricista','elettricisti'); r(s.nfo,s.tfo,'fonico','fonici'); r(s.nsa,s.tsa,'sarta','sarte'); r(s.nf,s.tf,'facchino','facchini');
+  (s.collab||[]).forEach(c=>v.push((c.nome||'collaboratore')+(+c.tariffa>0?' €'+(+c.tariffa).toLocaleString('it-IT'):'')));
+  return v.join(' · ');
+}
+function generaReportFiltri(){
+  const f=_listaFiltrata();
+  const spett=f.lista.slice().sort((a,b)=>a.data.localeCompare(b.data));
+  if(!spett.length){ toast('Nessuno spettacolo con i filtri attuali', true); return; }
+  const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const totale=spett.reduce((a,s)=>a+(+s.totale||0),0), fatturati=spett.filter(s=>s.fatturato).length, totFat=spett.filter(s=>s.fatturato).reduce((a,s)=>a+(+s.totale||0),0);
+  const fmt=v=>v>0?'€ '+(+v).toLocaleString('it-IT',{minimumFractionDigits:2}):'—';
+  const fmtD=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short',year:'2-digit'}); }catch{ return d||'—'; } };
+  const perCitta={}; spett.forEach(s=>{ (perCitta[s.citta||'—']=perCitta[s.citta||'—']||[]).push(s); });
+  const sezioni=Object.keys(perCitta).sort().map(citta=>{
+    const lista=perCitta[citta]; const totC=lista.reduce((a,s)=>a+(+s.totale||0),0);
+    const righe=lista.map(s=>`
+      <tr style="border-top:1px solid #e2e8f0;${s.premontaggio||s.replicaOf?'background:#fbfbfd;':''}">
+        <td style="padding:6px 10px;font-size:10px;color:#6b7280;white-space:nowrap;vertical-align:top;">${fmtD(s.data)}</td>
+        <td style="padding:6px 10px;vertical-align:top;">
+          <div style="font-size:11px;font-weight:700;">${s.replicaOf?'🔁 ':''}${s.premontaggio?'🔧 ':''}${esc(s.spett)}</div>
+          <div style="font-size:9px;color:#6b7280;">${esc(s.teatro||'')}${s.manif?' · <span style="color:#7c3aed;">'+esc(s.manif)+'</span>':''}</div>
+          ${s.accordi?`<div style="margin-top:4px;padding:4px 8px;background:#eff6ff;border-left:3px solid #3b82f6;border-radius:3px;font-size:9.5px;color:#1e40af;">📋 ${esc(s.accordi)}</div>`:''}
+        </td>
+        <td style="padding:6px 10px;font-size:9.5px;color:#374151;vertical-align:top;">${esc(_fatturazioneTesto(s))||'<span style="color:#9ca3af;">—</span>'}</td>
+        <td style="padding:6px 10px;font-size:10px;text-align:right;white-space:nowrap;vertical-align:top;font-weight:700;color:${s.fatturato?'#059669':'#1a1a2e'};">${fmt(s.totale)}${s.fatturato?'<div style="font-size:8px;font-weight:600;color:#059669;">✓ fatturato</div>':(+s.totale>0?'<div style="font-size:8px;font-weight:600;color:#d97706;">da fatturare</div>':'')}</td>
+      </tr>`).join('');
+    return `<div style="break-inside:avoid;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:14px;overflow:hidden;background:#fff;">
+      <div style="background:#065f46;color:#fff;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:800;font-size:12px;">${esc(citta)}</span><span style="font-size:11px;color:#a7f3d0;">${lista.length} spett. · ${fmt(totC)}</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;background:#f8fafc;">
+        <tr style="font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;"><th style="text-align:left;padding:4px 10px;">data</th><th style="text-align:left;padding:4px 10px;">spettacolo · accordi</th><th style="text-align:left;padding:4px 10px;">cosa fatturiamo</th><th style="text-align:right;padding:4px 10px;">importo</th></tr>
+        ${righe}</table></div>`;
+  }).join('');
+  const titolo='Report spettacoli — '+f.descrizione;
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(titolo)}</title>
+  <style>
+    @media print { .no-print{display:none!important;} body{padding:0;} * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+    *{box-sizing:border-box;} body{font-family:Arial,sans-serif;font-size:11px;color:#1a1a2e;padding:20px;max-width:860px;margin:0 auto;background:#f1f5f9;}
+    .header{border-bottom:3px solid #059669;padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;}
+    .title{font-size:20px;font-weight:800;color:#059669;}
+    .summary{display:flex;margin-bottom:18px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;background:#fff;}
+    .sum-item{flex:1;padding:10px 12px;text-align:center;border-right:1px solid #e2e8f0;} .sum-item:last-child{border-right:none;}
+    .sum-val{font-size:15px;font-weight:700;color:#059669;} .sum-lbl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.1em;margin-top:2px;}
+    .btn-print{padding:8px 22px;background:#059669;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;}
+    .footer{margin-top:18px;font-size:9px;color:#aaa;border-top:1px solid #e2e8f0;padding-top:8px;display:flex;justify-content:space-between;}
+  </style></head><body>
+  <div class="no-print" style="margin-bottom:14px;"><button class="btn-print" onclick="window.print()">🖨 Stampa / Salva PDF</button></div>
+  <div class="header"><div><div class="title">🎭 Report spettacoli</div><div style="font-size:11px;color:#666;margin-top:3px;">${esc(f.descrizione)} · AMAT Marche</div></div><div style="font-size:10px;color:#888;white-space:nowrap;">Generato il ${new Date().toLocaleDateString('it-IT')}</div></div>
+  <div class="summary">
+    <div class="sum-item"><div class="sum-val">${spett.length}</div><div class="sum-lbl">Spettacoli</div></div>
+    <div class="sum-item"><div class="sum-val">${Object.keys(perCitta).length}</div><div class="sum-lbl">Città</div></div>
+    <div class="sum-item"><div class="sum-val">${fmt(totale)}</div><div class="sum-lbl">Totale previsto</div></div>
+    <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
+  </div>
+  ${sezioni}
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v86</span></div>
+  </body></html>`;
+  const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
+}
 function generaReportStagione(){
   const sel = document.getElementById('rep-stagione');
   let stag = sel ? sel.value : null;
@@ -8035,7 +8110,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v85</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v86</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
