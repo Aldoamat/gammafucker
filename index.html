@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v87</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v88</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -3268,7 +3268,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v83 ──
+  return `// ── SPETTACOLI APP SCRIPT v84 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7864,7 +7864,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v87</span>
+    <span>Report generato da GammaFucker v88</span>
   </div>
   </body></html>`;
 
@@ -7970,7 +7970,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v87</span>
+    <span>Report generato da GammaFucker v88</span>
   </div>
   </body></html>`;
 
@@ -8038,7 +8038,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v87</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v88</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -8110,7 +8110,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v87</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v88</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9131,11 +9131,31 @@ function renderSchede(){
 function _contattiChips(lista){
   return `<div style="display:flex;gap:4px;flex-wrap:wrap;">${(lista||[]).map(c=>{
     const lab = (c.nome||c.email||c.telefono) + (c.compagnia?' · '+c.compagnia:(c.ruolo&&c.ruolo!=='mittente'?' · '+c.ruolo:''));
-    const href = c.email ? 'mailto:'+c.email : (c.telefono ? 'tel:'+c.telefono.replace(/\s+/g,'') : '');
-    return href ? `<a href="${href}" class="iBtn" title="${c.email||''} ${c.telefono||''}" style="text-decoration:none;color:#a78bfa;border-color:rgba(167,139,250,.35);font-size:10px;padding:2px 7px;">👤 ${lab}</a>` : `<span class="iBtn" style="font-size:10px;padding:2px 7px;">👤 ${lab}</span>`;
+    const ha = !!(c.email || c.telefono);
+    return ha ? `<button type="button" class="iBtn" title="${_prodEsc((c.telefono||'')+' '+(c.email||''))}" style="color:#a78bfa;border-color:rgba(167,139,250,.35);font-size:10px;padding:2px 7px;" onclick="_contattoMenu(event,'${_js(c.nome||'')}','${_js(c.telefono||'')}','${_js(c.email||'')}')">👤 ${lab}</button>` : `<span class="iBtn" style="font-size:10px;padding:2px 7px;">👤 ${lab}</span>`;
   }).join('')}</div>`;
 }
 
+// menu azioni su un referente: chiama, WhatsApp, mail (stesse opzioni su PC e cellulare)
+function _contattoMenu(ev, nome, tel, email){
+  ev.preventDefault(); ev.stopPropagation();
+  document.getElementById('ct-menu')?.remove();
+  const telPulito=String(tel||'').replace(/\s+/g,''), wa=_waNumero(tel);
+  const m=document.createElement('div'); m.id='ct-menu';
+  m.style.cssText='position:fixed;z-index:9999;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.5);padding:6px;display:flex;flex-direction:column;gap:4px;min-width:200px;';
+  const riga=(ico,lab,href,col)=>`<a href="${_prodEsc(href)}" ${/^https?:/.test(href)?'target="_blank" rel="noopener"':''} class="iBtn" style="text-decoration:none;justify-content:flex-start;font-size:12px;padding:7px 10px;color:${col};">${ico} ${_prodEsc(lab)}</a>`;
+  let h=`<div style="font-size:10px;color:var(--text3);padding:2px 6px 4px;">${_prodEsc(nome||tel||email)}</div>`;
+  if(telPulito){ h+=riga('📞','Chiama '+telPulito,'tel:'+telPulito,'var(--text)'); if(wa) h+=riga('💬','WhatsApp','https://wa.me/'+wa,'#25d366'); }
+  if(email) h+=riga('✉','Scrivi a '+email,'mailto:'+email,'#a78bfa');
+  m.innerHTML=h;
+  document.body.appendChild(m);
+  const r=ev.currentTarget.getBoundingClientRect(); const w=m.offsetWidth, hh=m.offsetHeight;
+  m.style.left=Math.max(8, Math.min(r.left, window.innerWidth-w-8))+'px';
+  m.style.top=(r.bottom+hh+8>window.innerHeight ? Math.max(8, r.top-hh-4) : r.bottom+4)+'px';
+  const chiudi=e=>{ if(e && m.contains(e.target) && e.type==='pointerdown') return; m.remove(); document.removeEventListener('pointerdown', chiudi, true); };
+  setTimeout(()=>document.addEventListener('pointerdown', chiudi, true), 0);
+  m.addEventListener('click', ()=>setTimeout(()=>m.remove(), 100));
+}
 function applicaScheda(id){
   const p = _schede.find(x=>x.id===id); if(!p) return;
   const sid = 'sk-'+id;
