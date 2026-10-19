@@ -235,7 +235,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v80</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v87</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -435,7 +435,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <select id="fil-citta" onchange="renderList()"><option value="">Tutte le città</option></select>
     <select id="fil-manif" onchange="renderList()"><option value="">Tutti i tipi</option></select>
     <select id="fil-stagione" onchange="renderList()"><option value="">Tutte le stagioni</option></select>
-    <button class="btn btn-o btn-sm collab-only" style="display:none;white-space:nowrap;" id="btn-rep-stag" onclick="generaReportStagione()">🎭 Report stagione</button>
+    <button class="btn btn-o btn-sm collab-only" style="display:none;white-space:nowrap;" id="btn-rep-stag" onclick="generaReportFiltri()" title="Report degli spettacoli con i filtri impostati qui sopra">🎭 Report</button>
   </div>
 
   <div class="splist" id="splist"></div>
@@ -742,7 +742,10 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div class="mtitle">📧 Invia piano di produzione</div>
     <div id="ip-titolo" style="font-size:11px;color:var(--text2);margin-bottom:10px;"></div>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <div class="field"><label>Destinatari</label><input type="text" id="ip-dest" placeholder="email1, email2"><div id="ip-suggeriti" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;"></div></div>
+      <div class="field"><label>Destinatari <span style="font-weight:400;color:var(--text3);">(tocca un nome per escluderlo o includerlo)</span></label>
+        <div id="ip-suggeriti" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;"></div>
+        <div class="rb-wrap" style="display:flex;gap:6px;align-items:center;"><input type="text" id="ip-dest" placeholder="aggiungi: nome dalla rubrica o indirizzo email" style="flex:1;" autocomplete="off"><button class="iBtn" style="font-size:11px;padding:4px 9px;white-space:nowrap;" onclick="_ipAggiungiDaInput()">➕</button></div>
+      </div>
       <div class="field"><label>Oggetto</label><input type="text" id="ip-ogg"></div>
       <div class="field"><label>Testo</label><textarea id="ip-testo" style="min-height:120px;font-size:12px;"></textarea></div>
       <div><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">ALLEGATI — il piano in PDF viene sempre allegato; in più:</div><div id="ip-doc"></div></div>
@@ -1008,12 +1011,9 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       </div>
       <button class="btn btn-r" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8);color:#fff;box-shadow:0 4px 20px rgba(14,165,233,.3);white-space:nowrap;" onclick="generaReportCitta()">🏙 Report Città</button>
     </div>
-    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-      <div class="field" style="margin-bottom:0;flex:1;min-width:120px;">
-        <label>Per stagione</label>
-        <select id="rep-stagione" style="font-size:12px;width:100%;"></select>
-      </div>
-      <button class="btn btn-r" style="background:linear-gradient(135deg,#059669,#34d399);color:#fff;box-shadow:0 4px 20px rgba(5,150,105,.3);white-space:nowrap;" onclick="generaReportStagione()">🎭 Report Stagione</button>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <div style="flex:1;min-width:160px;font-size:11px;color:var(--text2);line-height:1.5;">Segue i filtri impostati nella Lista (stagione, città, tipo, mese, stato): <span id="rep-filtri-desc" style="color:var(--gold);"></span>. Per ogni spettacolo riporta accordi contrattuali e cosa stiamo fatturando, senza note.<select id="rep-stagione" style="display:none;"></select></div>
+      <button class="btn btn-r" style="background:linear-gradient(135deg,#059669,#34d399);color:#fff;box-shadow:0 4px 20px rgba(5,150,105,.3);white-space:nowrap;" onclick="generaReportFiltri()">🎭 Report spettacoli</button>
     </div>
   </div>
   <div class="fc">
@@ -2753,7 +2753,7 @@ function _buildCard(s){
       ${s.mails.some(m=>m.link)?`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#f59e0b;border-color:rgba(245,158,11,.4);" onclick="apriInoltro(${s.id})" title="Inoltra la mail della compagnia ai referenti">↪ Inoltra</button>`:''}
       ${IS_COLLAB?'':`<button class="iBtn" style="font-size:10px;padding:2px 6px;color:var(--text3);" onclick="gestisciMail(${s.id})">⚙</button>`}</div>`:''}
     ${(s.contatti&&s.contatti.length)||!IS_COLLAB?`<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${_contattiChips(s.contatti||[])}${IS_COLLAB?'':`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#a78bfa;border-color:rgba(167,139,250,.35);" onclick="apriContatti(${s.id})" title="Referenti compagnia">👤 ${(s.contatti&&s.contatti.length)?'✎':'+ referente'}</button>`}</div>`:''}
-    ${(()=>{ if(!s.note) return ''; const righe=s.note.split('|').map(l=>l.trim()).filter(Boolean); const fR=righe.filter(l=>l.toLowerCase().includes('fattura')); const gR=righe.filter(l=>!l.toLowerCase().includes('fattura')); let h=''; if(gR.length) h+='<div class="spnote">'+gR.join('<br>')+'</div>'; if(fR.length) h+='<div class="spnote-fatt">'+fR.join('<br><br>')+'</div>'; { const w=_discrepanzaCosti(s); if(w) h+=w; } if(fR.length) h+=`<button class="iBtn" style="font-size:10px;margin-top:3px;border-color:rgba(124,58,237,.4);color:var(--purple);" onclick="reportFattureNote(${s.id})">📋 Fatture in nota</button>`; return h; })()}
+    ${(()=>{ if(!s.note) return ''; const righe=s.note.split('|').map(l=>l.trim()).filter(Boolean).filter(l=>!/^⚠/.test(l)); const fR=righe.filter(l=>l.toLowerCase().includes('fattura')); const gR=righe.filter(l=>!l.toLowerCase().includes('fattura')); let h=''; if(gR.length) h+='<div class="spnote">'+gR.join('<br>')+'</div>'; if(fR.length) h+='<div class="spnote-fatt">'+fR.join('<br><br>')+'</div>'; { const w=_discrepanzaCosti(s); if(w) h+=w; } if(fR.length) h+=`<button class="iBtn" style="font-size:10px;margin-top:3px;border-color:rgba(124,58,237,.4);color:var(--purple);" onclick="reportFattureNote(${s.id})">📋 Fatture in nota</button>`; return h; })()}
     <div class="sptags">
       ${s.manif?`<span class="tag m">${s.manif}</span>`:''}
       ${isFat?`<span class="tag fat">✓ fatturato</span>`:hasTot?`<span class="tag s">€ fatturabile</span>`:''}
@@ -2791,20 +2791,14 @@ function _stagioneDa(dataISO){
 }
 
 
-function renderList(){
+// Filtri della Lista (ricerca, mese, città, tipo, stagione, settimana, stato): usati dalla lista e dal Report
+function _listaFiltrata(){
   const q=(document.getElementById('fil-q').value||'').toLowerCase();
-  // Se c'è una ricerca attiva, disabilita filtro settimana automaticamente
-  if(q && weekFilter){
-    weekFilter=false;
-    document.getElementById('chip-week').className='stato-chip';
-    document.getElementById('chip-all').className='stato-chip active-week';
-  }
   const ms=document.getElementById('fil-mese').value;
   const ci=document.getElementById('fil-citta').value;
   const ma=document.getElementById('fil-manif').value;
   const stEl=document.getElementById('fil-stagione');
   const st=stEl?stEl.value:'';
-
   let fil=data.filter(s=>
     (!q||s.spett.toLowerCase().includes(q)||s.citta.toLowerCase().includes(q)||(s.teatro||'').toLowerCase().includes(q)||(s.note||'').toLowerCase().includes(q)||(s.manif||'').toLowerCase().includes(q)||(s.accordi||'').toLowerCase().includes(q))&&
     (!ms||s.data.startsWith(ms))&&(!ci||s.citta===ci)&&(!ma||s.manif===ma)&&
@@ -2824,6 +2818,27 @@ function renderList(){
   if(statoFilter==='fatt') fil=fil.filter(s=>s.totale>0&&!s.fatturato);
   else if(statoFilter==='fat') fil=fil.filter(s=>s.fatturato);
   else if(statoFilter==='zero') fil=fil.filter(s=>!s.totale||s.totale===0);
+
+  const nm=['','gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+  const desc=[st?'stagione '+st:'', ci||'', ma||'', ms?nm[+ms.split('-')[1]]+' '+ms.split('-')[0]:'', weekFilter?'settimana corrente':'', statoFilter==='fatt'?'da fatturare':statoFilter==='fat'?'fatturati':statoFilter==='zero'?'da definire':'', q?'ricerca "'+q+'"':''].filter(Boolean);
+  return { lista: fil, descrizione: desc.join(' · ') || 'tutti gli spettacoli', stagione: st, citta: ci };
+}
+function renderList(){
+  const q=(document.getElementById('fil-q').value||'').toLowerCase();
+  // Se c'è una ricerca attiva, disabilita filtro settimana automaticamente
+  if(q && weekFilter){
+    weekFilter=false;
+    document.getElementById('chip-week').className='stato-chip';
+    document.getElementById('chip-all').className='stato-chip active-week';
+  }
+  const ms=document.getElementById('fil-mese').value;
+  const ci=document.getElementById('fil-citta').value;
+  const ma=document.getElementById('fil-manif').value;
+  const stEl=document.getElementById('fil-stagione');
+  const st=stEl?stEl.value:'';
+
+  const _lf=_listaFiltrata(); let fil=_lf.lista;
+  { const d=document.getElementById('rep-filtri-desc'); if(d) d.textContent=_lf.descrizione; }
 
   // Stats sempre su dati completi
   const totC=data.reduce((a,s)=>a+(s.totale||0),0);
@@ -3253,7 +3268,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v74 ──
+  return `// ── SPETTACOLI APP SCRIPT v83 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7849,7 +7864,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v80</span>
+    <span>Report generato da GammaFucker v87</span>
   </div>
   </body></html>`;
 
@@ -7955,7 +7970,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v80</span>
+    <span>Report generato da GammaFucker v87</span>
   </div>
   </body></html>`;
 
@@ -7964,6 +7979,69 @@ function generaReportCitta(){
   w.document.close();
 }
 
+// cosa stiamo fatturando: tecnici × tariffa + collaboratori a chiamata
+function _fatturazioneTesto(s){
+  const v=[]; const r=(n,t,sing,plur)=>{ if(+n>0) v.push(n+' '+(n>1?plur:sing)+(+t>0?' × €'+(+t).toLocaleString('it-IT'):'')); };
+  r(s.nm,s.tm,'macchinista','macchinisti'); r(s.ne,s.te,'elettricista','elettricisti'); r(s.nfo,s.tfo,'fonico','fonici'); r(s.nsa,s.tsa,'sarta','sarte'); r(s.nf,s.tf,'facchino','facchini');
+  (s.collab||[]).forEach(c=>v.push((c.nome||'collaboratore')+(+c.tariffa>0?' €'+(+c.tariffa).toLocaleString('it-IT'):'')));
+  return v.join(' · ');
+}
+function generaReportFiltri(){
+  const f=_listaFiltrata();
+  const spett=f.lista.slice().sort((a,b)=>a.data.localeCompare(b.data));
+  if(!spett.length){ toast('Nessuno spettacolo con i filtri attuali', true); return; }
+  const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const totale=spett.reduce((a,s)=>a+(+s.totale||0),0), fatturati=spett.filter(s=>s.fatturato).length, totFat=spett.filter(s=>s.fatturato).reduce((a,s)=>a+(+s.totale||0),0);
+  const fmt=v=>v>0?'€ '+(+v).toLocaleString('it-IT',{minimumFractionDigits:2}):'—';
+  const fmtD=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short',year:'2-digit'}); }catch{ return d||'—'; } };
+  const perCitta={}; spett.forEach(s=>{ (perCitta[s.citta||'—']=perCitta[s.citta||'—']||[]).push(s); });
+  const sezioni=Object.keys(perCitta).sort().map(citta=>{
+    const lista=perCitta[citta]; const totC=lista.reduce((a,s)=>a+(+s.totale||0),0);
+    const righe=lista.map(s=>`
+      <tr style="border-top:1px solid #e2e8f0;${s.premontaggio||s.replicaOf?'background:#fbfbfd;':''}">
+        <td style="padding:6px 10px;font-size:10px;color:#6b7280;white-space:nowrap;vertical-align:top;">${fmtD(s.data)}</td>
+        <td style="padding:6px 10px;vertical-align:top;">
+          <div style="font-size:11px;font-weight:700;">${s.replicaOf?'🔁 ':''}${s.premontaggio?'🔧 ':''}${esc(s.spett)}</div>
+          <div style="font-size:9px;color:#6b7280;">${esc(s.teatro||'')}${s.manif?' · <span style="color:#7c3aed;">'+esc(s.manif)+'</span>':''}</div>
+          ${s.accordi?`<div style="margin-top:4px;padding:4px 8px;background:#eff6ff;border-left:3px solid #3b82f6;border-radius:3px;font-size:9.5px;color:#1e40af;">📋 ${esc(s.accordi)}</div>`:''}
+        </td>
+        <td style="padding:6px 10px;font-size:9.5px;color:#374151;vertical-align:top;">${esc(_fatturazioneTesto(s))||'<span style="color:#9ca3af;">—</span>'}</td>
+        <td style="padding:6px 10px;font-size:10px;text-align:right;white-space:nowrap;vertical-align:top;font-weight:700;color:${s.fatturato?'#059669':'#1a1a2e'};">${fmt(s.totale)}${s.fatturato?'<div style="font-size:8px;font-weight:600;color:#059669;">✓ fatturato</div>':(+s.totale>0?'<div style="font-size:8px;font-weight:600;color:#d97706;">da fatturare</div>':'')}</td>
+      </tr>`).join('');
+    return `<div style="break-inside:avoid;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:14px;overflow:hidden;background:#fff;">
+      <div style="background:#065f46;color:#fff;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:800;font-size:12px;">${esc(citta)}</span><span style="font-size:11px;color:#a7f3d0;">${lista.length} spett. · ${fmt(totC)}</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;background:#f8fafc;">
+        <tr style="font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;"><th style="text-align:left;padding:4px 10px;">data</th><th style="text-align:left;padding:4px 10px;">spettacolo · accordi</th><th style="text-align:left;padding:4px 10px;">cosa fatturiamo</th><th style="text-align:right;padding:4px 10px;">importo</th></tr>
+        ${righe}</table></div>`;
+  }).join('');
+  const titolo='Report spettacoli — '+f.descrizione;
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(titolo)}</title>
+  <style>
+    @media print { .no-print{display:none!important;} body{padding:0;} * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+    *{box-sizing:border-box;} body{font-family:Arial,sans-serif;font-size:11px;color:#1a1a2e;padding:20px;max-width:860px;margin:0 auto;background:#f1f5f9;}
+    .header{border-bottom:3px solid #059669;padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;}
+    .title{font-size:20px;font-weight:800;color:#059669;}
+    .summary{display:flex;margin-bottom:18px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;background:#fff;}
+    .sum-item{flex:1;padding:10px 12px;text-align:center;border-right:1px solid #e2e8f0;} .sum-item:last-child{border-right:none;}
+    .sum-val{font-size:15px;font-weight:700;color:#059669;} .sum-lbl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.1em;margin-top:2px;}
+    .btn-print{padding:8px 22px;background:#059669;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;}
+    .footer{margin-top:18px;font-size:9px;color:#aaa;border-top:1px solid #e2e8f0;padding-top:8px;display:flex;justify-content:space-between;}
+  </style></head><body>
+  <div class="no-print" style="margin-bottom:14px;"><button class="btn-print" onclick="window.print()">🖨 Stampa / Salva PDF</button></div>
+  <div class="header"><div><div class="title">🎭 Report spettacoli</div><div style="font-size:11px;color:#666;margin-top:3px;">${esc(f.descrizione)} · AMAT Marche</div></div><div style="font-size:10px;color:#888;white-space:nowrap;">Generato il ${new Date().toLocaleDateString('it-IT')}</div></div>
+  <div class="summary">
+    <div class="sum-item"><div class="sum-val">${spett.length}</div><div class="sum-lbl">Spettacoli</div></div>
+    <div class="sum-item"><div class="sum-val">${Object.keys(perCitta).length}</div><div class="sum-lbl">Città</div></div>
+    <div class="sum-item"><div class="sum-val">${fmt(totale)}</div><div class="sum-lbl">Totale previsto</div></div>
+    <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
+  </div>
+  ${sezioni}
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v87</span></div>
+  </body></html>`;
+  const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
+}
 function generaReportStagione(){
   const sel = document.getElementById('rep-stagione');
   let stag = sel ? sel.value : null;
@@ -8032,7 +8110,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v80</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v87</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9839,18 +9917,21 @@ function _prodShows(key){
 }
 function _prodDefault(s){
   // precompila da ciò che l'app sa già: note (orari/esigenze), contatti, scheda spazio, tecnici previsti
-  const p = {arrivo:'',montaggio:'',prove:'',inizio:'',smontaggio:'',service:'',tecnici:'',refComp:'',refTeatro:'',esigenze:'',note:'',ztl:{serve:false,richiesta:false},todo:[]};
+  const p = {arrivo:'',montaggio:'',prove:'',inizio:'',smontaggio:'',service:'',tecnici:'',refComp:'',refTec:'',refTeatro:'',esigenze:'',note:'',ztl:{serve:false,richiesta:false},todo:[]};
   const righe = (s.note||'').split('|').map(l=>l.trim()).filter(Boolean);
   const orari = righe.filter(l=>/^orari?\s*:/i.test(l)).map(l=>l.replace(/^orari?\s*:\s*/i,''));
   if(orari.length) p.inizio = orari.join(' · ');
   const esig = righe.filter(l=>/^⚠/.test(l)).map(l=>l.replace(/^⚠\s*/,''));
   if(esig.length) p.esigenze = esig.join('; ');
-  const c = (s.contatti||[])[0];
-  if(c) p.refComp = [c.nome, c.compagnia, c.telefono, c.email].filter(Boolean).join(' · ');
+  const contatti = (s.contatti||[]).filter(c=>c.ruolo!=='mittente');
+  const fmtC = c => [c.nome, c.compagnia, c.telefono, c.email].filter(Boolean).join(' · ');
+  // il ruolo può stare in "ruolo" (contatti letti dalle schede) o nel campo "Compagnia / ruolo" (contatti scritti a mano)
+  const cTec = contatti.find(c=>/tecnic|scena|luci|audio|fonic/i.test((c.ruolo||'')+' '+(c.compagnia||'')));
+  const cAltro = contatti.find(c=>c!==cTec);
+  if(cAltro) p.refComp = fmtC(cAltro);
+  if(cTec) p.refTec = fmtC(cTec);
   const si = spazioInfo[(s.citta||'')+'||'+(s.teatro||'')] || {};
-  const rt=[si.referente_nome, si.referente_tel, si.referente_email].filter(Boolean).join(' · ');
-  const rl=[si.referente2_nome, si.referente2_tel, si.referente2_email].filter(Boolean).join(' · ');
-  if(rt || rl) p.refTeatro = [rt?'tecnico: '+rt:'', rl?'logistico: '+rl:''].filter(Boolean).join(' | ');
+  p.refTeatro = _refTeatroSpazio(s);
   if(si.ztl === 'necessario') p.ztl.serve = true;
   const tec = [];
   if(s.nm) tec.push(s.nm+' macchinist'+(s.nm>1?'i':'a'));
@@ -9862,10 +9943,22 @@ function _prodDefault(s){
   if(tec.length) p.tecnici = tec.join(', ');
   return p;
 }
+function _refTeatroSpazio(s){
+  const si = spazioInfo[(s.citta||'')+'||'+(s.teatro||'')] || {};
+  const rt=[si.referente_nome, si.referente_tel, si.referente_email].filter(Boolean).join(' · ');
+  const rl=[si.referente2_nome, si.referente2_tel, si.referente2_email].filter(Boolean).join(' · ');
+  if(!rt && !rl) return '';
+  return (rt && rl) ? 'tecnico: '+rt+' | logistico: '+rl : (rt || rl);
+}
 function _prodDi(s){
   if(!s.prod) s.prod = _prodDefault(s);
   if(!s.prod.ztl) s.prod.ztl = {serve:false, richiesta:false};
   if(!s.prod.todo) s.prod.todo = [];
+  // piani creati prima del campo "referente tecnico compagnia": lo precompilo dai contatti, senza toccare il resto
+  if(!s.prod.refTec && !s.prod.refTecMan){ const rt=_prodDefault(s).refTec; if(rt) s.prod.refTec = rt; else if(s.prod.refTec===undefined) s.prod.refTec=''; }
+  // il referente teatro segue sempre la scheda dello spazio (stesso teatro = stesso referente), a meno che
+  // tu non l'abbia scritto a mano in questo piano: prima era una fotografia fatta alla creazione del piano
+  if(!s.prod.refTeatroMan){ const rt=_refTeatroSpazio(s); if(rt) s.prod.refTeatro = rt; }
   return s.prod;
 }
 function _prodEsc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
@@ -9933,7 +10026,7 @@ function renderPiano(){
   const serviceList = `<datalist id="prod-service-list">${aziendeDB.map(a=>`<option value="${_prodEsc(a.nome)}">`).join('')}</datalist>`;
 
   let h = `<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-    <div><div style="font-size:15px;font-weight:800;">🎬 ${_prodEsc(m)} <span style="color:var(--text3);font-weight:400;font-size:12px;">stagione ${st} · ${shows.length} spettacoli</span></div></div>
+    <div><div style="font-size:15px;font-weight:800;">🎬 ${_prodEsc(m)} <span style="color:var(--text3);font-weight:400;font-size:12px;">stagione ${st} · ${_prodConta(shows)}</span></div></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
       <select id="prod-spazio" style="font-size:11px;padding:5px 8px;max-width:220px;" onchange="_prodSpazio=this.value;renderPiano()">
         <option value="">tutti gli spazi</option>
@@ -9955,7 +10048,7 @@ function renderPiano(){
   const visibili = _prodSpazio ? shows.filter(x=>((x.citta||'')+'||'+(x.teatro||''))===_prodSpazio) : shows;
   visibili.forEach(s=>{
     const p = _prodDi(s);
-    const scheda = (s.mails||[]).find(x=>x.tipo==='scheda');
+    const schede = (s.mails||[]).map((x,i)=>({...x,_i:i})).filter(x=>x.tipo==='scheda'&&(x.file||x.link));
     const tel = (s.contatti||[]).filter(c=>c.telefono);
     const mail = (s.contatti||[]).filter(c=>c.email);
     const contattiBtn = (tel.length?`<button class="iBtn" style="font-size:10px;padding:3px 8px;color:#25d366;border-color:rgba(37,211,102,.4);" onclick="apriWaCompagnia(${s.id})">💬 WhatsApp</button>`:'')
@@ -9974,7 +10067,8 @@ function renderPiano(){
           <div style="font-size:14px;font-weight:800;">${_prodEsc(s.spett)}</div>
           <div style="font-size:11px;color:var(--text2);">${_prodEsc(s.citta)}${s.teatro?' · '+_prodEsc(s.teatro):''}</div></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;">
-          ${scheda?`<a href="${_prodEsc(scheda.file||scheda.link)}" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;font-size:10px;padding:3px 8px;color:#60a5fa;border-color:rgba(96,165,250,.35);">📄 Scheda tecnica</a>`:(RO?`<span class="iBtn" style="font-size:10px;padding:3px 8px;color:var(--text3);border-style:dashed;">📄 scheda non arrivata</span>`:`<label class="iBtn" style="font-size:10px;padding:3px 8px;cursor:pointer;color:#60a5fa;border-color:rgba(96,165,250,.35);border-style:dashed;">📎 Allega scheda tecnica<input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="display:none" onchange="allegaSchedaTecnica(${s.id},this.files)"></label>`)}
+          ${schede.length?schede.map(m=>`<span style="display:inline-flex;align-items:stretch;"><a href="${_prodEsc(m.file||m.link)}" target="_blank" rel="noopener" class="iBtn" title="${_prodEsc(m.og||'')}" style="text-decoration:none;font-size:10px;padding:3px 8px;color:#60a5fa;border-color:rgba(96,165,250,.35);${RO?'':'border-radius:6px 0 0 6px;'}">📄 ${_prodEsc(_schedaNome(m, schede.length>1))}</a>${RO?'':`<button class="iBtn" title="Rimuovi questo documento" style="font-size:10px;padding:3px 6px;color:var(--red);border-color:rgba(239,68,68,.35);border-left:0;border-radius:0 6px 6px 0;" onclick="rimuoviSchedaTecnica(${s.id},${m._i})">✕</button>`}</span>`).join(''):(RO?`<span class="iBtn" style="font-size:10px;padding:3px 8px;color:var(--text3);border-style:dashed;">📄 scheda non arrivata</span>`:'')}
+          ${RO?'':`<label class="iBtn" style="font-size:10px;padding:3px 8px;cursor:pointer;color:#60a5fa;border-color:rgba(96,165,250,.35);border-style:dashed;">📎 ${schede.length?'Altro documento':'Allega scheda tecnica'}<input type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.dwg" style="display:none" onchange="allegaSchedaTecnica(${s.id},this.files)"></label>`}
           <button class="iBtn" style="font-size:10px;padding:3px 8px;" onclick="${RO?`apriInvioInfoSpazio(${s.id})`:`openSpazioInfoTiatro('${_js(s.citta)}','${_js(s.teatro||'')}')`}">🏛 Info spazio</button>
           ${(s.mails||[]).some(m=>m.link)?`<button class="iBtn" style="font-size:10px;padding:3px 8px;color:#f59e0b;border-color:rgba(245,158,11,.4);" onclick="apriInoltro(${s.id})">↪ Inoltra ai referenti</button>`:''}
           <button class="iBtn" style="font-size:10px;padding:3px 8px;" onclick="stampaSchedaGiornata(${s.id})">🖨 Scheda giornata</button>
@@ -9993,6 +10087,9 @@ function renderPiano(){
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
         ${field(oi(s.id,'refComp'),'Referente compagnia',p.refComp,'nome · telefono')}
+        ${field(oi(s.id,'refTec'),'Referente tecnico compagnia',p.refTec||'','nome · telefono')}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
         ${field(oi(s.id,'refTeatro'),'Referente teatro',p.refTeatro,'nome · telefono')}
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;">
@@ -10007,7 +10104,7 @@ function renderPiano(){
 let _prodSaveTimer=null;
 function _prodAutoSave(){ if(IS_COLLAB) return; clearTimeout(_prodSaveTimer); _prodSaveTimer=setTimeout(()=>salvaPiano(true), 4000); }
 function _prodGen(campo, v){ if(!_prodKey) return; pianiProduzione[_prodKey][campo]=v; pianiProduzione[_prodKey].ts=Date.now(); sv('pianiProduzione', pianiProduzione); _prodAutoSave(); }
-function _prodSet(id, campo, v){ const s=data.find(x=>String(x.id)===String(id)); if(!s) return; _prodDi(s)[campo]=v; sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; _prodAutoSave(); }
+function _prodSet(id, campo, v){ const s=data.find(x=>String(x.id)===String(id)); if(!s) return; const p=_prodDi(s); p[campo]=v; if(campo==='refTeatro') p.refTeatroMan = (v.trim()!=='' && v.trim()!==_refTeatroSpazio(s)); if(campo==='refTec') p.refTecMan = (v.trim()!==''); sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; _prodAutoSave(); }
 function _prodZtl(id, campo, v){ const s=data.find(x=>String(x.id)===String(id)); if(!s) return; const z=_prodDi(s).ztl; z[campo]=v; if(campo==='richiesta'&&v&&!z.dataRichiesta) z.dataRichiesta=new Date().toISOString().slice(0,10); if(campo==='richiesta'&&!v) delete z.dataRichiesta; sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; renderPiano(); _prodAutoSave(); }
 function salvaPiano(silent){
   clearTimeout(_prodSaveTimer);
@@ -10273,16 +10370,34 @@ function _waAggiorna(){
   document.getElementById('wa-anteprima').textContent=testo;
 }
 // scheda tecnica arrivata fuori dalla mail (WhatsApp ecc.): la carico su Drive e la aggancio allo spettacolo
+// nome breve del documento per il bottone: "Scheda tecnica" se è l'unico, altrimenti il nome del file
+function _schedaNome(m, dettaglio){
+  const n=String(m.og||'').replace(/^Scheda tecnica\s*[—-]\s*/i,'').trim();
+  return dettaglio && n ? (n.length>22?n.substring(0,22)+'…':n) : 'Scheda tecnica';
+}
 async function allegaSchedaTecnica(id, files){
-  const s=data.find(x=>String(x.id)===String(id)); if(!s||!files||!files[0]) return;
-  const f=files[0]; toast('⏳ carico '+f.name+'…');
-  try{
-    const r=await caricaDocumento(f, 'Schede tecniche/'+_stagioneDa(s.data).replace('/','-')+' '+(s.citta||''), (i,n)=>toast('⏳ carico '+f.name+'… '+i+'/'+n));
-    if(!s.mails) s.mails=[];
-    s.mails.push({og:'Scheda tecnica — '+f.name.replace(/\.[^.]+$/,''), link:'', tipo:'scheda', file:r.url, manuale:true});
-    sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; renderPiano();
-    toast('✓ Scheda tecnica agganciata'); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
-  }catch(e){ toast('Errore: '+e.message, true); }
+  const s=data.find(x=>String(x.id)===String(id)); if(!s||!files||!files.length) return;
+  let n=0;
+  for(const f of Array.from(files)){
+    toast('⏳ carico '+f.name+'…');
+    try{
+      const r=await caricaDocumento(f, 'Schede tecniche/'+_stagioneDa(s.data).replace('/','-')+' '+(s.citta||''), (i,t)=>toast('⏳ carico '+f.name+'… '+i+'/'+t));
+      if(!s.mails) s.mails=[];
+      s.mails.push({og:'Scheda tecnica — '+f.name.replace(/\.[^.]+$/,''), link:'', tipo:'scheda', file:r.url, manuale:true}); n++;
+    }catch(e){ toast('Errore '+f.name+': '+e.message, true); }
+  }
+  if(!n) return;
+  sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; renderPiano();
+  toast('✓ '+(n>1?n+' documenti agganciati':'Documento agganciato')); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
+}
+// toglie un documento dallo spettacolo (il file resta su Drive, così un link già inviato continua a funzionare)
+function rimuoviSchedaTecnica(id, idx){
+  const s=data.find(x=>String(x.id)===String(id)); if(!s||!s.mails||!s.mails[idx]) return;
+  const m=s.mails[idx];
+  if(!confirm('Togliere "'+(m.og||'documento')+'" da '+s.spett+'?\n(il file resta su Drive)')) return;
+  s.mails.splice(idx,1);
+  sv('spettacoli', data); window._pullBlockUntil = Date.now()+30000; renderPiano();
+  toast('✓ Documento rimosso'); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
 }
 async function inviaPermessoCompagnia(id){
   const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
@@ -10308,7 +10423,7 @@ function _prodBloccoHtml(s, g){
       <span style="font-size:11px;color:#ddd6fe;">${_prodEsc(s.citta)}${s.teatro?' · '+_prodEsc(s.teatro):''}</span></div>
     <table style="width:100%;border-collapse:collapse;font-size:11px;">
       ${r('Arrivo compagnia',p.arrivo)}${r('Montaggio',p.montaggio)}${r('Prove',p.prove)}${r('Spettacolo',p.inizio)}${r('Smontaggio',p.smontaggio)}
-      ${r('Service',p.service)}${r('Tecnici',p.tecnici)}${r('Referente compagnia',p.refComp)}${r('Referente teatro',p.refTeatro)}
+      ${r('Service',p.service)}${r('Tecnici',p.tecnici)}${r('Referente compagnia',p.refComp)}${r('Ref. tecnico compagnia',p.refTec)}${r('Referente teatro',p.refTeatro)}
       ${r('Esigenze tecniche',p.esigenze)}${r('Note',p.note)}
       ${z.serve?r('ZTL', z.permessoUrl?'permesso ottenuto ('+(z.permessoNome||'allegato')+')':z.richiesta?'richiesta inviata'+(z.dataRichiesta?' il '+_prodFmtD(z.dataRichiesta):''):'DA RICHIEDERE'):''}
     </table></div>`;
@@ -10331,13 +10446,19 @@ function _prodStampa(titolo, sotto, corpo){
   w.document.write(html); w.document.close();
 }
 // piano (o piano dello spazio filtrato): titolo, sottotitolo, corpo HTML, spettacoli inclusi
+// "2 spettacoli (1 premontaggio)": premontaggi e repliche sono giornate dello stesso spettacolo, non spettacoli in più
+function _prodConta(shows){
+  const pre=shows.filter(x=>x.premontaggio).length, rep=shows.filter(x=>!x.premontaggio&&x.replicaOf).length;
+  const n=shows.length-pre-rep; const extra=[pre?pre+(pre>1?' premontaggi':' premontaggio'):'', rep?rep+(rep>1?' repliche':' replica'):''].filter(Boolean).join(', ');
+  return n+(n===1?' spettacolo':' spettacoli')+(extra?' ('+extra+')':'');
+}
 function _pianoDoc(){
   if(!_prodKey) return null; const [m,st]=_prodKey.split('||'); const g=pianiProduzione[_prodKey]||{};
   let shows=_prodShows(_prodKey); let sottoSp='';
   if(_prodSpazio){ shows=shows.filter(x=>((x.citta||'')+'||'+(x.teatro||''))===_prodSpazio); const [c,t]=_prodSpazio.split('||'); sottoSp=' · '+c+(t?' · '+t:''); }
   const gen = (g.responsabile||g.noteGenerali) ? `<div class="g">${g.responsabile?'<b>Responsabile:</b> '+_prodEsc(g.responsabile)+'<br>':''}${g.noteGenerali?'<b>Note:</b> '+_prodEsc(g.noteGenerali).replace(/\n/g,'<br>'):''}</div>` : '';
   const titolo='Piano di produzione — '+m+(_prodSpazio?' — '+_prodSpazio.split('||')[0]:'');
-  const sotto='stagione '+st+sottoSp+' · '+shows.length+' spettacoli';
+  const sotto='stagione '+st+sottoSp+' · '+_prodConta(shows);
   return { titolo, sotto, corpo: gen + shows.map(s=>_prodBloccoHtml(s,g)).join(''), shows, m, st };
 }
 function stampaPiano(){ const d=_pianoDoc(); if(d) _prodStampa(d.titolo, d.sotto, d.corpo); }
@@ -10353,7 +10474,11 @@ function apriInvioPiano(){
   [...new Set(d.shows.map(x=>(x.citta||'')+'||'+(x.teatro||'')))].forEach(k=>{ const si=spazioInfo[k]||{}; const [c,t]=k.split('||'); add('🔧 '+(si.referente_nome||'tecnico')+' · '+(t||c), si.referente_email); add('🚚 '+(si.referente2_nome||'logistico')+' · '+(t||c), si.referente2_email); (si.ditte||[]).forEach(dt=>add('🏢 '+(dt.nome||dt.servizio), dt.email)); });
   d.shows.forEach(x=>{ const serv=(x.prod&&x.prod.service)||''; if(serv){ const a=(aziendeDB||[]).find(z=>z.nome.toUpperCase()===serv.toUpperCase()); if(a) add('🔧 '+a.nome, a.email); } (x.contatti||[]).forEach(c=>add('🎭 '+(c.nome||c.email)+' · '+x.spett, c.email)); });
   document.getElementById('ip-dest').value='';
-  document.getElementById('ip-suggeriti').innerHTML=sugg.map(x=>`<button class="iBtn" style="font-size:10px;padding:2px 7px;" onclick="_ipAddDest('${esc(x.em)}')">${esc(x.lab)}</button>`).join('')||'<span style="font-size:10px;color:var(--text3);">nessun contatto noto: scrivi gli indirizzi</span>';
+  // tutti i suggeriti partono inclusi; un tocco li esclude (restano visibili, spenti) o li reinclude
+  _ipDest = sugg.map(x=>({lab:x.lab, em:x.em, on:true}));
+  _ipRenderDest();
+  if(!window._ipRubricaOk){ window._ipRubricaOk=true; attachRubrica('ip-dest', c=>{ if(c.email) _ipAddDest(c.email, (c._az?'🏢 ':'👤 ')+c.nome); else toast('Contatto senza email', true); document.getElementById('ip-dest').value=''; }, {aziende:true});
+    document.getElementById('ip-dest').addEventListener('keydown', e=>{ if(e.key==='Enter' && !document.querySelector('#invio-piano-ov .rb-dd .sel')){ e.preventDefault(); _ipAggiungiDaInput(); } }); }
   document.getElementById('ip-ogg').value=d.titolo+' · stagione '+d.st;
   document.getElementById('ip-testo').value=`Buongiorno,\nin allegato il piano di produzione${_prodSpazio?' per '+_prodSpazio.split('||').filter(Boolean).reverse().join(' · '):' della manifestazione '+d.m} (stagione ${d.st}) con le schede tecniche degli spettacoli.\n\nRestiamo a disposizione per ogni chiarimento.\n\n${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}\ncoordinamento tecnico Amat${IS_COLLAB?'':'\nmob. 3477086550'}`;
   // documenti: scheda tecnica di ogni spettacolo (spuntata), permessi ZTL e documenti spazio (non spuntati)
@@ -10364,11 +10489,31 @@ function apriInvioPiano(){
     +(senza.length?`<div style="font-size:10px;color:#f59e0b;margin-top:4px;">⚠ senza scheda tecnica: ${esc(senza.map(x=>x.spett).join(', '))}</div>`:'');
   document.getElementById('invio-piano-ov').classList.add('open');
 }
-function _ipAddDest(em){ const el=document.getElementById('ip-dest'); const cur=el.value.split(/[,;]/).map(x=>x.trim()).filter(Boolean); if(!cur.includes(em)) cur.push(em); el.value=cur.join(', '); }
+let _ipDest=[];
+function _ipRenderDest(){
+  const esc=v=>String(v||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const box=document.getElementById('ip-suggeriti');
+  box.innerHTML=_ipDest.length?_ipDest.map((x,i)=>`<button class="iBtn" title="${esc(x.em)}" style="font-size:10px;padding:2px 8px;${x.on?'color:var(--green);border-color:rgba(16,185,129,.5);background:rgba(16,185,129,.08);':'color:var(--text3);border-style:dashed;text-decoration:line-through;'}" onclick="_ipDest[${i}].on=!_ipDest[${i}].on;_ipRenderDest()">${x.on?'✓':'✕'} ${esc(x.lab)}</button>`).join(''):'<span style="font-size:10px;color:var(--text3);">nessun contatto noto: aggiungi gli indirizzi qui sotto</span>';
+  const n=_ipDest.filter(x=>x.on).length; const btn=document.getElementById('ip-btn'); if(btn && !btn.disabled) btn.textContent='📤 Invia piano'+(n?' ('+n+')':'');
+}
+function _ipAddDest(em, lab){
+  em=String(em||'').trim(); if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast('Indirizzo non valido: '+em, true); return; }
+  const k=_ipDest.find(x=>x.em.toLowerCase()===em.toLowerCase());
+  if(k) k.on=true; else _ipDest.push({lab:lab||em, em, on:true});
+  _ipRenderDest();
+}
+function _ipAggiungiDaInput(){
+  const el=document.getElementById('ip-dest'); const v=el.value.trim(); if(!v) return;
+  const parti=v.split(/[,;\s]+/).filter(Boolean); const mail=parti.filter(x=>x.includes('@'));
+  if(!mail.length){ toast('Scegli un contatto dall\'elenco o scrivi un indirizzo email', true); return; }
+  mail.forEach(m=>_ipAddDest(m)); el.value='';
+}
 async function inviaPiano(){
   const d=_pianoDoc(); if(!d) return;
-  const dest=document.getElementById('ip-dest').value.split(/[,;]/).map(x=>x.trim()).filter(Boolean).join(',');
-  if(!dest){ toast('Inserisci almeno un destinatario', true); return; }
+  // un indirizzo scritto ma non ancora aggiunto col ➕ viene preso lo stesso
+  const residuo=document.getElementById('ip-dest').value.trim(); if(residuo && residuo.includes('@')){ _ipAggiungiDaInput(); }
+  const dest=_ipDest.filter(x=>x.on).map(x=>x.em).join(',');
+  if(!dest){ toast('Nessun destinatario selezionato', true); return; }
   const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
   const docs=[...document.querySelectorAll('.ip-d:checked')].map(c=>({label:c.dataset.label, url:c.dataset.url}));
   const testo=document.getElementById('ip-testo').value + (docs.length ? '\n\nDocumenti allegati:\n'+docs.map(a=>'• '+a.label.replace(/^[^\w(]+\s*/,'')).join('\n') : '');
