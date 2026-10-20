@@ -237,7 +237,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v94</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v96</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -946,7 +946,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <div style="font-size:10px;color:var(--text3);margin-top:4px;">Almeno un campo è obbligatorio · il testo libero cerca in tutte le note</div>
     </div>
 
-    <button id="fatt-undo" class="btn btn-o btn-sm" style="display:none;margin-top:8px;color:#f59e0b;border-color:rgba(245,158,11,.45);white-space:normal;text-align:left;" onclick="annullaUltimoInserimento()">↩ Annulla ultimo inserimento</button>
+    <button id="fatt-undo" class="btn btn-o btn-sm" style="margin-top:8px;color:#f59e0b;border-color:rgba(245,158,11,.45);white-space:normal;text-align:left;" onclick="annullaUltimoInserimento()">↩ Annulla ultimo inserimento</button>
 
     <!-- Anteprima match -->
     <div id="fatt-preview" style="display:none;margin-top:14px;">
@@ -2609,9 +2609,11 @@ function salvaVoceFornitore(){
   let nota='Fattura n.'+num+' '+forn+' - '+desc+' €'+imp.toFixed(2);
   if(spese>0) nota+=' (spese €'+spese.toFixed(2)+')';
   nota+=' [SID:'+s.id+']';
+  const _primaUndo=_undoSnapshot();
   s.note = s.note ? s.note.trim()+' | '+nota : nota;
   salvaDittaDB(forn);
   sv('spettacoli',data);
+  _undoRegistra(_primaUndo, 'voce '+forn+(num!=='PREV'?' n.'+num:' (previsione)')+' su '+s.spett);
   window._pullBlockUntil = Date.now() + 30000;
   _logModifica('fattura', 'Voce fornitore '+forn+(num!=='PREV'?' n.'+num:' (senza fattura)')+' — '+s.spett+' €'+(imp+spese).toFixed(2));
   document.getElementById('voce-forn-ov').classList.remove('open');
@@ -3307,7 +3309,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v92 ──
+  return `// ── SPETTACOLI APP SCRIPT v94 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7688,8 +7690,8 @@ function _undoRegistra(prima, descr){
 function _undoAggiornaBottone(){
   const b=document.getElementById('fatt-undo'); if(!b) return;
   let u=null; try{ u=JSON.parse(localStorage.getItem('undoFattura')||'null'); }catch(e){}
-  b.style.display = u ? 'inline-block' : 'none';
-  if(u) b.textContent='↩ Annulla ultimo inserimento ('+(u.descr||'')+' · '+u.mod.length+' modificati'+(u.nuovi.length?', '+u.nuovi.length+' creati':'')+')';
+  b.style.display='inline-block'; b.disabled=!u; b.style.opacity=u?'1':'.5';
+  b.textContent = u ? '↩ Annulla ultimo inserimento ('+(u.descr||'')+' · '+u.mod.length+' modificati'+(u.nuovi.length?', '+u.nuovi.length+' creati':'')+')' : '↩ Annulla ultimo inserimento (nessuno da annullare)';
 }
 function annullaUltimoInserimento(){
   let u=null; try{ u=JSON.parse(localStorage.getItem('undoFattura')||'null'); }catch(e){}
@@ -8020,7 +8022,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v94</span>
+    <span>Report generato da GammaFucker v96</span>
   </div>
   </body></html>`;
 
@@ -8126,7 +8128,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v94</span>
+    <span>Report generato da GammaFucker v96</span>
   </div>
   </body></html>`;
 
@@ -8194,7 +8196,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v94</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v96</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -8266,7 +8268,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v94</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v96</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
