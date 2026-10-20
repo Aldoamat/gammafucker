@@ -237,7 +237,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v89</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v90</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -3301,7 +3301,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v85 ──
+  return `// ── SPETTACOLI APP SCRIPT v87 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7897,7 +7897,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v89</span>
+    <span>Report generato da GammaFucker v90</span>
   </div>
   </body></html>`;
 
@@ -8003,7 +8003,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v89</span>
+    <span>Report generato da GammaFucker v90</span>
   </div>
   </body></html>`;
 
@@ -8071,7 +8071,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v89</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v90</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -8143,7 +8143,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v89</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v90</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9960,7 +9960,19 @@ function risolviDoppione(gi){
 let pianiProduzione = ld('pianiProduzione', {});
 let _prodKey = null;        // "MANIF||STAGIONE" aperto
 let _prodFocusId = null;    // spettacolo da evidenziare all'apertura
-let _ztlId = null, _permId = null, _prodSpazio = '', _mailId = null;
+let _ztlId = null, _permId = null, _prodSpazio = '', _prodTitolo = '', _mailId = null;
+// filtri del piano: per spazio e/o per spettacolo (titolo: tiene insieme debutto, repliche, premontaggio e residenza)
+function _prodVisibili(shows){
+  let v=shows;
+  if(_prodSpazio) v=v.filter(x=>((x.citta||'')+'||'+(x.teatro||''))===_prodSpazio);
+  if(_prodTitolo) v=v.filter(x=>_normTxt(x.spett)===_prodTitolo);
+  return v;
+}
+function _prodFiltroDesc(){
+  const p=[]; if(_prodTitolo){ const x=_prodShows(_prodKey).find(y=>_normTxt(y.spett)===_prodTitolo); p.push(x?x.spett:_prodTitolo); }
+  if(_prodSpazio){ const [c,t]=_prodSpazio.split('||'); p.push(c+(t?' · '+t:'')); }
+  return p.join(' · ');
+}
 
 function _prodKeyDi(s){ return (s.manif||'').trim().toUpperCase()+'||'+_stagioneDa(s.data); }
 function _prodShows(key){
@@ -10048,7 +10060,7 @@ function apriPianoDaSelezione(){
   apriPiano(m.trim().toUpperCase()+'||'+st);
 }
 function apriPiano(key, focusId){
-  if(key!==_prodKey) _prodSpazio='';
+  if(key!==_prodKey){ _prodSpazio=''; _prodTitolo=''; }
   _prodKey = key; _prodFocusId = focusId||null;
   const shows = _prodShows(key);
   if(!shows.length){ toast('Nessuno spettacolo per questa manifestazione nella stagione', true); return; }
@@ -10059,6 +10071,7 @@ function apriPiano(key, focusId){
     sv('pianiProduzione', pianiProduzione);
     if(ld('sheetsUrl','')) setTimeout(()=>pushConfig(true), 500);   // il piano compare subito anche sugli altri dispositivi
   }
+  if(_prodApriConTitolo){ _prodTitolo=_prodApriConTitolo; _prodSpazio=''; _prodApriConTitolo=''; }
   renderPiano();
   renderPianiCreati();
   setTimeout(()=>{ if(_prodFocusId){ const el=document.getElementById('prod-s-'+_prodFocusId); if(el){ el.scrollIntoView({behavior:'smooth',block:'start'}); el.style.boxShadow='0 0 0 2px var(--purple)'; setTimeout(()=>el.style.boxShadow='',2500); } } }, 100);
@@ -10081,12 +10094,16 @@ function renderPiano(){
   let h = `<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
     <div><div style="font-size:15px;font-weight:800;">🎬 ${_prodEsc(m)} <span style="color:var(--text3);font-weight:400;font-size:12px;">stagione ${st} · ${_prodConta(shows)}</span></div></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      <select id="prod-titolo" style="font-size:11px;padding:5px 8px;max-width:220px;" onchange="_prodTitolo=this.value;renderPiano()" title="Un solo spettacolo con premontaggio, residenza e repliche">
+        <option value="">tutti gli spettacoli</option>
+        ${(()=>{ const m=new Map(); shows.forEach(x=>{ const k=_normTxt(x.spett); if(!m.has(k)) m.set(k,x.spett); }); return [...m.entries()].sort((a,b)=>a[1].localeCompare(b[1])).map(([k,t])=>`<option value="${_prodEsc(k)}"${k===_prodTitolo?' selected':''}>${_prodEsc(t)}</option>`).join(''); })()}
+      </select>
       <select id="prod-spazio" style="font-size:11px;padding:5px 8px;max-width:220px;" onchange="_prodSpazio=this.value;renderPiano()">
         <option value="">tutti gli spazi</option>
         ${[...new Set(shows.map(x=>(x.citta||'')+'||'+(x.teatro||'')))].sort().map(k=>{ const [c,t]=k.split('||'); return `<option value="${_prodEsc(k)}"${k===_prodSpazio?' selected':''}>${_prodEsc(c)}${t?' · '+_prodEsc(t):''}</option>`; }).join('')}
       </select>
-      <button class="btn btn-o btn-sm" onclick="stampaPiano()">🖨 Stampa${_prodSpazio?' spazio':' piano'}</button>
-      <button class="btn btn-o btn-sm" style="color:#a78bfa;border-color:rgba(167,139,250,.4);" onclick="apriInvioPiano()">📧 Invia${_prodSpazio?' spazio':' piano'}</button>
+      <button class="btn btn-o btn-sm" onclick="stampaPiano()">🖨 Stampa${_prodTitolo?' spettacolo':_prodSpazio?' spazio':' piano'}</button>
+      <button class="btn btn-o btn-sm" style="color:#a78bfa;border-color:rgba(167,139,250,.4);" onclick="apriInvioPiano()">📧 Invia${_prodTitolo?' spettacolo':_prodSpazio?' spazio':' piano'}</button>
       ${RO?'':'<button class="btn btn-p btn-sm" onclick="salvaPiano()">💾 Salva</button>'}
       <button class="btn btn-o btn-sm" onclick="chiudiPiano()">✕</button>
     </div></div>`;
@@ -10098,7 +10115,8 @@ function renderPiano(){
     <div style="margin-top:8px;">${area(`oninput="_prodGen('noteGenerali',this.value)"`,'Note generali',g.noteGenerali,'accordi generali, materiali comuni, trasporti…')}</div>
     ${serviceList}</div>`;
 
-  const visibili = _prodSpazio ? shows.filter(x=>((x.citta||'')+'||'+(x.teatro||''))===_prodSpazio) : shows;
+  const visibili = _prodVisibili(shows);
+  if(_prodTitolo||_prodSpazio) h += `<div style="font-size:11px;color:var(--gold);margin:-4px 0 8px;">Filtro: ${_prodEsc(_prodFiltroDesc())} · ${_prodConta(visibili)} <button class="iBtn" style="font-size:10px;padding:1px 7px;margin-left:6px;" onclick="_prodTitolo='';_prodSpazio='';renderPiano()">✕ tutto il piano</button></div>`;
   visibili.forEach(s=>{
     const p = _prodDi(s);
     const schede = (s.mails||[]).map((x,i)=>({...x,_i:i})).filter(x=>x.tipo==='scheda'&&(x.file||x.link));
@@ -10507,10 +10525,11 @@ function _prodConta(shows){
 }
 function _pianoDoc(){
   if(!_prodKey) return null; const [m,st]=_prodKey.split('||'); const g=pianiProduzione[_prodKey]||{};
-  let shows=_prodShows(_prodKey); let sottoSp='';
-  if(_prodSpazio){ shows=shows.filter(x=>((x.citta||'')+'||'+(x.teatro||''))===_prodSpazio); const [c,t]=_prodSpazio.split('||'); sottoSp=' · '+c+(t?' · '+t:''); }
+  let shows=_prodVisibili(_prodShows(_prodKey)); let sottoSp='';
+  if(_prodSpazio){ const [c,t]=_prodSpazio.split('||'); sottoSp=' · '+c+(t?' · '+t:''); }
+  const titoloSp = _prodTitolo ? (shows[0]?shows[0].spett:_prodTitolo) : '';
   const gen = (g.responsabile||g.noteGenerali) ? `<div class="g">${g.responsabile?'<b>Responsabile:</b> '+_prodEsc(g.responsabile)+'<br>':''}${g.noteGenerali?'<b>Note:</b> '+_prodEsc(g.noteGenerali).replace(/\n/g,'<br>'):''}</div>` : '';
-  const titolo='Piano di produzione — '+m+(_prodSpazio?' — '+_prodSpazio.split('||')[0]:'');
+  const titolo='Piano di produzione — '+m+(titoloSp?' — '+titoloSp:'')+(_prodSpazio?' — '+_prodSpazio.split('||')[0]:'');
   const sotto='stagione '+st+sottoSp+' · '+_prodConta(shows);
   return { titolo, sotto, corpo: gen + shows.map(s=>_prodBloccoHtml(s,g)).join(''), shows, m, st };
 }
@@ -10533,11 +10552,11 @@ function apriInvioPiano(){
   if(!window._ipRubricaOk){ window._ipRubricaOk=true; attachRubrica('ip-dest', c=>{ if(c.email) _ipAddDest(c.email, (c._az?'🏢 ':'👤 ')+c.nome); else toast('Contatto senza email', true); document.getElementById('ip-dest').value=''; }, {aziende:true});
     document.getElementById('ip-dest').addEventListener('keydown', e=>{ if(e.key==='Enter' && !document.querySelector('#invio-piano-ov .rb-dd .sel')){ e.preventDefault(); _ipAggiungiDaInput(); } }); }
   document.getElementById('ip-ogg').value=d.titolo+' · stagione '+d.st;
-  document.getElementById('ip-testo').value=`Buongiorno,\nin allegato il piano di produzione${_prodSpazio?' per '+_prodSpazio.split('||').filter(Boolean).reverse().join(' · '):' della manifestazione '+d.m} (stagione ${d.st}) con le schede tecniche degli spettacoli.\n\nRestiamo a disposizione per ogni chiarimento.\n\n${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}\ncoordinamento tecnico Amat${IS_COLLAB?'':'\nmob. 3477086550'}`;
+  document.getElementById('ip-testo').value=`Buongiorno,\nin allegato il piano di produzione${_prodTitolo?' di "'+(d.shows[0]?d.shows[0].spett:'')+'"'+((m=>m?' con '+m[1]:'')(_prodConta(d.shows).match(/\((.*)\)/))):''}${_prodSpazio?' per '+_prodSpazio.split('||').filter(Boolean).reverse().join(' · '):(_prodTitolo?'':' della manifestazione '+d.m)} (stagione ${d.st}) con le schede tecniche degli spettacoli.\n\nRestiamo a disposizione per ogni chiarimento.\n\n${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}\ncoordinamento tecnico Amat${IS_COLLAB?'':'\nmob. 3477086550'}`;
   // documenti: scheda tecnica di ogni spettacolo (spuntata), permessi ZTL e documenti spazio (non spuntati)
   const docs=[];
   d.shows.forEach(x=>{ _allegatiDi(x).forEach(a=>{ if(!docs.some(z=>z.url===a.url)) docs.push({label:a.label+(/scheda tecnica/i.test(a.label)?' — '+x.spett:''), url:a.url, def:/scheda tecnica/i.test(a.label)}); }); });
-  const senza=d.shows.filter(x=>!(x.mails||[]).some(m=>m.tipo==='scheda'&&m.file));
+  const senza=d.shows.filter(x=>!x.premontaggio && !x.replicaOf && !(x.mails||[]).some(m=>m.tipo==='scheda'&&m.file));
   document.getElementById('ip-doc').innerHTML=(docs.length?docs.map(a=>`<label style="display:flex;gap:6px;align-items:center;font-size:11px;padding:2px 0;cursor:pointer;"><input type="checkbox" class="ip-d" data-url="${esc(a.url)}" data-label="${esc(a.label)}" ${a.def?'checked':''} style="width:14px;height:14px;"> ${esc(a.label)}</label>`).join(''):'')
     +(senza.length?`<div style="font-size:10px;color:#f59e0b;margin-top:4px;">⚠ senza scheda tecnica: ${esc(senza.map(x=>x.spett).join(', '))}</div>`:'');
   document.getElementById('invio-piano-ov').classList.add('open');
@@ -10614,8 +10633,10 @@ function apriPianoSpettacolo(id){
   goTab('prod');
   const sm=document.getElementById('prod-manif'), ss=document.getElementById('prod-stag');
   if(sm) sm.value=s.manif.trim(); if(ss) ss.value=_stagioneDa(s.data);
+  _prodApriConTitolo = _normTxt(s.spett);
   apriPiano(key, s.id);
 }
+let _prodApriConTitolo = '';
 
 function goTab(name){
   // Evidenzia il tab dal suo attributo onclick, non dalla posizione
