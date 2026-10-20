@@ -237,7 +237,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v90</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v91</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -329,6 +329,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
           <option>STAGIONE DI DANZA</option><option>STAGIONE DANZA</option>
           <option>STAGIONE RAGAZZI</option><option>TEATRO RAGAZZI</option>
           <option>TEATRO OLTRE</option><option>DANZA KID</option>
+          <option value="GESTIONE">GESTIONE (eventi interni / terzi)</option>
         </select>
         <button type="button" onclick="aggiungiManif()" style="flex-shrink:0;width:34px;height:34px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--accent);font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
       </div>
@@ -2527,6 +2528,9 @@ function editSpett(id){
   document.getElementById('f-citta').value=s.citta;onCittaChange();
   document.getElementById('f-teatro').value=s.teatro||'';
   document.getElementById('f-spett').value=s.spett;
+  // manifestazione non in elenco (es. importata da calendario o rinominata): la aggiungo al volo, altrimenti
+  // il select resta vuoto e al salvataggio la manifestazione andrebbe persa
+  if(s.manif && ![...document.querySelectorAll('#f-manif option')].some(o=>o.value===s.manif)){ const o=document.createElement('option'); o.value=s.manif; o.textContent=s.manif; document.getElementById('f-manif').appendChild(o); }
   document.getElementById('f-manif').value=s.manif||'';
   ['nm','tm','sm','ne','se','nf','sf','nfo','tfo','sfo','nsa','tsa','ssa'].forEach(k=>document.getElementById(`f-${k}`).value=s[k]!==undefined?s[k]:'');
   document.getElementById('f-te').value=s.te||tariffe.e;
@@ -3301,7 +3305,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v87 ──
+  return `// ── SPETTACOLI APP SCRIPT v88 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7897,7 +7901,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v90</span>
+    <span>Report generato da GammaFucker v91</span>
   </div>
   </body></html>`;
 
@@ -8003,7 +8007,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v90</span>
+    <span>Report generato da GammaFucker v91</span>
   </div>
   </body></html>`;
 
@@ -8071,7 +8075,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v90</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v91</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -8143,7 +8147,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v90</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v91</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
