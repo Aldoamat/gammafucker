@@ -237,7 +237,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v92</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v93</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -3305,7 +3305,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v90 ──
+  return `// ── SPETTACOLI APP SCRIPT v91 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -6110,7 +6110,8 @@ function _importaReportPresenze(griglia, nomeFile){
     Object.keys(perTipo).forEach(k=>{ const t=perTipo[k]; if(t.imp<=0) return; tot+=t.imp;
       righe.push({descrizione:t.n+' '+(k.replace(/^addetto\s+/,'addett'+(t.n>1?'i ':'o ')))+(t.ore?' '+t.ore:'')+' (report presenze)', importo:+t.imp.toFixed(2), date:[gg.data], citta, teatro, tipo:'servizio'}); });
     const tra=gg.trasferta+gg.pasti;
-    if(tra>0){ tot+=tra; righe.push({descrizione:'trasferta'+(gg.km?' '+gg.km+' km':'')+(gg.pasti?' + pasti':'')+' (report presenze)', importo:+tra.toFixed(2), date:[gg.data], citta, teatro, tipo:'servizio'}); }
+    // trasferta/pasti: rimborso senza data → l'abbinamento lo somma come spese accessorie alla prestazione del giorno
+    if(tra>0){ tot+=tra; righe.push({descrizione:'trasferta'+(gg.km?' '+gg.km+' km':'')+(gg.pasti?' + pasti':''), importo:+tra.toFixed(2), tipo:'rimborso'}); }
   });
   const totEl=document.getElementById('fatt-totale-fatt'); if(totEl && !totEl.value) totEl.value=tot.toFixed(2);
   const voci=abbinaRigheFattura(righe, {fornitore:forn, numero_fattura:numEl.value.trim(), data_fattura:giorni[giorni.length-1].data});
@@ -7982,7 +7983,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v92</span>
+    <span>Report generato da GammaFucker v93</span>
   </div>
   </body></html>`;
 
@@ -8088,7 +8089,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v92</span>
+    <span>Report generato da GammaFucker v93</span>
   </div>
   </body></html>`;
 
@@ -8156,7 +8157,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v92</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v93</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -8228,7 +8229,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v92</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v93</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
