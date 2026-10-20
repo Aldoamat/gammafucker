@@ -237,7 +237,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v96</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v97</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -3309,7 +3309,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v94 ──
+  return `// ── SPETTACOLI APP SCRIPT v95 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -7747,10 +7747,18 @@ function applicaFattura(){
       if(candidates.length === 1){
         spett = candidates[0];
       } else if(candidates.length > 1){
-        // Prima: usa teatro se specificato (molto discriminante)
+        // Prima di tutto: lo spettacolo scelto in anteprima (abbinamento o scelta manuale tra i candidati),
+        // se è tra i candidati e l'utente non ha riscritto il titolo. Prima vinceva "il primo della giornata"
+        // con lo stesso inizio di titolo (es. la data annullata), ignorando la scelta fatta in anteprima.
+        const sceltoId = v.spettacolo_id || (v._match && v._match.id);
+        if(sceltoId){
+          const sc = candidates.find(s=>String(s.id)===String(sceltoId));
+          if(sc && (!spettVal || spettVal.toUpperCase()===sc.spett.toUpperCase())) spett = sc;
+        }
+        // Poi: usa teatro se specificato (molto discriminante)
         const teatroEl3 = el.querySelectorAll('input[type="text"]')[2];
         const tVal = (teatroEl3?teatroEl3.value||'':'').toUpperCase().trim();
-        if(tVal){
+        if(!spett && tVal){
           spett = candidates.find(s=>s.teatro && s.teatro.toUpperCase()===tVal) ||
                   candidates.find(s=>s.teatro && s.teatro.toUpperCase().includes(tVal.substring(0,8))) ||
                   candidates.find(s=>tVal.includes((s.teatro||'').toUpperCase().substring(0,6)));
@@ -8022,7 +8030,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v96</span>
+    <span>Report generato da GammaFucker v97</span>
   </div>
   </body></html>`;
 
@@ -8128,7 +8136,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v96</span>
+    <span>Report generato da GammaFucker v97</span>
   </div>
   </body></html>`;
 
@@ -8196,7 +8204,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v96</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v97</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -8268,7 +8276,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v96</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v97</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
