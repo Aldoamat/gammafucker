@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v104</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v106</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -710,7 +710,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <div style="font-size:10px;color:var(--text2);margin-top:4px;line-height:1.5;">Genera il prospetto per il servizio calore: per ogni giorno e spazio gli orari di accensione (mattina / pomeriggio) ricavati dagli eventi del calendario, con le regole qui sotto. Puoi correggere gli orari nell'anteprima prima di scaricare l'Excel o stampare.</div>
       <details style="margin-top:6px;"><summary style="font-size:10px;color:var(--text3);cursor:pointer;">Spazi e regole</summary>
         <div style="font-size:10px;color:var(--text3);margin:4px 0;">Uno spazio per riga: <b>NOME NEL PROSPETTO | colonne del Word (separate da virgola) | uffici DALLE-ALLE (lun-sab, opzionale) | zona base | zona con evento</b></div>
-        <textarea id="risc-spazi" style="width:100%;min-height:60px;font-size:11px;box-sizing:border-box;" placeholder="TEATRO ROSSINI | Sala della Repubblica, Teatro Rossini | 8-14 | UFFICI | UFFICI + SALA R."></textarea>
+        <textarea id="risc-spazi" style="width:100%;min-height:60px;font-size:11px;box-sizing:border-box;" placeholder="TEATRO ROSSINI | Sala della Repubblica, Teatro Rossini | 8-14 | UFFICI | TUTTO IL TEATRO"></textarea>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;font-size:10px;color:var(--text2);align-items:center;">
           <label>pausa mattina/pomeriggio <input id="risc-pausa" type="text" value="13-15" style="width:52px;font-size:11px;"></label>
           <label>inizio feriale <input id="risc-ini" type="number" value="9" min="0" max="23" style="width:44px;font-size:11px;"></label>
@@ -1913,7 +1913,7 @@ async function leggiCalendarioWord(file){
 // ════════════════════ RISCALDAMENTO: prospetto accensioni per il servizio calore ════════════════════
 // Dal calendario Word di Pesaro → tabella giorno × spazio con mattina/pomeriggio (dalle-alle), tot ore e zona,
 // nello stesso formato del file che Aldo compilava a mano. Regole in Config (riscConfig), anteprima modificabile.
-const RISC_SPAZI_DEFAULT = 'TEATRO ROSSINI | Sala della Repubblica, Teatro Rossini | 8-14 | UFFICI | UFFICI + SALA R.\nTEATRO SPERIMENTALE | Teatro Sperimentale';
+const RISC_SPAZI_DEFAULT = 'TEATRO ROSSINI | Sala della Repubblica, Teatro Rossini | 8-14 | UFFICI | TUTTO IL TEATRO\nTEATRO SPERIMENTALE | Teatro Sperimentale';
 let _risc = null;   // {mese, anno, spazi:[{nome,...}], giorni:[{data, dow, celle:[{m1,m2,p1,p2,zona,ev}]}]}
 function _riscConfig(){
   const c = ld('riscConfig', null) || {};
@@ -1921,7 +1921,7 @@ function _riscConfig(){
   return { spazi: g('risc-spazi', RISC_SPAZI_DEFAULT), pausa: g('risc-pausa','13-15'), ini:+g('risc-ini',9), iniwe:+g('risc-iniwe',10), dopo:+g('risc-dopo',2), fine:+g('risc-fine',23), senza: g('risc-senza','9-20'), max:+g('risc-max',12), prima:+g('risc-prima',1) };
 }
 function salvaRiscConfig(){ const c={}; ['risc-spazi','risc-pausa','risc-ini','risc-iniwe','risc-dopo','risc-fine','risc-senza','risc-max','risc-prima'].forEach(id=>{ const el=document.getElementById(id); if(el) c[id]=el.value; }); sv('riscConfig', c); toast('✓ Regole riscaldamento salvate'); }
-function _riscCaricaConfigUI(){ const c=ld('riscConfig', null)||{}; ['risc-spazi','risc-pausa','risc-ini','risc-iniwe','risc-dopo','risc-fine','risc-senza','risc-max','risc-prima'].forEach(id=>{ const el=document.getElementById(id); if(el && c[id]!==undefined && c[id]!=='') el.value=c[id]; }); const t=document.getElementById('risc-spazi'); if(t && !t.value) t.value=RISC_SPAZI_DEFAULT; }
+function _riscCaricaConfigUI(){ const c=ld('riscConfig', null)||{}; if(c['risc-spazi'] && /UFFICI \+ SALA R\./.test(c['risc-spazi'])){ c['risc-spazi']=c['risc-spazi'].replace(/UFFICI \+ SALA R\./g,'TUTTO IL TEATRO'); sv('riscConfig', c); } ['risc-spazi','risc-pausa','risc-ini','risc-iniwe','risc-dopo','risc-fine','risc-senza','risc-max','risc-prima'].forEach(id=>{ const el=document.getElementById(id); if(el && c[id]!==undefined && c[id]!=='') el.value=c[id]; }); const t=document.getElementById('risc-spazi'); if(t && !t.value) t.value=RISC_SPAZI_DEFAULT; }
 function _riscSpazi(cfg){
   return cfg.spazi.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
     const p=l.split('|').map(x=>x.trim());
@@ -2024,7 +2024,7 @@ function _riscRender(){
       const tot=((c.m1!=null&&c.m2!=null)?Math.max(0,c.m2-c.m1):0)+((c.p1!=null&&c.p2!=null)?Math.max(0,c.p2-c.p1):0);
       h+=`<td style="border-left:1px solid var(--border2);padding:1px 2px;">${inp(gi,si,'m1',c.m1)}</td><td>${inp(gi,si,'m2',c.m2)}</td><td>${inp(gi,si,'p1',c.p1)}</td><td>${inp(gi,si,'p2',c.p2)}</td><td style="text-align:center;color:var(--text2);">${tot?_riscHM(tot):''}</td>`;
       if(r.spazi[si].zonaBase||r.spazi[si].zonaEv) h+=`<td><input type="text" value="${esc(c.zona)}" style="width:110px;font-size:10px;padding:2px 3px;" onchange="_risc.giorni[${gi}].celle[${si}].zona=this.value"></td>`;
-      if(c.ev) h+=`<td style="color:var(--text3);font-size:9px;max-width:160px;overflow:hidden;text-overflow:ellipsis;" title="${esc(c.ev)}">${esc(c.ev)}</td>`; else h+='<td></td>';
+      h+=`<td><input type="text" value="${esc(c.ev)}" placeholder="evento" title="${esc(c.ev)}" style="width:150px;font-size:9px;padding:2px 3px;color:var(--text2);" onchange="_risc.giorni[${gi}].celle[${si}].ev=this.value"></td>`;
     });
     h+='</tr>';
   });
@@ -2037,20 +2037,20 @@ function scaricaRiscExcel(){
   const aoa=[], merges=[]; const col=i=>XLSX.utils.encode_col(i);
   // intestazioni (3 righe) come nel file originale: DATA | per spazio: MATTINA(dalle,alle) POMERIGGIO(dalle,alle) TOT ORE [BRUCIATORI]
   const r1=['DATA'], r2=[''], r3=['']; let c=1; const blocchi=[];
-  r.spazi.forEach(sp=>{ const zona=!!(sp.zonaBase||sp.zonaEv); const w=zona?6:5; const b={c0:c, zona}; blocchi.push(b);
-    r1.push(sp.nome,'','','',''); if(zona) r1.push(''); merges.push({s:{r:0,c},e:{r:0,c:c+w-1}});
-    r2.push('MATTINA','','POMERIGGIO','','TOT ORE'); if(zona) r2.push('BRUCIATORI');
-    merges.push({s:{r:1,c},e:{r:1,c:c+1}},{s:{r:1,c:c+2},e:{r:1,c:c+3}},{s:{r:1,c:c+4},e:{r:2,c:c+4}}); if(zona) merges.push({s:{r:1,c:c+5},e:{r:2,c:c+5}});
-    r3.push('DALLE','ALLE','DALLE','ALLE',''); if(zona) r3.push('');
+  r.spazi.forEach(sp=>{ const zona=!!(sp.zonaBase||sp.zonaEv); const w=(zona?6:5)+1; const b={c0:c, zona}; blocchi.push(b);
+    r1.push(sp.nome,'','','',''); if(zona) r1.push(''); r1.push(''); merges.push({s:{r:0,c},e:{r:0,c:c+w-1}});
+    r2.push('MATTINA','','POMERIGGIO','','TOT ORE'); if(zona) r2.push('BRUCIATORI'); r2.push('EVENTO');
+    merges.push({s:{r:1,c},e:{r:1,c:c+1}},{s:{r:1,c:c+2},e:{r:1,c:c+3}},{s:{r:1,c:c+4},e:{r:2,c:c+4}}); if(zona) merges.push({s:{r:1,c:c+5},e:{r:2,c:c+5}}); merges.push({s:{r:1,c:c+w-1},e:{r:2,c:c+w-1}});
+    r3.push('DALLE','ALLE','DALLE','ALLE',''); if(zona) r3.push(''); r3.push('');
     c+=w; });
   merges.push({s:{r:0,c:0},e:{r:2,c:0}});
   aoa.push(r1,r2,r3);
   r.giorni.forEach((g,gi)=>{ const row=[new Date(g.data+'T00:00:00')]; const ri=gi+3;
     g.celle.forEach((cl,si)=>{ const b=blocchi[si]; const t=v=>v==null?null:v/24;
-      row.push(t(cl.m1),t(cl.m2),t(cl.p1),t(cl.p2),{f:`(${col(b.c0+1)}${ri+1}-${col(b.c0)}${ri+1})+(${col(b.c0+3)}${ri+1}-${col(b.c0+2)}${ri+1})`}); if(b.zona) row.push(cl.zona||''); });
+      row.push(t(cl.m1),t(cl.m2),t(cl.p1),t(cl.p2),{f:`(${col(b.c0+1)}${ri+1}-${col(b.c0)}${ri+1})+(${col(b.c0+3)}${ri+1}-${col(b.c0+2)}${ri+1})`}); if(b.zona) row.push(cl.zona||''); row.push(cl.ev||''); });
     aoa.push(row); });
   const ws=XLSX.utils.aoa_to_sheet(aoa, {cellDates:true}); ws['!merges']=merges;
-  ws['!cols']=[{wch:14}].concat(...blocchi.map(b=>[{wch:8},{wch:8},{wch:8},{wch:8},{wch:9}].concat(b.zona?[{wch:20}]:[])));
+  ws['!cols']=[{wch:14}].concat(...blocchi.map(b=>[{wch:8},{wch:8},{wch:8},{wch:8},{wch:9}].concat(b.zona?[{wch:18}]:[]).concat([{wch:34}])));
   // formati: date gg/mm/aaaa, orari h:mm, totali [h]:mm
   Object.keys(ws).forEach(k=>{ if(k[0]==='!') return; const cell=ws[k]; const {r:rr,c:cc}=XLSX.utils.decode_cell(k); if(rr<3) return;
     if(cc===0){ cell.t='d'; cell.z='dd/mm/yyyy'; } else if(cell.f){ cell.z='[h]:mm'; } else if(typeof cell.v==='number'){ cell.z='h:mm'; } });
@@ -2064,13 +2064,13 @@ function stampaRisc(){
   let h=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Riscaldamento teatri ${mese} ${r.anno}</title><style>@media print{.np{display:none}} body{font-family:Arial;font-size:11px;padding:16px;} table{border-collapse:collapse;} th{border:1px solid #cbd5e1;padding:4px 6px;background:#f1f5f9;} tr.we td{background:#fafaf5;}</style></head><body>
   <div class="np" style="margin-bottom:10px;"><button onclick="window.print()" style="padding:6px 16px;">🖨 Stampa / Salva PDF</button></div>
   <h2 style="margin:0 0 4px;">Riscaldamento teatri — ${mese} ${r.anno}</h2><div style="color:#64748b;margin-bottom:10px;">AMAT Marche · coordinamento tecnico · orari di accensione richiesti</div>
-  <table><tr><th rowspan="3">DATA</th>${r.spazi.map(sp=>`<th colspan="${sp.zonaBase||sp.zonaEv?6:5}">${esc(sp.nome)}</th>`).join('')}</tr>
-  <tr>${r.spazi.map(sp=>`<th colspan="2">MATTINA</th><th colspan="2">POMERIGGIO</th><th rowspan="2">TOT ORE</th>${sp.zonaBase||sp.zonaEv?'<th rowspan="2">BRUCIATORI</th>':''}`).join('')}</tr>
+  <table><tr><th rowspan="3">DATA</th>${r.spazi.map(sp=>`<th colspan="${(sp.zonaBase||sp.zonaEv?6:5)+1}">${esc(sp.nome)}</th>`).join('')}</tr>
+  <tr>${r.spazi.map(sp=>`<th colspan="2">MATTINA</th><th colspan="2">POMERIGGIO</th><th rowspan="2">TOT ORE</th>${sp.zonaBase||sp.zonaEv?'<th rowspan="2">BRUCIATORI</th>':''}<th rowspan="2">EVENTO</th>`).join('')}</tr>
   <tr>${r.spazi.map(()=>'<th>DALLE</th><th>ALLE</th><th>DALLE</th><th>ALLE</th>').join('')}</tr>`;
   r.giorni.forEach(g=>{ const we=g.dow===0||g.dow===6; const d=g.data.split('-').reverse().join('/');
     h+=`<tr class="${we?'we':''}">${td(gg[g.dow]+' '+d,'text-align:left;white-space:nowrap;'+(g.dow===0?'color:#dc2626;':''))}`;
     g.celle.forEach((c,si)=>{ const tot=((c.m1!=null&&c.m2!=null)?Math.max(0,c.m2-c.m1):0)+((c.p1!=null&&c.p2!=null)?Math.max(0,c.p2-c.p1):0);
-      h+=td(_riscHM(c.m1))+td(_riscHM(c.m2))+td(_riscHM(c.p1))+td(_riscHM(c.p2))+td(tot?_riscHM(tot):'','font-weight:bold;'); if(r.spazi[si].zonaBase||r.spazi[si].zonaEv) h+=td(c.zona,'text-align:left;'); });
+      h+=td(_riscHM(c.m1))+td(_riscHM(c.m2))+td(_riscHM(c.p1))+td(_riscHM(c.p2))+td(tot?_riscHM(tot):'','font-weight:bold;'); if(r.spazi[si].zonaBase||r.spazi[si].zonaEv) h+=td(c.zona,'text-align:left;'); h+=td(c.ev,'text-align:left;color:#475569;font-size:10px;'); });
     h+='</tr>'; });
   h+='</table></body></html>';
   const w=window.open('','_blank','width=1000,height=760'); w.document.write(h); w.document.close();
@@ -3518,7 +3518,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v105 ──
+  return `// ── SPETTACOLI APP SCRIPT v107 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -8288,7 +8288,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v104</span>
+    <span>Report generato da GammaFucker v106</span>
   </div>
   </body></html>`;
 
@@ -8394,7 +8394,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v104</span>
+    <span>Report generato da GammaFucker v106</span>
   </div>
   </body></html>`;
 
@@ -8462,7 +8462,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v104</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v106</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -8534,7 +8534,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v104</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v106</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -11138,7 +11138,7 @@ function goTab(name){
   if(name==='list')renderList();
   if(name==='exp')buildRepMeseSelect();
   if(name==='fatt') _undoAggiornaBottone();
-  if(name==='set') _riscCaricaConfigUI();
+  if(name==='proposte') _riscCaricaConfigUI();
   if(name==='set'){ buildCfgDittaSel(); if(ld('sheetsUrl','') && !IS_COLLAB && !document.getElementById('cfg-mittenti').value){ caricaMittenti(); caricaConsumoAI(); } }
   if(name==='forn'){ buildFornSelect(); if(ld('sheetsUrl','')) setTimeout(()=>pushConfig(true),300); }
   if(name==='collab'){ buildCollabMeseSelect(); renderCollabMese(); }
