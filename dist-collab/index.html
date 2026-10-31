@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v102</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v104</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -701,6 +701,30 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <div style="font-size:10px;color:var(--text2);margin-top:4px;">Legge i calendari dei colleghi (Word mensili di Pesaro, Excel annuali tipo "Calendario Teatro Sanzio 26-27"), li confronta con l'archivio e propone solo le voci mancanti: eventi di terzi già spuntati, voci Amat e interne da valutare.</div>
       <div id="cal-word-stato" style="font-size:10px;color:var(--text3);margin-top:6px;"></div>
       <div id="cal-word-box" style="margin-top:6px;"></div>
+    </div>
+    <div class="admin-only" style="margin-bottom:12px;padding:10px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rsm);">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+        <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);">🔥 Riscaldamento (dal calendario Word di Pesaro)</div>
+        <label class="btn btn-o btn-sm" style="cursor:pointer;">📂 Calendario Word<input type="file" accept=".docx" style="display:none" onchange="generaRiscaldamento(this.files[0]);this.value=''"></label>
+      </div>
+      <div style="font-size:10px;color:var(--text2);margin-top:4px;line-height:1.5;">Genera il prospetto per il servizio calore: per ogni giorno e spazio gli orari di accensione (mattina / pomeriggio) ricavati dagli eventi del calendario, con le regole qui sotto. Puoi correggere gli orari nell'anteprima prima di scaricare l'Excel o stampare.</div>
+      <details style="margin-top:6px;"><summary style="font-size:10px;color:var(--text3);cursor:pointer;">Spazi e regole</summary>
+        <div style="font-size:10px;color:var(--text3);margin:4px 0;">Uno spazio per riga: <b>NOME NEL PROSPETTO | colonne del Word (separate da virgola) | uffici DALLE-ALLE (lun-sab, opzionale) | zona base | zona con evento</b></div>
+        <textarea id="risc-spazi" style="width:100%;min-height:60px;font-size:11px;box-sizing:border-box;" placeholder="TEATRO ROSSINI | Sala della Repubblica, Teatro Rossini | 8-14 | UFFICI | UFFICI + SALA R."></textarea>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;font-size:10px;color:var(--text2);align-items:center;">
+          <label>pausa mattina/pomeriggio <input id="risc-pausa" type="text" value="13-15" style="width:52px;font-size:11px;"></label>
+          <label>inizio feriale <input id="risc-ini" type="number" value="9" min="0" max="23" style="width:44px;font-size:11px;"></label>
+          <label>inizio sab/dom (eventi dalle 17) <input id="risc-iniwe" type="number" value="10" min="0" max="23" style="width:44px;font-size:11px;"></label>
+          <label>ore dopo l'evento <input id="risc-dopo" type="number" value="2" min="0" max="6" style="width:44px;font-size:11px;"></label>
+          <label>fine max <input id="risc-fine" type="number" value="23" min="12" max="24" style="width:44px;font-size:11px;"></label>
+          <label>senza orario (prove, montaggi) <input id="risc-senza" type="text" value="9-20" style="width:52px;font-size:11px;"></label>
+          <label><b>max ore/giorno</b> <input id="risc-max" type="number" value="12" min="1" max="24" style="width:44px;font-size:11px;"></label>
+          <label>ore prima dello spettacolo <input id="risc-prima" type="number" value="1" min="0" max="4" style="width:44px;font-size:11px;"></label>
+          <button class="btn btn-o btn-sm" onclick="salvaRiscConfig()">💾 Salva regole</button>
+        </div>
+      </details>
+      <div id="risc-stato" style="font-size:10px;color:var(--text3);margin-top:6px;"></div>
+      <div id="risc-box" style="margin-top:6px;overflow-x:auto;"></div>
     </div>
     <div id="schede-lista"></div>
     <div id="segn-lista"></div>
@@ -1880,12 +1904,177 @@ async function leggiCalendarioWord(file){
   righe.slice(1).forEach(c=>{
     const g=parseInt(c[1]); if(!g||g<1||g>31) return;
     const data=`${anno}-${String(mese).padStart(2,'0')}-${String(g).padStart(2,'0')}`;
-    sedi.forEach(s=>{ const ev=(c[s.i]||'').trim(); if(!ev) return; eventi.push({data, sala:s.nome, testo:ev, ora:_calOra(c[s.i+1]||''), tipo:_calTipo(ev), file:file.name}); });
+    sedi.forEach(s=>{ const ev=(c[s.i]||'').trim(); if(!ev) return; eventi.push({data, sala:s.nome, testo:ev, ora:_calOra(c[s.i+1]||''), oraRaw:String(c[s.i+1]||''), tipo:_calTipo(ev), file:file.name}); });
   });
   return {mese, anno, sedi:sedi.map(s=>s.nome), eventi};
 }
 // Calendari Excel (Urbino, Fabriano…): un foglio per mese; riga 1 "CALENDARIO CITTÀ - TEATRO X", riga 2 intestazioni
 // (MESE: …, EVENTO, ORGANIZZATORE, OPERATORE), poi una riga per giorno con la data in colonna A.
+// ════════════════════ RISCALDAMENTO: prospetto accensioni per il servizio calore ════════════════════
+// Dal calendario Word di Pesaro → tabella giorno × spazio con mattina/pomeriggio (dalle-alle), tot ore e zona,
+// nello stesso formato del file che Aldo compilava a mano. Regole in Config (riscConfig), anteprima modificabile.
+const RISC_SPAZI_DEFAULT = 'TEATRO ROSSINI | Sala della Repubblica, Teatro Rossini | 8-14 | UFFICI | UFFICI + SALA R.\nTEATRO SPERIMENTALE | Teatro Sperimentale';
+let _risc = null;   // {mese, anno, spazi:[{nome,...}], giorni:[{data, dow, celle:[{m1,m2,p1,p2,zona,ev}]}]}
+function _riscConfig(){
+  const c = ld('riscConfig', null) || {};
+  const g = (id, d)=>{ const el=document.getElementById(id); return el && el.value!=='' ? el.value : (c[id]!==undefined ? c[id] : d); };
+  return { spazi: g('risc-spazi', RISC_SPAZI_DEFAULT), pausa: g('risc-pausa','13-15'), ini:+g('risc-ini',9), iniwe:+g('risc-iniwe',10), dopo:+g('risc-dopo',2), fine:+g('risc-fine',23), senza: g('risc-senza','9-20'), max:+g('risc-max',12), prima:+g('risc-prima',1) };
+}
+function salvaRiscConfig(){ const c={}; ['risc-spazi','risc-pausa','risc-ini','risc-iniwe','risc-dopo','risc-fine','risc-senza','risc-max','risc-prima'].forEach(id=>{ const el=document.getElementById(id); if(el) c[id]=el.value; }); sv('riscConfig', c); toast('✓ Regole riscaldamento salvate'); }
+function _riscCaricaConfigUI(){ const c=ld('riscConfig', null)||{}; ['risc-spazi','risc-pausa','risc-ini','risc-iniwe','risc-dopo','risc-fine','risc-senza','risc-max','risc-prima'].forEach(id=>{ const el=document.getElementById(id); if(el && c[id]!==undefined && c[id]!=='') el.value=c[id]; }); const t=document.getElementById('risc-spazi'); if(t && !t.value) t.value=RISC_SPAZI_DEFAULT; }
+function _riscSpazi(cfg){
+  return cfg.spazi.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const p=l.split('|').map(x=>x.trim());
+    const uff=(p[2]||'').match(/(\d{1,2})\s*-\s*(\d{1,2})/);
+    return { nome:p[0].toUpperCase(), colonne:(p[1]||p[0]).split(',').map(x=>_normTxt(x)).filter(Boolean), uffici: uff?[+uff[1],+uff[2]]:null, zonaBase:p[3]||'', zonaEv:p[4]||'' };
+  });
+}
+// orari citati in un evento: "21.00", "9.00 / 11.00 / 21.00", "Dalle 17", "18" → ore decimali
+function _riscOrari(ev){
+  const txt=(ev.oraRaw||'')+' '+(ev.testo||'');
+  const out=[]; const re=/(?:^|[^\d.])(\d{1,2})(?:[.:,h](\d{2}))?(?=$|[^\d.])/g; let m;
+  const src=(ev.oraRaw||'').trim();
+  while((m=re.exec(src))){ const h=+m[1], mi=+(m[2]||0); if(h>=0&&h<=24&&mi<60) out.push(h+mi/60); }
+  const d=(ev.testo||'').match(/dalle\s+(\d{1,2})(?:[.:,h](\d{2}))?/i); if(d) out.push(+d[1]+(+(d[2]||0))/60);
+  if(!out.length){ const t=(ev.testo||'').match(/\b(\d{1,2})[.:,h](\d{2})\b/g)||[]; t.forEach(x=>{ const mm=x.match(/(\d{1,2})[.:,h](\d{2})/); out.push(+mm[1]+(+mm[2])/60); }); }
+  return out.filter(h=>h>=6 && h<=24);
+}
+// Pianificazione di una giornata con il tetto di ore (max/giorno): prima gli orari con pubblico (da "ore prima"
+// dello spettacolo fino a "ore dopo", serale fino a "fine max"), poi gli uffici, poi le ore restanti distribuite
+// all'indietro dagli spettacoli (saltando la pausa) per tenere al caldo chi lavora. Lavora a mezz'ore.
+function _riscPianifica(ore, o){
+  const cfg=o.cfg, N=48, slot=new Array(N).fill(-1);          // -1 spento, 2 pubblico, 1 uffici, 0 riempimento
+  const i2h=i=>i/2, h2i=h=>Math.round(h*2);
+  const we=o.dow===0||o.dow===6;
+  const earliest = o.uffici ? o.uffici[0] : ((we && ore.length && Math.min(...ore)>=17) ? cfg.iniwe : cfg.ini);
+  const segna=(a,b,v)=>{ for(let i=Math.max(0,h2i(a)); i<Math.min(N,h2i(b)); i++) if(slot[i]<v) slot[i]=v; };
+  if(ore.length){
+    // serale: fino a "fine max"; pomeridiano: almeno le 20; mattutino (matinée, scuole): ~2 ore di spettacolo + "ore dopo"
+    ore.forEach(t=>{ const fine = t>=20 ? cfg.fine : (t>=15 ? Math.min(cfg.fine, Math.max(20, Math.ceil(t)+cfg.dopo)) : Math.min(cfg.fine, Math.ceil(t)+2+cfg.dopo)); segna(Math.max(0,t-cfg.prima), fine, 2); });
+  } else segna(o.sA, o.sB, ore.length?2:1);   // prove / montaggi senza orario: fascia standard, priorità bassa
+  if(o.uffici) segna(o.uffici[0], o.uffici[1], 1);
+  const conta=()=>slot.filter(v=>v>=0).length;
+  const max=h2i(cfg.max);
+  // troppo anche solo col pubblico: taglio dall'inizio (il riscaldamento pre-spettacolo), mai la coda
+  while(conta()>max){ const i=slot.findIndex(v=>v>=0); slot[i]=-1; }
+  // riempimento all'indietro da ogni finestra pubblico (dall'ultima alla prima), saltando la pausa, fino al tetto
+  const pausa=i=>i2h(i)>=o.pA && i2h(i)<o.pB;
+  const starts=[]; for(let i=0;i<N;i++) if(slot[i]===2 && (i===0||slot[i-1]!==2)) starts.push(i);
+  for(const st of starts.reverse()){ for(let i=st-1; i>=h2i(earliest) && conta()<max; i--){ if(slot[i]>=0 || pausa(i)) continue; slot[i]=0; } }
+  // la pausa si salta solo se serve a stare nel tetto: se avanzano ore, meglio tenere acceso di continuo
+  { let first=slot.findIndex(v=>v>=0), last=N-1; while(last>=0&&slot[last]<0) last--;
+    if(first>=0){ const liberi=[]; for(let i=first+1;i<last;i++) if(slot[i]<0 && pausa(i)) liberi.push(i); if(liberi.length && conta()+liberi.length<=max) liberi.forEach(i=>slot[i]=0); } }
+  // intervalli → al massimo due blocchi (mattina / pomeriggio): unisco i più vicini, poi ritaglio dall'inizio
+  let iv=[]; for(let i=0;i<N;i++){ if(slot[i]>=0){ if(iv.length && iv[iv.length-1].b===i) iv[iv.length-1].b=i+1; else iv.push({a:i,b:i+1}); } }
+  while(iv.length>2){ let k=0, gap=Infinity; for(let j=0;j<iv.length-1;j++){ const g=iv[j+1].a-iv[j].b; if(g<gap){ gap=g; k=j; } } iv[k].b=iv[k+1].b; iv.splice(k+1,1); }
+  let tot=iv.reduce((a,x)=>a+x.b-x.a,0); while(tot>max && iv.length){ iv[0].a++; if(iv[0].a>=iv[0].b) iv.shift(); tot--; }
+  const out={m1:null,m2:null,p1:null,p2:null};
+  if(iv[0]){ out.m1=i2h(iv[0].a); out.m2=i2h(iv[0].b); } if(iv[1]){ out.p1=i2h(iv[1].a); out.p2=i2h(iv[1].b); }
+  return out;
+}
+function _riscHM(h){ if(h==null||h==='') return ''; const hh=Math.floor(h), mm=Math.round((h-hh)*60); return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0'); }
+function _riscDec(t){ const m=String(t||'').trim().match(/^(\d{1,2})(?:[.:,h](\d{2}))?$/); return m?+m[1]+(+(m[2]||0))/60:null; }
+async function generaRiscaldamento(file){
+  if(!file) return;
+  const st=document.getElementById('risc-stato'), box=document.getElementById('risc-box');
+  st.textContent='⏳ leggo '+file.name+'…'; box.innerHTML='';
+  try{
+    const cal=await leggiCalendarioWord(file);
+    const cfg=_riscConfig(); const spazi=_riscSpazi(cfg);
+    const pausa=cfg.pausa.match(/(\d{1,2})\s*-\s*(\d{1,2})/); const pA=pausa?+pausa[1]:13, pB=pausa?+pausa[2]:15;
+    const senza=cfg.senza.match(/(\d{1,2})\s*-\s*(\d{1,2})/); const sA=senza?+senza[1]:9, sB=senza?+senza[2]:20;
+    const nGiorni=new Date(cal.anno, cal.mese, 0).getDate();
+    const giorni=[];
+    for(let g=1; g<=nGiorni; g++){
+      const data=`${cal.anno}-${String(cal.mese).padStart(2,'0')}-${String(g).padStart(2,'0')}`; const dow=new Date(data+'T12:00:00').getDay(); // 0=dom
+      const celle=spazi.map(sp=>{
+        const evs=cal.eventi.filter(e=>e.data===data && sp.colonne.some(c=>{ const n=_normTxt(e.sala); return n===c||n.includes(c)||c.includes(n); }) && !/^no$/i.test(e.testo.trim()));
+        const cella={m1:null,m2:null,p1:null,p2:null,zona:sp.zonaBase,ev:evs.map(e=>e.testo+(e.oraRaw?' '+e.oraRaw:'')).join(' · ')};
+        const uffici = sp.uffici && dow!==0 ? sp.uffici : null;   // uffici lun-sab
+        if(!evs.length){ if(uffici){ cella.m1=uffici[0]; cella.m2=Math.min(uffici[1], uffici[0]+cfg.max); } return cella; }
+        const ore=[].concat(...evs.map(_riscOrari));
+        const r=_riscPianifica(ore, {dow, uffici, pA, pB, sA, sB, cfg});
+        cella.m1=r.m1; cella.m2=r.m2; cella.p1=r.p1; cella.p2=r.p2;
+        cella.zona=sp.zonaEv||sp.zonaBase;
+        return cella;
+      });
+      giorni.push({data, dow, celle});
+    }
+    _risc={mese:cal.mese, anno:cal.anno, spazi, giorni, file:file.name};
+    st.textContent='✓ '+file.name+': '+cal.eventi.length+' eventi letti · colonne Word: '+cal.sedi.join(', ');
+    _riscRender();
+  }catch(e){ st.textContent='✗ '+e.message; }
+}
+function _riscRender(){
+  const r=_risc; if(!r) return; const box=document.getElementById('risc-box');
+  const esc=v=>String(v==null?'':v).replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const gg=['dom','lun','mar','mer','gio','ven','sab'];
+  const inp=(gi,si,k,v)=>`<input type="text" value="${_riscHM(v)}" placeholder="–" style="width:46px;font-size:10px;padding:2px 3px;text-align:center;" onchange="_riscSet(${gi},${si},'${k}',this.value)">`;
+  let h=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;align-items:center;">
+    <b style="font-size:12px;">${Object.keys(_MESI_IT).find(k=>_MESI_IT[k]===r.mese)} ${r.anno}</b>
+    <button class="btn btn-o btn-sm" onclick="scaricaRiscExcel()">📊 Scarica Excel</button>
+    <button class="btn btn-o btn-sm" onclick="stampaRisc()">🖨 Stampa / PDF</button>
+    <span style="font-size:10px;color:var(--text3);">orari modificabili: formato 8:00 o 8 · vuoto = spento</span></div>`;
+  h+=`<table style="border-collapse:collapse;font-size:10px;white-space:nowrap;"><tr><th style="padding:3px 6px;text-align:left;">data</th>${r.spazi.map(sp=>`<th colspan="${sp.zonaBase||sp.zonaEv?6:5}" style="padding:3px 6px;border-left:1px solid var(--border2);">${esc(sp.nome)}</th>`).join('')}</tr>
+    <tr style="color:var(--text3);"><th></th>${r.spazi.map(sp=>`<th style="border-left:1px solid var(--border2);">mattina</th><th></th><th>pomeriggio</th><th></th><th>ore</th>${sp.zonaBase||sp.zonaEv?'<th>zona</th>':''}`).join('')}</tr>`;
+  r.giorni.forEach((g,gi)=>{
+    const we=g.dow===0||g.dow===6;
+    h+=`<tr style="border-top:1px solid var(--border);${we?'background:rgba(245,200,66,.05);':''}"><td style="padding:2px 6px;${g.dow===0?'color:var(--red);':''}" title="${esc(g.celle.map(c=>c.ev).filter(Boolean).join(' | '))}">${gg[g.dow]} ${g.data.slice(8)}</td>`;
+    g.celle.forEach((c,si)=>{
+      const tot=((c.m1!=null&&c.m2!=null)?Math.max(0,c.m2-c.m1):0)+((c.p1!=null&&c.p2!=null)?Math.max(0,c.p2-c.p1):0);
+      h+=`<td style="border-left:1px solid var(--border2);padding:1px 2px;">${inp(gi,si,'m1',c.m1)}</td><td>${inp(gi,si,'m2',c.m2)}</td><td>${inp(gi,si,'p1',c.p1)}</td><td>${inp(gi,si,'p2',c.p2)}</td><td style="text-align:center;color:var(--text2);">${tot?_riscHM(tot):''}</td>`;
+      if(r.spazi[si].zonaBase||r.spazi[si].zonaEv) h+=`<td><input type="text" value="${esc(c.zona)}" style="width:110px;font-size:10px;padding:2px 3px;" onchange="_risc.giorni[${gi}].celle[${si}].zona=this.value"></td>`;
+      if(c.ev) h+=`<td style="color:var(--text3);font-size:9px;max-width:160px;overflow:hidden;text-overflow:ellipsis;" title="${esc(c.ev)}">${esc(c.ev)}</td>`; else h+='<td></td>';
+    });
+    h+='</tr>';
+  });
+  box.innerHTML=h+'</table>';
+}
+function _riscSet(gi,si,k,v){ const c=_risc.giorni[gi].celle[si]; c[k]=v.trim()?_riscDec(v):null; _riscRender(); }
+function _riscNomeFile(ext){ const m=Object.keys(_MESI_IT).find(k=>_MESI_IT[k]===_risc.mese).toLowerCase(); return 'riscaldamento_teatri_'+m+'_'+_risc.anno+'.'+ext; }
+function scaricaRiscExcel(){
+  const r=_risc; if(!r) return; if(typeof XLSX==='undefined'){ toast('Libreria Excel non caricata (serve connessione)', true); return; }
+  const aoa=[], merges=[]; const col=i=>XLSX.utils.encode_col(i);
+  // intestazioni (3 righe) come nel file originale: DATA | per spazio: MATTINA(dalle,alle) POMERIGGIO(dalle,alle) TOT ORE [BRUCIATORI]
+  const r1=['DATA'], r2=[''], r3=['']; let c=1; const blocchi=[];
+  r.spazi.forEach(sp=>{ const zona=!!(sp.zonaBase||sp.zonaEv); const w=zona?6:5; const b={c0:c, zona}; blocchi.push(b);
+    r1.push(sp.nome,'','','',''); if(zona) r1.push(''); merges.push({s:{r:0,c},e:{r:0,c:c+w-1}});
+    r2.push('MATTINA','','POMERIGGIO','','TOT ORE'); if(zona) r2.push('BRUCIATORI');
+    merges.push({s:{r:1,c},e:{r:1,c:c+1}},{s:{r:1,c:c+2},e:{r:1,c:c+3}},{s:{r:1,c:c+4},e:{r:2,c:c+4}}); if(zona) merges.push({s:{r:1,c:c+5},e:{r:2,c:c+5}});
+    r3.push('DALLE','ALLE','DALLE','ALLE',''); if(zona) r3.push('');
+    c+=w; });
+  merges.push({s:{r:0,c:0},e:{r:2,c:0}});
+  aoa.push(r1,r2,r3);
+  r.giorni.forEach((g,gi)=>{ const row=[new Date(g.data+'T00:00:00')]; const ri=gi+3;
+    g.celle.forEach((cl,si)=>{ const b=blocchi[si]; const t=v=>v==null?null:v/24;
+      row.push(t(cl.m1),t(cl.m2),t(cl.p1),t(cl.p2),{f:`(${col(b.c0+1)}${ri+1}-${col(b.c0)}${ri+1})+(${col(b.c0+3)}${ri+1}-${col(b.c0+2)}${ri+1})`}); if(b.zona) row.push(cl.zona||''); });
+    aoa.push(row); });
+  const ws=XLSX.utils.aoa_to_sheet(aoa, {cellDates:true}); ws['!merges']=merges;
+  ws['!cols']=[{wch:14}].concat(...blocchi.map(b=>[{wch:8},{wch:8},{wch:8},{wch:8},{wch:9}].concat(b.zona?[{wch:20}]:[])));
+  // formati: date gg/mm/aaaa, orari h:mm, totali [h]:mm
+  Object.keys(ws).forEach(k=>{ if(k[0]==='!') return; const cell=ws[k]; const {r:rr,c:cc}=XLSX.utils.decode_cell(k); if(rr<3) return;
+    if(cc===0){ cell.t='d'; cell.z='dd/mm/yyyy'; } else if(cell.f){ cell.z='[h]:mm'; } else if(typeof cell.v==='number'){ cell.z='h:mm'; } });
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Foglio1');
+  XLSX.writeFile(wb, _riscNomeFile('xlsx'));
+}
+function stampaRisc(){
+  const r=_risc; if(!r) return; const esc=v=>String(v==null?'':v).replace(/</g,'&lt;');
+  const mese=Object.keys(_MESI_IT).find(k=>_MESI_IT[k]===r.mese); const gg=['dom','lun','mar','mer','gio','ven','sab'];
+  const td=(v,st)=>`<td style="border:1px solid #cbd5e1;padding:3px 6px;text-align:center;${st||''}">${esc(v)}</td>`;
+  let h=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Riscaldamento teatri ${mese} ${r.anno}</title><style>@media print{.np{display:none}} body{font-family:Arial;font-size:11px;padding:16px;} table{border-collapse:collapse;} th{border:1px solid #cbd5e1;padding:4px 6px;background:#f1f5f9;} tr.we td{background:#fafaf5;}</style></head><body>
+  <div class="np" style="margin-bottom:10px;"><button onclick="window.print()" style="padding:6px 16px;">🖨 Stampa / Salva PDF</button></div>
+  <h2 style="margin:0 0 4px;">Riscaldamento teatri — ${mese} ${r.anno}</h2><div style="color:#64748b;margin-bottom:10px;">AMAT Marche · coordinamento tecnico · orari di accensione richiesti</div>
+  <table><tr><th rowspan="3">DATA</th>${r.spazi.map(sp=>`<th colspan="${sp.zonaBase||sp.zonaEv?6:5}">${esc(sp.nome)}</th>`).join('')}</tr>
+  <tr>${r.spazi.map(sp=>`<th colspan="2">MATTINA</th><th colspan="2">POMERIGGIO</th><th rowspan="2">TOT ORE</th>${sp.zonaBase||sp.zonaEv?'<th rowspan="2">BRUCIATORI</th>':''}`).join('')}</tr>
+  <tr>${r.spazi.map(()=>'<th>DALLE</th><th>ALLE</th><th>DALLE</th><th>ALLE</th>').join('')}</tr>`;
+  r.giorni.forEach(g=>{ const we=g.dow===0||g.dow===6; const d=g.data.split('-').reverse().join('/');
+    h+=`<tr class="${we?'we':''}">${td(gg[g.dow]+' '+d,'text-align:left;white-space:nowrap;'+(g.dow===0?'color:#dc2626;':''))}`;
+    g.celle.forEach((c,si)=>{ const tot=((c.m1!=null&&c.m2!=null)?Math.max(0,c.m2-c.m1):0)+((c.p1!=null&&c.p2!=null)?Math.max(0,c.p2-c.p1):0);
+      h+=td(_riscHM(c.m1))+td(_riscHM(c.m2))+td(_riscHM(c.p1))+td(_riscHM(c.p2))+td(tot?_riscHM(tot):'','font-weight:bold;'); if(r.spazi[si].zonaBase||r.spazi[si].zonaEv) h+=td(c.zona,'text-align:left;'); });
+    h+='</tr>'; });
+  h+='</table></body></html>';
+  const w=window.open('','_blank','width=1000,height=760'); w.document.write(h); w.document.close();
+}
 function _calOraDaTesto(t){ const m=String(t||'').match(/\bore?\s*(\d{1,2})(?:[:.,h](\d{2}))?/i); return m?m[1].padStart(2,'0')+':'+(m[2]||'00'):''; }
 async function leggiCalendarioExcel(file){
   if(typeof XLSX==='undefined') throw new Error('libreria Excel non caricata (serve connessione)');
@@ -3329,7 +3518,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v101 ──
+  return `// ── SPETTACOLI APP SCRIPT v105 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -8099,7 +8288,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v102</span>
+    <span>Report generato da GammaFucker v104</span>
   </div>
   </body></html>`;
 
@@ -8205,7 +8394,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v102</span>
+    <span>Report generato da GammaFucker v104</span>
   </div>
   </body></html>`;
 
@@ -8273,7 +8462,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v102</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v104</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -8345,7 +8534,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v102</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v104</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -10949,6 +11138,7 @@ function goTab(name){
   if(name==='list')renderList();
   if(name==='exp')buildRepMeseSelect();
   if(name==='fatt') _undoAggiornaBottone();
+  if(name==='set') _riscCaricaConfigUI();
   if(name==='set'){ buildCfgDittaSel(); if(ld('sheetsUrl','') && !IS_COLLAB && !document.getElementById('cfg-mittenti').value){ caricaMittenti(); caricaConsumoAI(); } }
   if(name==='forn'){ buildFornSelect(); if(ld('sheetsUrl','')) setTimeout(()=>pushConfig(true),300); }
   if(name==='collab'){ buildCollabMeseSelect(); renderCollabMese(); }
