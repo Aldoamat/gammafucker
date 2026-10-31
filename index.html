@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v100</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v101</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1242,6 +1242,14 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div style="display:flex;gap:8px;margin-top:16px;">
       <button class="btn btn-p" onclick="inviaInfoSpazio()" style="flex:1;">📤 Invia Mail</button>
       <button class="btn btn-o" onclick="document.getElementById('invia-info-ov').classList.remove('open')" style="flex:1;">Annulla</button>
+    </div>
+    <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:10px;">
+      <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">💬 Oppure via WhatsApp (stesso testo, documenti come link)</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <select id="ii-wa-dest" style="width:100%;font-size:12px;" onchange="_iiWaAggiorna()"></select>
+        <input type="tel" id="ii-wa-num" placeholder="numero con prefisso, es. 3331234567" style="display:none;" oninput="_iiWaAggiorna()">
+        <a id="ii-wa-apri" href="#" target="_blank" rel="noopener" class="btn btn-p" style="text-align:center;text-decoration:none;background:#25d366;" onclick="_segnaInvio(data.find(x=>x.id===_invioSpettId),'infoCompagnia','WhatsApp')">💬 Apri WhatsApp</a>
+      </div>
     </div>
   </div>
 </div>
@@ -3321,7 +3329,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v98 ──
+  return `// ── SPETTACOLI APP SCRIPT v99 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -8071,7 +8079,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v100</span>
+    <span>Report generato da GammaFucker v101</span>
   </div>
   </body></html>`;
 
@@ -8177,7 +8185,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v100</span>
+    <span>Report generato da GammaFucker v101</span>
   </div>
   </body></html>`;
 
@@ -8245,7 +8253,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v100</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v101</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -8317,7 +8325,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v100</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v101</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -8996,7 +9004,24 @@ function apriInvioInfoSpazio(spettId){
   const _sp = data.find(x=>x.id===spettId);
   document.getElementById('ii-dest').value = (_sp&&_sp.contatti?_sp.contatti.map(c=>c.email).filter(Boolean):[]).join(', ');
   _aggiornaPreviewMail();
+  // WhatsApp: numeri dei referenti compagnia
+  { const esc=v=>String(v||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    const tels=[]; (_sp&&_sp.contatti||[]).forEach(c=>{ if(c.telefono && !tels.some(t=>t.tel===c.telefono)) tels.push({lab:(c.nome||c.compagnia||'referente')+(c.compagnia?' · '+c.compagnia:''), tel:c.telefono}); });
+    document.getElementById('ii-wa-dest').innerHTML=tels.map(t=>`<option value="${esc(t.tel)}">${esc(t.lab)} (${esc(t.tel)})</option>`).join('')+'<option value="__altro"'+(tels.length?'':' selected')+'>altro numero…</option>';
+    document.getElementById('ii-wa-num').value=''; _iiWaAggiorna(); }
   document.getElementById('invia-info-ov').classList.add('open');
+}
+// testo WhatsApp dall'anteprima mail: via l'HTML, i bottoni "Scarica" diventano "Nome: link"
+function _testoPianoWa(t){
+  return String(t||'').replace(/<a [^>]*href="([^"]+)"[^>]*>[^<]*Scarica ([^<]*)<\/a>/g, (m,u,l)=>l.trim()+': '+String(u).replace(/&amp;/g,'&').replace(/https:\/\/drive\.google\.com\/uc\?export=download&id=([-\w]+)/,'https://drive.google.com/file/d/$1/view'))
+    .replace(/<[^>]+>/g,'').replace(/━+\n/g,'').replace(/\n{3,}/g,'\n\n').trim();
+}
+function _iiWaAggiorna(){
+  const sel=document.getElementById('ii-wa-dest'), numEl=document.getElementById('ii-wa-num'); if(!sel) return;
+  numEl.style.display = sel.value==='__altro' ? 'block' : 'none';
+  const num=_waNumero(sel.value==='__altro'?numEl.value:sel.value);
+  const testo=_testoPianoWa(document.getElementById('ii-preview').textContent);
+  const a=document.getElementById('ii-wa-apri'); a.href='https://wa.me/'+num+'?text='+encodeURIComponent(testo); a.style.opacity=num?'1':'.5';
 }
 
 function _aggiornaPreviewMail(){
@@ -9021,6 +9046,7 @@ function _aggiornaPreviewMail(){
     : '⚠️ Nessuno spazio selezionato ha una scheda compilata. Compila prima la scheda in ⚙️ Config → Città e Teatri → 📧.';
 
   document.getElementById('ii-preview').textContent = corpo;
+  try{ _iiWaAggiorna(); }catch(e){}
 }
 
 async function inviaInfoSpazio(){
