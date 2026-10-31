@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v108</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v109</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -2057,17 +2057,19 @@ function stampaRisc(){
   const mese=Object.keys(_MESI_IT).find(k=>_MESI_IT[k]===r.mese); const gg=['dom','lun','mar','mer','gio','ven','sab'];
   const td=(v,st)=>`<td style="border:1px solid #cbd5e1;padding:3px 6px;text-align:center;${st||''}">${esc(v)}</td>`;
   let h=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Riscaldamento teatri ${mese} ${r.anno}</title><style>
-    @page{size:A4 landscape;margin:10mm 12mm;} @media print{.np{display:none} body{padding:0;}}
-    *{box-sizing:border-box;} body{font-family:Arial,sans-serif;font-size:11px;color:#1a1a2e;padding:16px;margin:0 auto;max-width:1100px;}
+    /* niente orientamento forzato: con l'orientamento scelto nella finestra di stampa diverso da quello imposto
+       Chrome ruotava la pagina. La tabella è dimensionata per stare in un A4 verticale; in orizzontale si allarga. */
+    @page{margin:10mm;} @media print{.np{display:none} body{padding:0;}}
+    *{box-sizing:border-box;} body{font-family:Arial,sans-serif;font-size:10px;color:#1a1a2e;padding:16px;margin:0 auto;max-width:1100px;}
     table{border-collapse:collapse;width:100%;table-layout:fixed;} thead{display:table-header-group;} tr{break-inside:avoid;page-break-inside:avoid;}
-    th{border:1px solid #cbd5e1;padding:4px 4px;background:#f1f5f9;font-size:10px;} th.sp{font-size:12px;background:#e2e8f0;}
-    td{border:1px solid #cbd5e1;padding:3px 4px;text-align:center;white-space:nowrap;} td.ev{text-align:left;white-space:normal;color:#475569;font-size:9.5px;line-height:1.25;} td.zona{text-align:left;font-size:9.5px;white-space:normal;} td.data{text-align:left;font-weight:600;}
+    th{border:1px solid #cbd5e1;padding:3px 2px;background:#f1f5f9;font-size:8.5px;} th.sp{font-size:11px;background:#e2e8f0;}
+    td{border:1px solid #cbd5e1;padding:2px 3px;text-align:center;white-space:nowrap;font-size:9.5px;} td.ev{text-align:left;white-space:normal;color:#475569;font-size:8.5px;line-height:1.2;word-break:break-word;} td.zona{text-align:left;font-size:8.5px;white-space:normal;line-height:1.2;} td.data{text-align:left;font-weight:600;white-space:nowrap;}
     tr.we td{background:#fafaf5;} .tot{font-weight:bold;}
     h2{margin:0 0 2px;font-size:16px;} .sub{color:#64748b;margin-bottom:8px;font-size:10px;}
   </style></head><body>
-  <div class="np" style="margin-bottom:10px;"><button onclick="window.print()" style="padding:6px 16px;">🖨 Stampa / Salva PDF</button> <span style="color:#64748b;font-size:10px;">impostato in orizzontale (A4)</span></div>
+  <div class="np" style="margin-bottom:10px;"><button onclick="window.print()" style="padding:6px 16px;">🖨 Stampa / Salva PDF</button> <span style="color:#64748b;font-size:10px;">A4 verticale o orizzontale, come preferisci: la tabella si adatta</span></div>
   <h2>Riscaldamento teatri — ${mese} ${r.anno}</h2><div class="sub">AMAT Marche · coordinamento tecnico · orari di accensione richiesti</div>
-  <table><colgroup><col style="width:92px;">${r.spazi.map(sp=>'<col style="width:44px;"><col style="width:44px;"><col style="width:44px;"><col style="width:44px;"><col style="width:46px;">'+(sp.zonaBase||sp.zonaEv?'<col style="width:96px;">':'')+'<col>').join('')}</colgroup>
+  <table><colgroup><col style="width:76px;">${r.spazi.map(sp=>'<col style="width:36px;"><col style="width:36px;"><col style="width:36px;"><col style="width:36px;"><col style="width:38px;">'+(sp.zonaBase||sp.zonaEv?'<col style="width:70px;">':'')+'<col>').join('')}</colgroup>
   <thead><tr><th rowspan="3">DATA</th>${r.spazi.map(sp=>`<th class="sp" colspan="${(sp.zonaBase||sp.zonaEv?6:5)+1}">${esc(sp.nome)}</th>`).join('')}</tr>
   <tr>${r.spazi.map(sp=>`<th colspan="2">MATTINA</th><th colspan="2">POMERIGGIO</th><th rowspan="2">TOT ORE</th>${sp.zonaBase||sp.zonaEv?'<th rowspan="2">BRUCIATORI</th>':''}<th rowspan="2">EVENTO</th>`).join('')}</tr>
   <tr>${r.spazi.map(()=>'<th>DALLE</th><th>ALLE</th><th>DALLE</th><th>ALLE</th>').join('')}</tr></thead><tbody>`;
@@ -6153,7 +6155,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v108</span>
+    <span>Report generato da GammaFucker v109</span>
   </div>
   </body></html>`;
 
@@ -6259,7 +6261,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v108</span>
+    <span>Report generato da GammaFucker v109</span>
   </div>
   </body></html>`;
 
@@ -6327,7 +6329,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v108</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v109</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6399,7 +6401,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v108</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v109</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
