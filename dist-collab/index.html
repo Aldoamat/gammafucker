@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v112</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v113</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -2998,12 +2998,12 @@ function _buildCard(s){
     ${isRep?`<div style="font-size:11px;color:#818cf8;">🔁 Replica — ${s.spett}</div>`:''}
     <div class="spsub">${s.citta}${s.teatro?' · '+s.teatro:''}</div>
     ${s.accordi?`<div style="font-size:10px;color:#60a5fa;margin-top:4px;padding:4px 6px;background:rgba(96,165,250,.06);border-left:2px solid rgba(96,165,250,.3);border-radius:3px;">📋 ${s.accordi}</div>`:''}
-    ${(!(s.mails&&s.mails.length) && (s.premontaggio||s.replicaOf) && _mailsDi(s).length)?`<div style="font-size:10px;color:var(--text3);margin-top:4px;">📎 scheda e contatti: vedi lo spettacolo principale (${_prodEsc(_prodFmtD(_principaleDi(s).data))})</div>`:''}
+    ${(()=>{ const er=_mailsDi(s).filter(m=>!(s.mails||[]).includes(m)); return er.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;align-items:center;"><span style="font-size:9px;color:var(--text3);">dal gruppo:</span>${er.map(mm=>`<a href="${mm.file||mm.link}" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;color:#60a5fa;border-color:rgba(96,165,250,.25);font-size:10px;padding:2px 7px;opacity:.85;">${mm.tipo==='scheda'?'📎':'✉'} ${mm.og.length>26?mm.og.substring(0,26)+'…':mm.og}</a>`).join('')}</div>`:''; })()}
     ${(s.mails&&s.mails.length)?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">${s.mails.map((mm,mi)=>`
       <a href="${mm.file||mm.link}" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;color:#60a5fa;border-color:rgba(96,165,250,.3);font-size:10px;padding:2px 7px;">${mm.tipo==='scheda'?'📎':'✉'} ${mm.og.length>26?mm.og.substring(0,26)+'…':mm.og}</a>`).join('')}
       ${s.mails.some(m=>m.link)?`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#f59e0b;border-color:rgba(245,158,11,.4);" onclick="apriInoltro(${s.id})" title="Inoltra la mail della compagnia ai referenti">↪ Inoltra</button>`:''}
       ${IS_COLLAB?'':`<button class="iBtn" style="font-size:10px;padding:2px 6px;color:var(--text3);" onclick="gestisciMail(${s.id})">⚙</button>`}</div>`:''}
-    ${(s.contatti&&s.contatti.length)||!IS_COLLAB?`<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${_contattiChips(s.contatti||[])}${IS_COLLAB?'':`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#a78bfa;border-color:rgba(167,139,250,.35);" onclick="apriContatti(${s.id})" title="Referenti compagnia">👤 ${(s.contatti&&s.contatti.length)?'✎':'+ referente'}</button>`}</div>`:''}
+    ${_contattiDi(s).length||!IS_COLLAB?`<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${_contattiChips(_contattiDi(s))}${IS_COLLAB?'':`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#a78bfa;border-color:rgba(167,139,250,.35);" onclick="apriContatti(${s.id})" title="Referenti compagnia">👤 ${_contattiDi(s).length?'✎':'+ referente'}</button>`}</div>`:''}
     ${_inviiHtml(s)}
     ${(()=>{ if(!s.note) return ''; const righe=s.note.split('|').map(l=>l.trim()).filter(Boolean).filter(l=>!/^⚠/.test(l)); const fR=righe.filter(l=>l.toLowerCase().includes('fattura')); const gR=righe.filter(l=>!l.toLowerCase().includes('fattura')); let h=''; if(gR.length) h+='<div class="spnote">'+gR.join('<br>')+'</div>'; if(fR.length) h+='<div class="spnote-fatt">'+fR.join('<br><br>')+'</div>'; { const w=_discrepanzaCosti(s); if(w) h+=w; } if(fR.length) h+=`<button class="iBtn" style="font-size:10px;margin-top:3px;border-color:rgba(124,58,237,.4);color:var(--purple);" onclick="reportFattureNote(${s.id})">📋 Fatture in nota</button>`; return h; })()}
     <div class="sptags">
@@ -6183,7 +6183,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v112</span>
+    <span>Report generato da GammaFucker v113</span>
   </div>
   </body></html>`;
 
@@ -6289,7 +6289,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v112</span>
+    <span>Report generato da GammaFucker v113</span>
   </div>
   </body></html>`;
 
@@ -6357,7 +6357,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v112</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v113</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6429,7 +6429,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v112</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v113</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -8435,8 +8435,7 @@ function renderPiano(){
   if(_prodTitolo||_prodSpazio) h += `<div style="font-size:11px;color:var(--gold);margin:-4px 0 8px;">Filtro: ${_prodEsc(_prodFiltroDesc())} · ${_prodConta(visibili)} <button class="iBtn" style="font-size:10px;padding:1px 7px;margin-left:6px;" onclick="_prodTitolo='';_prodSpazio='';renderPiano()">✕ tutto il piano</button></div>`;
   visibili.forEach(s=>{
     const p = _prodDi(s);
-    const proprie=(s.mails||[]).some(x=>x.tipo==='scheda'&&(x.file||x.link));
-    const schede = _mailsDi(s).map((x,i)=>({...x,_i:i, _ered:!proprie && (s.premontaggio||s.replicaOf)})).filter(x=>x.tipo==='scheda'&&(x.file||x.link));
+    const schede = _mailsDi(s).map(x=>{ const i=(s.mails||[]).indexOf(x); return {...x, _i:i, _ered:i<0}; }).filter(x=>x.tipo==='scheda'&&(x.file||x.link));
     const tel = _contattiDi(s).filter(c=>c.telefono);
     const mail = _contattiDi(s).filter(c=>c.email);
     const contattiBtn = (tel.length?`<button class="iBtn" style="font-size:10px;padding:3px 8px;color:#25d366;border-color:rgba(37,211,102,.4);" onclick="apriWaCompagnia(${s.id})">💬 WhatsApp</button>`:'')
@@ -8716,13 +8715,30 @@ let _allegatiExtra = {};   // id spettacolo → [{label,url}] caricati al moment
 function _principaleDi(s){
   if(!s || (!s.premontaggio && !s.replicaOf)) return s;
   if(s.replicaOf){ const m=data.find(x=>String(x.id)===String(s.replicaOf)); if(m) return m; }
-  const t=_normTxt(s.spett); const c=data.filter(x=>x!==s && !x.premontaggio && !x.replicaOf && _normTxt(x.spett)===t && _cittaEq(x.citta,s.citta));
+  const c=_gruppoDi(s).filter(x=>!x.premontaggio && !x.replicaOf);
   if(!c.length) return s;
   const dopo=c.filter(x=>x.data>=s.data).sort((a,b)=>a.data.localeCompare(b.data));
   return dopo[0] || c.sort((a,b)=>b.data.localeCompare(a.data))[0];
 }
-function _mailsDi(s){ const own=(s.mails||[]); if(own.some(m=>m.tipo==='scheda'&&(m.file||m.link))) return own; const m=_principaleDi(s); return m===s?own:[...own, ...(m.mails||[]).filter(x=>!own.some(o=>(o.file&&o.file===x.file)||(o.link&&o.link===x.link)))]; }
-function _contattiDi(s){ const own=(s.contatti||[]); if(own.length) return own; const m=_principaleDi(s); return m===s?own:(m.contatti||[]); }
+// tutte le giornate dello stesso spettacolo nella stessa città (debutto, repliche, premontaggi, residenza),
+// entro 45 giorni l'una dall'altra; titolo confrontato normalizzato (apostrofi, accenti, spazi non contano)
+function _gruppoDi(s){
+  const t=_normTxt(s.spett); const d0=new Date(s.data+'T12:00:00');
+  return data.filter(x=>_normTxt(x.spett)===t && _cittaEq(x.citta,s.citta) && Math.abs(new Date(x.data+'T12:00:00')-d0)<=45*86400000);
+}
+// scheda/mail e contatti: unione di tutto il gruppo (dove sono finiti non importa), senza doppioni
+function _mailsDi(s){
+  const out=[]; const vis=new Set();
+  const grp=[s, ...( (s.premontaggio||s.replicaOf) ? _gruppoDi(s).filter(x=>x!==s) : _gruppoDi(s).filter(x=>x!==s && (x.premontaggio||x.replicaOf)) )];
+  grp.forEach(x=>(x.mails||[]).forEach(m=>{ const k=(m.file||'')+'|'+(m.link||'')+'|'+(m.og||''); if(vis.has(k)) return; vis.add(k); out.push(m); }));
+  return out;
+}
+function _contattiDi(s){
+  const out=[]; const vis=new Set();
+  const grp=[s, ..._gruppoDi(s).filter(x=>x!==s)];
+  grp.forEach(x=>(x.contatti||[]).forEach(c=>{ const k=((c.email||'')+'|'+(c.telefono||'')+'|'+_normTxt(c.nome||'')).toLowerCase(); if(vis.has(k)) return; vis.add(k); out.push(c); }));
+  return out;
+}
 function _allegatiDi(s){
   const out=[];
   _mailsDi(s).filter(m=>m.tipo==='scheda'&&m.file).forEach(m=>out.push({label:'📄 Scheda tecnica'+(m.og?' — '+m.og.replace(/^Scheda tecnica — /,''):''), url:m.file}));
