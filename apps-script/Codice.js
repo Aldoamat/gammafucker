@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v99 ──
+// ── SPETTACOLI APP SCRIPT v101 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -237,6 +237,10 @@ function doGet(e) {
     var cb = e.parameter.callback;
     if(cb) return ContentService.createTextOutput(cb+'('+payload+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
     return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
+  }
+  if(action === 'cartellaSpazio') {
+    var rc; try { rc = cartellaSpazio(e.parameter.cartella); } catch(err) { rc = { error: err.message }; }
+    return ContentService.createTextOutput(JSON.stringify(rc)).setMimeType(ContentService.MimeType.JSON);
   }
   if(action === 'consumoAI') {
     return ContentService.createTextOutput(JSON.stringify(consumoAI())).setMimeType(ContentService.MimeType.JSON);
@@ -1386,13 +1390,29 @@ function _cartellaDoc(cartella) {
   var it2 = root.getFoldersByName(sub);
   return { folder: it2.hasNext() ? it2.next() : root.createFolder(sub), sub: sub };
 }
+// La cartella dello spazio è condivisa "chi ha il link può vedere": su WhatsApp basta un link solo
+// invece dell'elenco dei file, e chi lo apre vede le anteprime di tutti i documenti.
+function _cartellaCondivisa(folder) {
+  try { folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {}
+  return folder.getUrl();
+}
+function cartellaSpazio(cartella) {
+  var it = DriveApp.getFoldersByName(DOC_CARTELLA);
+  if (!it.hasNext()) return { url: '' };
+  var sub = String(cartella || '').replace(/[\\/:*?"<>|]/g, ' ').trim().substring(0, 80);
+  var it2 = it.next().getFoldersByName(sub);
+  if (!it2.hasNext()) return { url: '' };
+  var folder = it2.next();
+  if (!folder.getFiles().hasNext()) return { url: '' };
+  return { url: _cartellaCondivisa(folder) };
+}
 function caricaDocumento(cartella, nome, mime, b64) {
   if (!nome || !b64) return { error: 'file mancante' };
   var c = _cartellaDoc(cartella);
   var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime || 'application/octet-stream', nome);
   var f = c.folder.createFile(blob);
   try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {}
-  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: c.sub };
+  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: c.sub, cartellaUrl: _cartellaCondivisa(c.folder) };
 }
 // Upload a pezzi (file grandi: planimetrie PDF ecc.): il primo pezzo crea il file, i successivi lo allungano.
 function caricaChunk(cartella, nome, mime, b64, idx, total, fileId) {
@@ -1410,7 +1430,7 @@ function caricaChunk(cartella, nome, mime, b64, idx, total, fileId) {
   }
   var done = idx >= total - 1;
   if (done) { try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {} }
-  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: sub, done: done, size: f.getSize() };
+  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: sub, done: done, size: f.getSize(), cartellaUrl: done ? _cartellaCondivisa(f.getParents().next()) : '' };
 }
 
 // ════════════════════ ANAGRAFICA: verifica e unificazione ════════════════════

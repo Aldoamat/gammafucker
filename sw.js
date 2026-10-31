@@ -1,4 +1,4 @@
-const CACHE='teatro-v101';
+const CACHE='teatro-v102';
 const ASSETS=['./sw.js','./manifest.json'];
 
 self.addEventListener('install', e=>{

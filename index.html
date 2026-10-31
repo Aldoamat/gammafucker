@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v101</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v102</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -2179,7 +2179,7 @@ async function caricaFileSpazio(files){
       const r = await caricaDocumento(f, 'Spazi/'+citta+' - '+teatro, (i,n)=>{ st.textContent='⏳ carico '+f.name+'… '+i+'/'+n; });
       const d = spazioInfo[_spazioInfoKey] || {};
       const links = [...(d.links||[]), {label: f.name.replace(/\.[^.]+$/,''), url: r.url}];
-      spazioInfo[_spazioInfoKey] = {...d, links}; sv('spazioInfo', spazioInfo); _buildLinksList(links); n++;
+      spazioInfo[_spazioInfoKey] = {...d, links, cartellaUrl: r.cartellaUrl || d.cartellaUrl || ''}; sv('spazioInfo', spazioInfo); _buildLinksList(links); n++;
     }catch(e){ toast('Errore '+f.name+': '+e.message, true); }
   }
   st.textContent = n ? '✓ '+n+' file su Drive' : ''; btn.disabled=false;
@@ -3329,7 +3329,7 @@ async function pullSheets(){
 
 // ══════════════════════════════ APPS SCRIPT CON LOCK ══════════════════════════════
 function getScript(){
-  return `// ── SPETTACOLI APP SCRIPT v99 ──
+  return `// ── SPETTACOLI APP SCRIPT v101 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -3568,6 +3568,10 @@ function doGet(e) {
     var cb = e.parameter.callback;
     if(cb) return ContentService.createTextOutput(cb+'('+payload+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
     return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
+  }
+  if(action === 'cartellaSpazio') {
+    var rc; try { rc = cartellaSpazio(e.parameter.cartella); } catch(err) { rc = { error: err.message }; }
+    return ContentService.createTextOutput(JSON.stringify(rc)).setMimeType(ContentService.MimeType.JSON);
   }
   if(action === 'consumoAI') {
     return ContentService.createTextOutput(JSON.stringify(consumoAI())).setMimeType(ContentService.MimeType.JSON);
@@ -4717,13 +4721,29 @@ function _cartellaDoc(cartella) {
   var it2 = root.getFoldersByName(sub);
   return { folder: it2.hasNext() ? it2.next() : root.createFolder(sub), sub: sub };
 }
+// La cartella dello spazio è condivisa "chi ha il link può vedere": su WhatsApp basta un link solo
+// invece dell'elenco dei file, e chi lo apre vede le anteprime di tutti i documenti.
+function _cartellaCondivisa(folder) {
+  try { folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {}
+  return folder.getUrl();
+}
+function cartellaSpazio(cartella) {
+  var it = DriveApp.getFoldersByName(DOC_CARTELLA);
+  if (!it.hasNext()) return { url: '' };
+  var sub = String(cartella || '').replace(/[\\\\/:*?"<>|]/g, ' ').trim().substring(0, 80);
+  var it2 = it.next().getFoldersByName(sub);
+  if (!it2.hasNext()) return { url: '' };
+  var folder = it2.next();
+  if (!folder.getFiles().hasNext()) return { url: '' };
+  return { url: _cartellaCondivisa(folder) };
+}
 function caricaDocumento(cartella, nome, mime, b64) {
   if (!nome || !b64) return { error: 'file mancante' };
   var c = _cartellaDoc(cartella);
   var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime || 'application/octet-stream', nome);
   var f = c.folder.createFile(blob);
   try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {}
-  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: c.sub };
+  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: c.sub, cartellaUrl: _cartellaCondivisa(c.folder) };
 }
 // Upload a pezzi (file grandi: planimetrie PDF ecc.): il primo pezzo crea il file, i successivi lo allungano.
 function caricaChunk(cartella, nome, mime, b64, idx, total, fileId) {
@@ -4741,7 +4761,7 @@ function caricaChunk(cartella, nome, mime, b64, idx, total, fileId) {
   }
   var done = idx >= total - 1;
   if (done) { try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {} }
-  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: sub, done: done, size: f.getSize() };
+  return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: sub, done: done, size: f.getSize(), cartellaUrl: done ? _cartellaCondivisa(f.getParents().next()) : '' };
 }
 
 // ════════════════════ ANAGRAFICA: verifica e unificazione ════════════════════
@@ -8079,7 +8099,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v101</span>
+    <span>Report generato da GammaFucker v102</span>
   </div>
   </body></html>`;
 
@@ -8185,7 +8205,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v101</span>
+    <span>Report generato da GammaFucker v102</span>
   </div>
   </body></html>`;
 
@@ -8253,7 +8273,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v101</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v102</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -8325,7 +8345,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v101</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v102</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9001,6 +9021,7 @@ function apriInvioInfoSpazio(spettId){
     }).join('');
 
   window._invioSpaziList = spaziUnici;
+  Promise.all(spaziUnici.map(sp=>_assicuraCartellaSpazio(sp.citta, sp.teatro))).then(()=>{ try{ _iiWaAggiorna(); }catch(e){} });
   const _sp = data.find(x=>x.id===spettId);
   document.getElementById('ii-dest').value = (_sp&&_sp.contatti?_sp.contatti.map(c=>c.email).filter(Boolean):[]).join(', ');
   _aggiornaPreviewMail();
@@ -9020,7 +9041,9 @@ function _iiWaAggiorna(){
   const sel=document.getElementById('ii-wa-dest'), numEl=document.getElementById('ii-wa-num'); if(!sel) return;
   numEl.style.display = sel.value==='__altro' ? 'block' : 'none';
   const num=_waNumero(sel.value==='__altro'?numEl.value:sel.value);
-  const testo=_testoPianoWa(document.getElementById('ii-preview').textContent);
+  let testo=document.getElementById('ii-preview').textContent;
+  (window._invioSpaziList||[]).forEach(sp=>{ testo=_testoSpazioWa(testo, sp.citta, sp.teatro); });
+  testo=_testoPianoWa(testo);
   const a=document.getElementById('ii-wa-apri'); a.href='https://wa.me/'+num+'?text='+encodeURIComponent(testo); a.style.opacity=num?'1':'.5';
 }
 
@@ -10628,9 +10651,28 @@ async function caricaAllegatoExtra(prefix, id, files){
 }
 function _allegatiScelti(prefix){ return [...document.querySelectorAll('.'+prefix+'-all:checked')].map(c=>({label:c.dataset.label, url:c.dataset.url})); }
 function _testoAllegati(lista, html){ return lista.length ? '\n\nDocumenti:\n'+lista.map(a=> html ? '   • '+_bottoneScarica(a.label, a.url) : '- '+a.label.replace(/^[^\w]+/,'')+': '+a.url).join('\n') : ''; }
+// Versione WhatsApp del testo spazio: i documenti caricati su Drive diventano UN link alla cartella condivisa
+// (anteprime di tutti i file), restano in elenco solo i link esterni; le icone di sezione diventano simboli
+// semplici perché WhatsApp Desktop, aperto da link, mostra "�" al posto di molte emoji.
+function _testoSpazioWa(t, citta, teatro){
+  const si=spazioInfo[(citta||'')+'||'+(teatro||'')]||{};
+  if(si.cartellaUrl){
+    const isDrive=u=>/drive\.google\.com|docs\.google\.com/.test(String(u||''));
+    const esterni=(si.links||[]).filter(l=>l.url && !isDrive(l.url));
+    t=t.replace(/📎 DOCUMENTI TECNICI\n(?:   • .*\n)+\n?/, '📎 DOCUMENTI TECNICI\n   Cartella con tutti i file (planimetrie, foto, schede): '+si.cartellaUrl+'\n'+esterni.map(l=>'   • '+l.label+': '+l.url+'\n').join('')+'\n');
+  }
+  return t.replace(/[\u{1F100}-\u{1FAFF}\u{2600}-\u{27BF}]\uFE0F?/gu, '▪');
+}
+// cartella Drive dello spazio per gli spazi caricati prima che l'app la memorizzasse: la chiedo una volta allo script
+async function _assicuraCartellaSpazio(citta, teatro){
+  const k=(citta||'')+'||'+(teatro||''); const si=spazioInfo[k]; const url=ld('sheetsUrl','');
+  if(!si || si.cartellaUrl || !url || !(si.links||[]).some(l=>/drive\.google\.com/.test(l.url||''))) return;
+  try{ const r=await fetch(url+'?action=cartellaSpazio&cartella='+encodeURIComponent('Spazi/'+citta+' - '+teatro)+'&t='+Date.now()); const j=await r.json(); if(j.url){ si.cartellaUrl=j.url; sv('spazioInfo', spazioInfo); } }catch(e){}
+}
 function _testoInfoSpazioDi(s, plain){
   let t=_buildTestoSpazio(s.citta, s.teatro||''); if(!t) return '';
   if(plain){
+    t=_testoSpazioWa(t, s.citta, s.teatro||'');
     // per WhatsApp: i bottoni "Scarica" diventano "Nome: link" (link di visualizzazione, non di download)
     t=t.replace(/<a [^>]*href="([^"]+)"[^>]*>[^<]*Scarica ([^<]*)<\/a>/g, (m,u,l)=>l.trim()+': '+String(u).replace(/&amp;/g,'&').replace(/https:\/\/drive\.google\.com\/uc\?export=download&id=([-\w]+)/,'https://drive.google.com/file/d/$1/view'))
      .replace(/<[^>]+>/g,'').replace(/━+\n/g,'').replace(/\n{3,}/g,'\n\n').trim();
@@ -10674,6 +10716,7 @@ async function inviaMailCompagnia(){
 let _waId=null;
 function apriWaCompagnia(id){
   const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
+  _assicuraCartellaSpazio(s.citta, s.teatro||'').then(()=>{ try{ _waAggiorna(); }catch(e){} });
   _waId=s.id;
   const tel=(s.contatti||[]).filter(c=>c.telefono);
   document.getElementById('wa-dest').innerHTML=tel.map(c=>`<option value="${_prodEsc(c.telefono)}">${_prodEsc(c.nome||c.telefono)}${c.compagnia?' · '+_prodEsc(c.compagnia):''} (${_prodEsc(c.telefono)})</option>`).join('')+'<option value="__altro">altro numero…</option>';
