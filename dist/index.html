@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v113</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v115</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -756,11 +756,12 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <div class="mover" id="squadra-ov" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto;">
     <div class="mtitle">👷 Squadra tecnici / service</div>
-    <div id="sq-titolo" style="font-size:11px;color:var(--text2);margin-bottom:10px;"></div>
+    <div id="sq-titolo" style="font-size:11px;color:var(--text2);margin-bottom:6px;"></div>
+    <div id="sq-giornate" style="font-size:11px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;margin-bottom:8px;line-height:1.5;"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-      <div class="field" style="flex:1;min-width:110px;margin:0;"><label>Montaggio</label><input type="text" id="sq-mont" placeholder="es. 8:00-13:00" oninput="_sqAggiorna()"></div>
-      <div class="field" style="flex:1;min-width:110px;margin:0;"><label>Spettacolo</label><input type="text" id="sq-spet" placeholder="es. 21:00" oninput="_sqAggiorna()"></div>
-      <div class="field" style="flex:1;min-width:110px;margin:0;"><label>Smontaggio</label><input type="text" id="sq-smon" placeholder="es. a seguire" oninput="_sqAggiorna()"></div>
+      <div class="field" style="flex:1;min-width:110px;margin:0;"><label>Montaggio (primo giorno)</label><input type="text" id="sq-mont" placeholder="es. 8:00-13:00" oninput="_sqAggiorna()"></div>
+      <div class="field" style="flex:1;min-width:110px;margin:0;"><label>Spettacolo ore</label><input type="text" id="sq-spet" placeholder="es. 21:00" oninput="_sqAggiorna()"></div>
+      <div class="field" style="flex:1;min-width:110px;margin:0;"><label>Smontaggio (ultimo giorno)</label><input type="text" id="sq-smon" placeholder="es. a seguire" oninput="_sqAggiorna()"></div>
     </div>
     <div class="field" style="margin-bottom:8px;"><label>Note per la squadra (opzionale)</label><input type="text" id="sq-note" placeholder="es. carico da via Roma, servono 2 macchinisti e 1 elettricista" oninput="_sqAggiorna()"></div>
     <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">Persone / ditte (dalla rubrica, dalle aziende di servizio o a mano)</div>
@@ -6183,7 +6184,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v113</span>
+    <span>Report generato da GammaFucker v115</span>
   </div>
   </body></html>`;
 
@@ -6289,7 +6290,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v113</span>
+    <span>Report generato da GammaFucker v115</span>
   </div>
   </body></html>`;
 
@@ -6357,7 +6358,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v113</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v115</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6429,7 +6430,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v113</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v115</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -7147,6 +7148,7 @@ function _aggiornaPreviewMail(){
 
   const corpo = corpoSpazi
     ? `Carissimi,\n\nvi inoltro le informazioni ${spettacoliSelezionati===1?'dello spazio':'degli spazi'} in cui andrà in scena il vostro spettacolo${spettacoliSelezionati>1?', in ordine di data':''}.\n\n` +
+      ((()=>{ const sp=data.find(x=>x.id===_invioSpettId); const r=sp?_giornateRiga(sp):''; return r?'Giornate a '+sp.citta+': '+r+'.\n\n':''; })()) +
       corpoSpazi +
       `Disponibile per qualsiasi ulteriore chiarimento, in attesa di un vostro riscontro, vi saluto caramente.\n\n` +
       (IS_COLLAB ? `${ld('nomeUtente','')||'Coordinamento tecnico'}\ncoordinamento tecnico Amat` : `Aldo Bernardini\ncoordinamento tecnico Amat\nmob. 3477086550`)
@@ -8573,7 +8575,7 @@ function apriInoltro(id){
   const serv=(s.prod&&s.prod.service)||''; if(serv){ const a=(aziendeDB||[]).find(x=>x.nome.toUpperCase()===serv.toUpperCase()); if(a) add('🔧 '+a.nome, a.email); }
   document.getElementById('in-dest').value=sugg.length&&si.referente_email?si.referente_email:'';
   document.getElementById('in-suggeriti').innerHTML=sugg.map(x=>`<button class="iBtn" style="font-size:10px;padding:2px 7px;" onclick="_inAddDest('${esc(x.em)}')">${esc(x.lab)}</button>`).join('');
-  document.getElementById('in-testo').value=`Buongiorno,\nvi inoltro la mail della compagnia con la scheda tecnica e le informazioni per lo spettacolo "${s.spett}" del ${_prodFmtD(s.data)}${s.teatro?' al '+s.teatro:''}.\n\nRestiamo a disposizione.\n\n${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}\ncoordinamento tecnico Amat${IS_COLLAB?'':'\nmob. 3477086550'}`;
+  document.getElementById('in-testo').value=`Buongiorno,\nvi inoltro la mail della compagnia con la scheda tecnica e le informazioni per lo spettacolo "${s.spett}" del ${_prodFmtD(s.data)}${s.teatro?' al '+s.teatro:''}.${_giornateRiga(s)?'\nGiornate: '+_giornateRiga(s)+'.':''}\n\nRestiamo a disposizione.\n\n${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}\ncoordinamento tecnico Amat${IS_COLLAB?'':'\nmob. 3477086550'}`;
   // WhatsApp ai referenti dello spazio: documenti su Drive (scheda tecnica, permesso, documenti spazio) come link
   const docs=_allegatiDi(s);
   const vuoto=document.getElementById('in-wa-vuoto'), box=document.getElementById('in-wa-box');
@@ -8588,7 +8590,7 @@ function apriInoltro(id){
     document.getElementById('in-wa-dest').innerHTML=tels.map(t=>`<option value="${esc(t.tel)}">${esc(t.lab)} (${esc(t.tel)})</option>`).join('')+'<option value="__altro">altro numero…</option>';
     document.getElementById('in-wa-num').value='';
     document.getElementById('in-wa-doc').innerHTML=docs.map((d,i)=>`<label style="display:flex;gap:6px;align-items:center;font-size:11px;cursor:pointer;"><input type="checkbox" class="in-wa-d" data-url="${esc(d.url)}" data-label="${esc(d.label)}" ${/scheda tecnica/i.test(d.label)?'checked':''} style="width:14px;height:14px;" onchange="_inWaAggiorna()"> ${esc(d.label)}</label>`).join('');
-    document.getElementById('in-wa-testo').value=`Buongiorno, le invio la scheda tecnica e i documenti per lo spettacolo "${s.spett}" del ${_prodFmtD(s.data)}${s.teatro?' al '+s.teatro:''}. ${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}, coordinamento tecnico AMAT.`;
+    document.getElementById('in-wa-testo').value=`Buongiorno, le invio la scheda tecnica e i documenti per lo spettacolo "${s.spett}" del ${_prodFmtD(s.data)}${s.teatro?' al '+s.teatro:''}.${_giornateRiga(s)?' Giornate: '+_giornateRiga(s)+'.':''} ${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}, coordinamento tecnico AMAT.`;
     _inWaAggiorna();
   }
   document.getElementById('inoltra-ov').classList.add('open');
@@ -8802,9 +8804,10 @@ function apriSquadra(id){
   const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
   _sqId=s.id; _sqManuale=false; const p=_prodDi(s);
   document.getElementById('sq-titolo').textContent=s.spett+' · '+_prodFmtD(s.data)+' · '+s.citta+(s.teatro?' · '+s.teatro:'');
-  document.getElementById('sq-mont').value=p.montaggio||'';
-  document.getElementById('sq-spet').value=p.inizio||'';
-  document.getElementById('sq-smon').value=p.smontaggio||'';
+  { const g=_gruppoDi(s).slice().sort((a,b)=>a.data.localeCompare(b.data)); const primo=g.find(x=>x.premontaggio&&!x.residenza)||g.find(x=>!x.residenza)||s; const show=g.find(x=>!x.premontaggio)||s; const ultimo=g[g.length-1]||s;
+    document.getElementById('sq-mont').value=(primo.prod&&primo.prod.montaggio)||p.montaggio||'';
+    document.getElementById('sq-spet').value=(show.prod&&show.prod.inizio)||p.inizio||'';
+    document.getElementById('sq-smon').value=(ultimo.prod&&ultimo.prod.smontaggio)||(g.map(x=>x.prod&&x.prod.smontaggio).find(Boolean))||p.smontaggio||''; }
   document.getElementById('sq-note').value=p.squadraNote||'';
   _sqRighe=(p.squadra||[]).map(r=>({...r}));
   if(!_sqRighe.length && p.service){ const a=(aziendeDB||[]).find(z=>z.nome.toUpperCase()===String(p.service).toUpperCase()); _sqRighe.push({nome:p.service, tel:a?a.tel||'':'', ruolo:'service'}); }
@@ -8827,14 +8830,48 @@ function _sqRender(){
   _sqRighe.forEach((r,i)=>attachRubrica('sq-n-'+i, c=>{ _sqRighe[i].nome=c.nome; if(c.tel) _sqRighe[i].tel=c.tel; if(c._az && !_sqRighe[i].ruolo) _sqRighe[i].ruolo='service'; _sqRender(); _sqAggiorna(); }, {aziende:true, collaboratori:true}));
 }
 function _sqAggiungiRiga(){ _sqRighe.push({nome:'',tel:'',ruolo:''}); _sqRender(); setTimeout(()=>document.getElementById('sq-n-'+(_sqRighe.length-1))?.focus(),50); }
+// Giornate del lavoro: tutto il gruppo dello spettacolo (premontaggio, residenza, debutto, repliche) in ordine;
+// montaggio sul primo giorno di allestimento, spettacolo sui giorni di recita, smontaggio sull'ultimo giorno.
+function _sqGiornate(s, mont, spet, smon){
+  const g=_gruppoDi(s).slice().sort((a,b)=>a.data.localeCompare(b.data)); if(!g.length) g.push(s);
+  const fmt=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short'}); }catch{ return d; } };
+  const out=[]; let i=0, primoMont=true;
+  while(i<g.length){
+    const x=g[i]; const ultimo=(i===g.length-1); const px=x.prod||{};
+    if(x.residenza){ let j=i; while(j+1<g.length && g[j+1].residenza) j++; out.push((j>i?fmt(x.data)+' – '+fmt(g[j].data):fmt(x.data))+': residenza compagnia'+(j===g.length-1&&smon?' · smontaggio '+smon:'')); i=j+1; continue; }
+    let riga=fmt(x.data)+': ';
+    if(x.premontaggio){ riga+='montaggio'+((primoMont&&mont)?' '+mont:(px.montaggio?' '+px.montaggio:'')); primoMont=false; }
+    else { const m=(primoMont&&mont)?mont:(px.montaggio||''); if(m) riga+='montaggio '+m+' · '; primoMont=false; const o=px.inizio||spet; riga+=(x.replicaOf?'replica':'spettacolo')+(o?' ore '+o:''); }
+    if(ultimo&&smon) riga+=' · smontaggio '+smon;
+    out.push(riga); i++;
+  }
+  return out;
+}
+// Riga "giornate" per tutti i messaggi (mail/WhatsApp compagnia, inoltro, info spazio): se lo spettacolo ha più
+// giornate nella stessa città (premontaggio, residenza, repliche) dice quando si monta, quando si recita e quando si smonta
+function _giornateRiga(s){
+  const g=_gruppoDi(s).slice().sort((a,b)=>a.data.localeCompare(b.data));
+  if(g.length<=1) return '';
+  const fmt=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short'}); }catch{ return d; } };
+  const mont=g.filter(x=>x.premontaggio&&!x.residenza), res=g.filter(x=>x.residenza), rec=g.filter(x=>!x.premontaggio), ult=g[g.length-1];
+  const p=[];
+  if(mont.length) p.push((mont.length>1?'montaggio '+fmt(mont[0].data)+' – '+fmt(mont[mont.length-1].data):'montaggio '+fmt(mont[0].data))+((mont[0].prod&&mont[0].prod.montaggio)?' ('+mont[0].prod.montaggio+')':''));
+  if(res.length) p.push('residenza '+(res.length>1?fmt(res[0].data)+' – '+fmt(res[res.length-1].data):fmt(res[0].data)));
+  if(rec.length) p.push((rec.length>1?'recite ':'spettacolo ')+rec.map(x=>fmt(x.data)+((x.prod&&x.prod.inizio)?' ore '+x.prod.inizio:'')).join(', '));
+  const sm=(ult.prod&&ult.prod.smontaggio)||g.map(x=>x.prod&&x.prod.smontaggio).find(Boolean)||'';
+  p.push('smontaggio '+fmt(ult.data)+(sm?' '+sm:''));
+  return p.join(' · ');
+}
 function _sqTesto(){
   const s=data.find(x=>String(x.id)===String(_sqId)); if(!s) return '';
   const v=id=>document.getElementById(id).value.trim();
   const righe=_sqRighe.filter(r=>r.nome.trim());
   const firma=IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini';
+  const giornate=_sqGiornate(s, v('sq-mont'), v('sq-spet'), v('sq-smon'));
+  const gg=document.getElementById('sq-giornate'); if(gg) gg.innerHTML=giornate.map(x=>'<div>• '+x.replace(/</g,'&lt;')+'</div>').join('');
   return `Carissimi, ecco le info per il prossimo lavoro:\n\n`+
-    `▪ Spettacolo: ${s.spett}\n▪ Data: ${_prodFmtD(s.data)}\n▪ Teatro: ${s.teatro?s.teatro+' – ':''}${s.citta}\n`+
-    (v('sq-mont')?`▪ Montaggio: ${v('sq-mont')}\n`:'')+(v('sq-spet')?`▪ Spettacolo ore: ${v('sq-spet')}\n`:'')+(v('sq-smon')?`▪ Smontaggio: ${v('sq-smon')}\n`:'')+
+    `▪ Spettacolo: ${s.spett}\n▪ Teatro: ${s.teatro?s.teatro+' – ':''}${s.citta}\n`+
+    `▪ Giornate:\n`+giornate.map(x=>'   - '+x).join('\n')+'\n'+
     (v('sq-note')?`▪ Note: ${v('sq-note')}\n`:'')+
     (righe.length?`\nSquadra:\n`+righe.map(r=>'- '+r.nome.trim()+(r.ruolo.trim()?' ('+r.ruolo.trim()+')':'')).join('\n')+'\n':'')+
     _testoAllegati([...document.querySelectorAll('.sq-d:checked')].map(c=>({label:c.dataset.label, url:c.dataset.url})), false).replace(/^\n\nDocumenti:/,'\nDocumenti:')+(document.querySelector('.sq-d:checked')?'\n':'')+
@@ -8852,7 +8889,8 @@ function _sqCopia(){ const t=document.getElementById('sq-testo').value; navigato
 function salvaSquadra(chiudi, inviatoA){
   const s=data.find(x=>String(x.id)===String(_sqId)); if(!s) return; const p=_prodDi(s);
   const v=id=>document.getElementById(id).value.trim();
-  if(v('sq-mont')) p.montaggio=v('sq-mont'); if(v('sq-spet')) p.inizio=v('sq-spet'); if(v('sq-smon')) p.smontaggio=v('sq-smon');
+  { const g=_gruppoDi(s).slice().sort((a,b)=>a.data.localeCompare(b.data)); const primo=g.find(x=>x.premontaggio&&!x.residenza)||g.find(x=>!x.residenza)||s; const ultimo=g[g.length-1]||s;
+    if(v('sq-mont')) _prodDi(primo).montaggio=v('sq-mont'); if(v('sq-spet')) g.filter(x=>!x.premontaggio).forEach(x=>{ if(!_prodDi(x).inizio) _prodDi(x).inizio=v('sq-spet'); }); if(v('sq-smon')) _prodDi(ultimo).smontaggio=v('sq-smon'); }
   p.squadraNote=v('sq-note');
   p.squadra=_sqRighe.filter(r=>r.nome.trim()).map(r=>({nome:r.nome.trim(), tel:r.tel.trim(), ruolo:r.ruolo.trim()}));
   const serv=p.squadra.find(r=>/service/i.test(r.ruolo)); if(serv && !p.service) p.service=serv.nome;
@@ -8872,7 +8910,7 @@ function apriMailCompagnia(id){
   _mailId=s.id;
   document.getElementById('mc-dest').value=_contattiDi(s).map(c=>c.email).filter(Boolean).join(', ');
   document.getElementById('mc-ogg').value=`${s.spett} — ${_prodFmtD(s.data)} — ${s.citta}${s.teatro?' · '+s.teatro:''}`;
-  document.getElementById('mc-testo').value=`Buongiorno,\n\n\n\n${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}\ncoordinamento tecnico Amat${IS_COLLAB?'':'\nmob. 3477086550'}`;
+  document.getElementById('mc-testo').value=`Buongiorno,\n\n${_giornateRiga(s)?'Spettacolo "'+s.spett+'" a '+s.citta+(s.teatro?' ('+s.teatro+')':'')+' — giornate: '+_giornateRiga(s)+'.\n\n':''}\n\n${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'}\ncoordinamento tecnico Amat${IS_COLLAB?'':'\nmob. 3477086550'}`;
   const chk=document.getElementById('mc-info'); chk.checked=false; chk.disabled=!_buildTestoSpazio(s.citta, s.teatro||'');
   document.getElementById('mc-info-lbl').style.opacity=chk.disabled?'.5':'1';
   document.getElementById('mc-allegati').innerHTML=_allegatiHtml('mc', s);
@@ -8909,7 +8947,7 @@ function apriWaCompagnia(id){
   document.getElementById('wa-num').style.display='none'; document.getElementById('wa-num').value='';
   const chk=document.getElementById('wa-info'); chk.checked=false; chk.disabled=!_buildTestoSpazio(s.citta, s.teatro||'');
   document.getElementById('wa-allegati').innerHTML=_allegatiHtml('wa', s);
-  document.getElementById('wa-testo').value=`Buongiorno, sono ${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'} del coordinamento tecnico AMAT Marche, in merito allo spettacolo "${s.spett}" del ${_prodFmtD(s.data)} a ${s.citta}${s.teatro?' ('+s.teatro+')':''}.`;
+  document.getElementById('wa-testo').value=`Buongiorno, sono ${IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini'} del coordinamento tecnico AMAT Marche, in merito allo spettacolo "${s.spett}" del ${_prodFmtD(s.data)} a ${s.citta}${s.teatro?' ('+s.teatro+')':''}.${_giornateRiga(s)?' Giornate: '+_giornateRiga(s)+'.':''}`;
   document.getElementById('wa-ov').classList.add('open');
   _waAggiorna();
 }
