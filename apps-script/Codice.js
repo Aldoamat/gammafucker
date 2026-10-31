@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v97 ──
+// ── SPETTACOLI APP SCRIPT v98 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -151,9 +151,14 @@ function doPost(e) {
       lock.releaseLock();
       return ContentService.createTextOutput(JSON.stringify({ ok: true, mittenti: lista })).setMimeType(ContentService.MimeType.JSON);
     }
+    if (body.action === 'allegatiMail') {
+      lock.releaseLock();
+      var ra; try { ra = allegatiMailThread(body.link, body.fonte); } catch(errA) { ra = { error: errA.message }; }
+      return ContentService.createTextOutput(JSON.stringify(ra)).setMimeType(ContentService.MimeType.JSON);
+    }
     if (body.action === 'inoltraMail') {
       lock.releaseLock();
-      var rf2; try { rf2 = inoltraMailThread(body.link, body.fonte, body.to, body.testo, body.oggetto); } catch(errF) { rf2 = { error: errF.message }; }
+      var rf2; try { rf2 = inoltraMailThread(body.link, body.fonte, body.to, body.testo, body.oggetto, body.allegati); } catch(errF) { rf2 = { error: errF.message }; }
       return ContentService.createTextOutput(JSON.stringify(rf2)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'leggiScheda') {
@@ -998,19 +1003,43 @@ function _threadDaLink(link, fonte) {
   return th;
 }
 // Inoltra ai referenti (teatro, service…) la mail della compagnia con tutti gli allegati, più un testo introduttivo
-function inoltraMailThread(link, fonte, to, testo, oggetto) {
+// il messaggio del thread con allegati (di solito la scheda tecnica), altrimenti l'ultimo
+function _msgConAllegati(th) {
+  var msgs = th.getMessages(), msg = msgs[msgs.length - 1];
+  for (var i = msgs.length - 1; i >= 0; i--) { if (msg.getAttachments().length) break; if (msgs[i].getAttachments().length) { msg = msgs[i]; break; } }
+  return msg;
+}
+// Elenco allegati della mail: l'app li mostra con le spunte, così al teatro va solo la scheda di competenza
+function allegatiMailThread(link, fonte) {
+  var th = _threadDaLink(link, fonte);
+  if (!th) return { error: 'mail non trovata (né link né oggetto corrispondente)' };
+  var msg = _msgConAllegati(th);
+  var atts = msg.getAttachments().map(function(a, i){ return { i: i, nome: a.getName(), kb: Math.round(a.getSize() / 1024), tipo: a.getContentType() }; });
+  return { ok: true, oggetto: msg.getSubject(), da: msg.getFrom(), allegati: atts };
+}
+// allegati: array di indici (da allegatiMailThread). Se manca → inoltro classico con tutto.
+function inoltraMailThread(link, fonte, to, testo, oggetto, allegati) {
   if (!to) return { error: 'destinatario mancante' };
   var th = _threadDaLink(link, fonte);
   if (!th) return { error: 'mail non trovata (né link né oggetto corrispondente)' };
-  // il messaggio con allegati (di solito la scheda tecnica), altrimenti l'ultimo
-  var msgs = th.getMessages(), msg = msgs[msgs.length - 1];
-  for (var i = msgs.length - 1; i >= 0; i--) { if (msg.getAttachments().length) break; if (msgs[i].getAttachments().length) { msg = msgs[i]; break; } }
+  var msg = _msgConAllegati(th);
   var intro = String(testo || '');
-  var opt = { htmlBody: intro.replace(/\n/g, '<br>') + '<br><br>---------- Messaggio inoltrato ----------<br>' + msg.getBody() };
-  if (oggetto) opt.subject = oggetto;
+  var corpoOrig = msg.getBody();
+  var opt = { htmlBody: intro.replace(/\n/g, '<br>') + '<br><br>---------- Messaggio inoltrato ----------<br>' + corpoOrig };
   if (COPIA_MAIL_A && String(to).toLowerCase().indexOf(COPIA_MAIL_A.toLowerCase()) < 0) opt.bcc = COPIA_MAIL_A;
+  var tutti = msg.getAttachments();
+  if (Array.isArray(allegati)) {
+    // solo gli allegati scelti: mail nuova con il corpo originale in coda (niente immagini inline della mail di partenza)
+    var scelti = allegati.map(function(i){ return tutti[+i]; }).filter(Boolean);
+    opt.attachments = scelti;
+    opt.htmlBody = opt.htmlBody.replace(/<img[^>]*src="cid:[^"]*"[^>]*>/gi, '');
+    var subj = oggetto || ('Fwd: ' + msg.getSubject());
+    GmailApp.sendEmail(to, subj, intro + '\n\n---------- Messaggio inoltrato ----------\n' + msg.getPlainBody(), opt);
+    return { ok: true, oggetto: subj, allegati: scelti.length, esclusi: tutti.length - scelti.length, da: msg.getFrom() };
+  }
+  if (oggetto) opt.subject = oggetto;
   msg.forward(to, opt);
-  return { ok: true, oggetto: oggetto || ('Fwd: ' + msg.getSubject()), allegati: msg.getAttachments().length, da: msg.getFrom() };
+  return { ok: true, oggetto: oggetto || ('Fwd: ' + msg.getSubject()), allegati: tutti.length, da: msg.getFrom() };
 }
 function leggiSchedaThread(link, fonte) {
   var th = null;
