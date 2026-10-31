@@ -3,3 +3,20 @@
 #   fuckgammamministrazione → publish directory "dist-collab"  (impostata nella dashboard)
 [build]
   command = ""
+  # Netlify di default salta il deploy se crede che nulla sia cambiato nella cartella pubblicata
+  # (è così che la v107 dell'app principale è rimasta "Skipped"): con questo ogni push viene pubblicato.
+  ignore = "/bin/false"
+
+# il service worker e la pagina non devono mai restare in cache sul CDN/browser: l'aggiornamento parte dal primo avvio
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"

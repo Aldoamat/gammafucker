@@ -56,8 +56,8 @@ function status() {
   const v = versions();
   console.log('Versioni correnti');
   console.log(`  app (footer/report): v${v.app}   header: v${v.header}   sw cache: teatro-v${v.cache}`);
-  console.log(`  Apps Script: Codice.js v${v.script}   copia in index.html v${v.scriptEmbedded}`);
-  const ok = v.app === v.header && String(v.app) === v.cache && v.script === v.scriptEmbedded;
+  console.log(`  Apps Script: Codice.js v${v.script}`);
+  const ok = v.app === v.header && String(v.app) === v.cache && !!v.script;
   console.log(ok ? '  ✓ coerente' : '  ✗ versioni non allineate — lancia "node release.mjs build"');
   const cfg = fs.existsSync(P.cfg) ? JSON.parse(read(P.cfg)) : {};
   console.log(`  deploymentId Apps Script: ${cfg.deploymentId || '(mancante — vedi release.config.json)'}`);
@@ -84,9 +84,7 @@ function build(target) {
   scr = scr.replace(/SPETTACOLI APP SCRIPT v\d+/, `SPETTACOLI APP SCRIPT v${scriptNext}`);
   write(P.script, scr);
 
-  const re = /(function getScript\(\)\{\n  return `)[\s\S]*?(`;\n\})/;
-  if (!re.test(idx)) throw new Error('getScript() non trovato in index.html');
-  idx = idx.replace(re, (_, a, b) => a + embed(scr) + b);
+  // dalla v108 lo script non è più incluso in index.html (vive solo in apps-script/Codice.js)
   write(P.index, idx);
 
   let sw = read(P.sw);
