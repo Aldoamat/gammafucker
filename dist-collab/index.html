@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v109</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v110</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -752,6 +752,30 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
   <div class="spacer"></div>
 </div>
 
+<!-- ══ SQUADRA TECNICI / SERVICE: WhatsApp con le info del lavoro ══ -->
+<div class="mover" id="squadra-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto;">
+    <div class="mtitle">👷 Squadra tecnici / service</div>
+    <div id="sq-titolo" style="font-size:11px;color:var(--text2);margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <div class="field" style="flex:1;min-width:110px;margin:0;"><label>Montaggio</label><input type="text" id="sq-mont" placeholder="es. 8:00-13:00" oninput="_sqAggiorna()"></div>
+      <div class="field" style="flex:1;min-width:110px;margin:0;"><label>Spettacolo</label><input type="text" id="sq-spet" placeholder="es. 21:00" oninput="_sqAggiorna()"></div>
+      <div class="field" style="flex:1;min-width:110px;margin:0;"><label>Smontaggio</label><input type="text" id="sq-smon" placeholder="es. a seguire" oninput="_sqAggiorna()"></div>
+    </div>
+    <div class="field" style="margin-bottom:8px;"><label>Note per la squadra (opzionale)</label><input type="text" id="sq-note" placeholder="es. carico da via Roma, servono 2 macchinisti e 1 elettricista" oninput="_sqAggiorna()"></div>
+    <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">Persone / ditte (dalla rubrica, dalle aziende di servizio o a mano)</div>
+    <div id="sq-righe" style="display:flex;flex-direction:column;gap:4px;"></div>
+    <button class="iBtn" style="font-size:11px;padding:4px 9px;margin-top:4px;" onclick="_sqAggiungiRiga()">➕ aggiungi</button>
+    <div class="field" style="margin-top:10px;"><label>Messaggio</label><textarea id="sq-testo" style="min-height:170px;font-size:12px;" oninput="_sqManuale=true"></textarea></div>
+    <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">WhatsApp apre una chat alla volta: un bottone per ogni persona con numero. Per un gruppo usa "Copia testo".</div>
+    <div id="sq-bottoni" style="display:flex;flex-direction:column;gap:6px;"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn btn-o" style="flex:1;" onclick="_sqCopia()">📋 Copia testo</button>
+      <button class="btn btn-p" style="flex:1;" onclick="salvaSquadra(true)">💾 Registra squadra</button>
+      <button class="btn btn-o" onclick="document.getElementById('squadra-ov').classList.remove('open')">Chiudi</button>
+    </div>
+  </div>
+</div>
 <div class="mover" id="mail-comp-ov" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto;padding:20px;">
     <div class="mtitle">✉ Mail alla compagnia</div>
@@ -2283,6 +2307,7 @@ function cercaRubrica(q, opts={}){
   const parole=q.split(/\s+/);
   const src=[];
   if(opts.aziende) aziendeDB.forEach(a=>src.push({nome:a.nome, email:a.email||'', tel:a.tel||'', org:'azienda', servizi:a.servizi||'', _az:true}));
+  if(opts.collaboratori) (collaboratori||[]).forEach(c=>src.push({nome:c.nome, email:c.email||'', tel:c.tel||c.telefono||'', org:'collaboratore'}));
   rubrica.forEach(c=>src.push(c));
   const hit=[];
   for(const c of src){
@@ -2998,6 +3023,7 @@ function _buildCard(s){
       ${!IS_COLLAB&&!s.replicaOf?`<button class="iBtn" style="color:#6366f1;border-color:rgba(99,102,241,.35);" onclick="aggiungiReplica(${s.id})">➕ Replica</button>`:''}
       <button class="iBtn" style="color:var(--accent);border-color:rgba(124,58,237,.3);" onclick="apriInvioInfoSpazio(${s.id})">📧 Info spazio</button>
       ${s.manif!=='GESTIONE'&&(!IS_COLLAB||(s.manif&&pianiProduzione[_prodKeyDi(s)]))?`<button class="iBtn" style="color:#c084fc;border-color:rgba(192,132,252,.35);" onclick="apriPianoSpettacolo(${s.id})">🎬 Piano</button>`:''}
+      ${IS_COLLAB?'':`<button class="iBtn" style="color:#25d366;border-color:rgba(37,211,102,.35);" onclick="apriSquadra(${s.id})" title="WhatsApp ai tecnici / service con le info del lavoro">👷 Squadra</button>`}
       ${IS_COLLAB?'':`<button class="iBtn" style="color:var(--purple);border-color:rgba(124,58,237,.35);" onclick="apriVoceFornitore(${s.id})">🧾 Voce fornitore</button>
       <button class="iBtn ed" onclick="editSpett(${s.id})">✏️ Modifica</button>
       <button class="iBtn dl" onclick="delSpett(${s.id})">🗑</button>`}
@@ -6155,7 +6181,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v109</span>
+    <span>Report generato da GammaFucker v110</span>
   </div>
   </body></html>`;
 
@@ -6261,7 +6287,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v109</span>
+    <span>Report generato da GammaFucker v110</span>
   </div>
   </body></html>`;
 
@@ -6329,7 +6355,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v109</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v110</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6401,7 +6427,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v109</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v110</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -8626,7 +8652,7 @@ function _segnaInvio(s, tipo, via){
 }
 function _toggleInvio(id, tipo){
   const s=data.find(x=>String(x.id)===String(id)); if(!s) return; const p=_prodDi(s); p.invii=p.invii||{};
-  if(p.invii[tipo]){ if(!confirm('Togliere la spunta "'+(tipo==='infoCompagnia'?'info spazio inviate alla compagnia':'scheda inviata al teatro')+'"?')) return; delete p.invii[tipo]; sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000; renderList(); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300); }
+  if(p.invii[tipo]){ if(!confirm('Togliere la spunta "'+(tipo==='infoCompagnia'?'info spazio inviate alla compagnia':tipo==='squadra'?'info inviate alla squadra':'scheda inviata al teatro')+'"?')) return; delete p.invii[tipo]; sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000; renderList(); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300); }
   else _segnaInvio(s, tipo, 'segnato a mano');
 }
 function _inviiHtml(s){
@@ -8634,7 +8660,7 @@ function _inviiHtml(s){
   const inv=(s.prod&&s.prod.invii)||{};
   const fmt=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}); }catch{ return d; } };
   const chip=(tipo,lab,ico)=>{ const v=inv[tipo]; return `<button class="iBtn" title="${v?_prodEsc((v.via||'')+' · '+fmt(v.ts)):'non ancora: tocca per segnare a mano'}" style="font-size:10px;padding:2px 7px;${v?'color:var(--green);border-color:rgba(16,185,129,.45);':'color:var(--text3);border-style:dashed;'}" onclick="${IS_COLLAB?'':`_toggleInvio(${s.id},'${tipo}')`}">${v?'✓':'○'} ${ico} ${lab}${v?' '+fmt(v.ts):''}</button>`; };
-  return `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">${chip('infoCompagnia','info spazio → compagnia','🏛')}${chip('schedaTeatro','scheda → teatro','📄')}</div>`;
+  return `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">${chip('infoCompagnia','info spazio → compagnia','🏛')}${chip('schedaTeatro','scheda → teatro','📄')}${chip('squadra','info → squadra','👷')}</div>`;
 }
 
 // ── referenti compagnia a mano (oltre a quelli letti da schede e mail) ──
@@ -8736,6 +8762,74 @@ function _testoInfoSpazioDi(s, plain){
   return '\n\nInformazioni dello spazio:\n'+t;
 }
 
+// ── Squadra tecnici / service: WhatsApp con le info del lavoro, squadra registrata sullo spettacolo ──
+// Orari dal piano di produzione (che a sua volta li prende dalla scheda tecnica); persone dalla rubrica,
+// dalle aziende di servizio e dai collaboratori a chiamata; la squadra scelta finisce in s.prod.squadra e in nota.
+let _sqId=null, _sqRighe=[], _sqManuale=false;
+function apriSquadra(id){
+  const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
+  _sqId=s.id; _sqManuale=false; const p=_prodDi(s);
+  document.getElementById('sq-titolo').textContent=s.spett+' · '+_prodFmtD(s.data)+' · '+s.citta+(s.teatro?' · '+s.teatro:'');
+  document.getElementById('sq-mont').value=p.montaggio||'';
+  document.getElementById('sq-spet').value=p.inizio||'';
+  document.getElementById('sq-smon').value=p.smontaggio||'';
+  document.getElementById('sq-note').value=p.squadraNote||'';
+  _sqRighe=(p.squadra||[]).map(r=>({...r}));
+  if(!_sqRighe.length && p.service){ const a=(aziendeDB||[]).find(z=>z.nome.toUpperCase()===String(p.service).toUpperCase()); _sqRighe.push({nome:p.service, tel:a?a.tel||'':'', ruolo:'service'}); }
+  if(!_sqRighe.length) _sqRighe.push({nome:'',tel:'',ruolo:''});
+  _sqRender(); _sqAggiorna();
+  document.getElementById('squadra-ov').classList.add('open');
+}
+function _sqRender(){
+  const esc=v=>String(v||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const box=document.getElementById('sq-righe');
+  box.innerHTML=_sqRighe.map((r,i)=>`<div class="rb-wrap" style="display:flex;gap:4px;align-items:center;">
+    <input type="text" id="sq-n-${i}" value="${esc(r.nome)}" placeholder="nome / ditta" style="flex:2;min-width:0;" autocomplete="off" oninput="_sqRighe[${i}].nome=this.value;_sqAggiorna()">
+    <input type="tel" id="sq-t-${i}" value="${esc(r.tel)}" placeholder="telefono" style="flex:1.2;min-width:0;" oninput="_sqRighe[${i}].tel=this.value;_sqAggiorna()">
+    <input type="text" id="sq-r-${i}" value="${esc(r.ruolo)}" placeholder="ruolo" style="flex:1;min-width:0;" list="sq-ruoli" oninput="_sqRighe[${i}].ruolo=this.value;_sqAggiorna()">
+    <button class="iBtn" style="font-size:10px;padding:3px 6px;color:var(--red);" onclick="_sqRighe.splice(${i},1);_sqRender();_sqAggiorna()">✕</button></div>`).join('')
+    +'<datalist id="sq-ruoli"><option value="service"><option value="macchinista"><option value="elettricista"><option value="fonico"><option value="facchino"><option value="responsabile"><option value="antincendio"></datalist>';
+  _sqRighe.forEach((r,i)=>attachRubrica('sq-n-'+i, c=>{ _sqRighe[i].nome=c.nome; if(c.tel) _sqRighe[i].tel=c.tel; if(c._az && !_sqRighe[i].ruolo) _sqRighe[i].ruolo='service'; _sqRender(); _sqAggiorna(); }, {aziende:true, collaboratori:true}));
+}
+function _sqAggiungiRiga(){ _sqRighe.push({nome:'',tel:'',ruolo:''}); _sqRender(); setTimeout(()=>document.getElementById('sq-n-'+(_sqRighe.length-1))?.focus(),50); }
+function _sqTesto(){
+  const s=data.find(x=>String(x.id)===String(_sqId)); if(!s) return '';
+  const v=id=>document.getElementById(id).value.trim();
+  const righe=_sqRighe.filter(r=>r.nome.trim());
+  const firma=IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini';
+  return `Carissimi, ecco le info per il prossimo lavoro:\n\n`+
+    `▪ Spettacolo: ${s.spett}\n▪ Data: ${_prodFmtD(s.data)}\n▪ Teatro: ${s.teatro?s.teatro+' – ':''}${s.citta}\n`+
+    (v('sq-mont')?`▪ Montaggio: ${v('sq-mont')}\n`:'')+(v('sq-spet')?`▪ Spettacolo ore: ${v('sq-spet')}\n`:'')+(v('sq-smon')?`▪ Smontaggio: ${v('sq-smon')}\n`:'')+
+    (v('sq-note')?`▪ Note: ${v('sq-note')}\n`:'')+
+    (righe.length?`\nSquadra:\n`+righe.map(r=>'- '+r.nome.trim()+(r.ruolo.trim()?' ('+r.ruolo.trim()+')':'')).join('\n')+'\n':'')+
+    `\nVi prego di inviarmi il preventivo del servizio richiesto comprensivo delle eventuali spese accessorie. Vi ricordo che nella fattura andranno indicati data, titolo dello spettacolo e teatro.\n\nGrazie, ${firma}\ncoordinamento tecnico AMAT`;
+}
+function _sqAggiorna(){
+  if(!_sqManuale) document.getElementById('sq-testo').value=_sqTesto();
+  const esc=v=>String(v||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const testo=document.getElementById('sq-testo').value;
+  const con=_sqRighe.filter(r=>r.nome.trim() && _waNumero(r.tel));
+  document.getElementById('sq-bottoni').innerHTML=con.length?con.map(r=>`<a href="https://wa.me/${_waNumero(r.tel)}?text=${encodeURIComponent(testo)}" target="_blank" rel="noopener" class="btn btn-p" style="text-align:center;text-decoration:none;background:#25d366;" onclick="salvaSquadra(false,'${_js(r.nome)}')">💬 WhatsApp a ${esc(r.nome)}${r.ruolo?' · '+esc(r.ruolo):''}</a>`).join('')
+    :'<div style="font-size:11px;color:var(--text3);">nessuna persona con numero di telefono: aggiungi il numero o usa "Copia testo"</div>';
+}
+function _sqCopia(){ const t=document.getElementById('sq-testo').value; navigator.clipboard.writeText(t).then(()=>toast('✓ Testo copiato')).catch(()=>toast('Copia non riuscita', true)); salvaSquadra(false); }
+function salvaSquadra(chiudi, inviatoA){
+  const s=data.find(x=>String(x.id)===String(_sqId)); if(!s) return; const p=_prodDi(s);
+  const v=id=>document.getElementById(id).value.trim();
+  if(v('sq-mont')) p.montaggio=v('sq-mont'); if(v('sq-spet')) p.inizio=v('sq-spet'); if(v('sq-smon')) p.smontaggio=v('sq-smon');
+  p.squadraNote=v('sq-note');
+  p.squadra=_sqRighe.filter(r=>r.nome.trim()).map(r=>({nome:r.nome.trim(), tel:r.tel.trim(), ruolo:r.ruolo.trim()}));
+  const serv=p.squadra.find(r=>/service/i.test(r.ruolo)); if(serv && !p.service) p.service=serv.nome;
+  if(inviatoA){ p.invii=p.invii||{}; const prev=(p.invii.squadra&&p.invii.squadra.via)||''; p.invii.squadra={ts:new Date().toISOString().slice(0,10), via:(prev?prev+', ':'')+'WhatsApp a '+inviatoA}; }
+  // nota "Squadra: …" aggiornata (una sola riga, sostituisce la precedente)
+  const righe=(s.note||'').split('|').map(l=>l.trim()).filter(Boolean).filter(l=>!/^👷 Squadra:/.test(l));
+  if(p.squadra.length) righe.push('👷 Squadra: '+p.squadra.map(r=>r.nome+(r.ruolo?' ('+r.ruolo+')':'')).join(', '));
+  s.note=righe.join(' | ');
+  p.squadra.forEach(r=>{ if(/service/i.test(r.ruolo) && r.nome) salvaDittaDB(r.nome.toUpperCase()); });
+  sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000; renderList(); _prodAutoSave();
+  if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
+  if(chiudi){ document.getElementById('squadra-ov').classList.remove('open'); toast('✓ Squadra registrata su '+s.spett); }
+}
 // mail alla compagnia dal piano (parte dall'account Google dell'app, resta in Gmail)
 function apriMailCompagnia(id){
   const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
