@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v116</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v117</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -6193,7 +6193,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v116</span>
+    <span>Report generato da GammaFucker v117</span>
   </div>
   </body></html>`;
 
@@ -6299,7 +6299,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v116</span>
+    <span>Report generato da GammaFucker v117</span>
   </div>
   </body></html>`;
 
@@ -6367,7 +6367,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v116</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v117</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6439,7 +6439,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v116</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v117</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -8839,7 +8839,7 @@ function _testoInfoSpazioDi(s, plain){
 // ── Squadra tecnici / service: WhatsApp con le info del lavoro, squadra registrata sullo spettacolo ──
 // Orari dal piano di produzione (che a sua volta li prende dalla scheda tecnica); persone dalla rubrica,
 // dalle aziende di servizio e dai collaboratori a chiamata; la squadra scelta finisce in s.prod.squadra e in nota.
-let _sqId=null, _sqRighe=[], _sqManuale=false;
+let _sqId=null, _sqRighe=[], _sqManuale=false, _sqGiorni=[];
 function apriSquadra(id){
   const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
   _sqId=s.id; _sqManuale=false; const p=_prodDi(s);
@@ -8849,9 +8849,15 @@ function apriSquadra(id){
     document.getElementById('sq-spet').value=(show.prod&&show.prod.inizio)||p.inizio||'';
     document.getElementById('sq-smon').value=(ultimo.prod&&ultimo.prod.smontaggio)||(g.map(x=>x.prod&&x.prod.smontaggio).find(Boolean))||p.smontaggio||''; }
   document.getElementById('sq-note').value=p.squadraNote||'';
-  _sqRighe=(p.squadra||[]).map(r=>({...r}));
-  if(!_sqRighe.length && p.service){ const a=(aziendeDB||[]).find(z=>z.nome.toUpperCase()===String(p.service).toUpperCase()); _sqRighe.push({nome:p.service, tel:a?a.tel||'':'', ruolo:'service'}); }
-  if(!_sqRighe.length) _sqRighe.push({nome:'',tel:'',ruolo:''});
+  // giornate del lavoro e squadra già registrata su ciascuna (unione per nome, con i giorni in cui compare)
+  _sqGiorni=_gruppoDi(s).slice().sort((a,b)=>a.data.localeCompare(b.data)).map(x=>({data:x.data, tipo:x.residenza?'residenza':x.premontaggio?'montaggio':x.replicaOf?'replica':'spettacolo'}));
+  if(!_sqGiorni.length) _sqGiorni=[{data:s.data, tipo:'spettacolo'}];
+  const tutte=_sqGiorni.map(g=>g.data); const perNome=new Map();
+  _gruppoDi(s).forEach(x=>((x.prod&&x.prod.squadra)||[]).forEach(r=>{ const k=_normTxt(r.nome); if(!k) return; if(!perNome.has(k)) perNome.set(k,{nome:r.nome, tel:r.tel||'', ruolo:r.ruolo||'', giorni:[]}); const e=perNome.get(k); if(!e.tel&&r.tel) e.tel=r.tel; if(!e.ruolo&&r.ruolo) e.ruolo=r.ruolo; (r.giorni&&r.giorni.length?r.giorni:[x.data]).forEach(d=>{ if(tutte.includes(d)&&!e.giorni.includes(d)) e.giorni.push(d); }); }));
+  _sqRighe=[...perNome.values()];
+  if(!_sqRighe.length && p.service){ const a=(aziendeDB||[]).find(z=>z.nome.toUpperCase()===String(p.service).toUpperCase()); _sqRighe.push({nome:p.service, tel:a?a.tel||'':'', ruolo:'service', giorni:tutte.slice()}); }
+  if(!_sqRighe.length) _sqRighe.push({nome:'',tel:'',ruolo:'',giorni:tutte.slice()});
+  _sqRighe.forEach(r=>{ if(!r.giorni||!r.giorni.length) r.giorni=tutte.slice(); });
   // documenti su Drive (scheda tecnica spuntata, permesso ZTL e documenti spazio no): vanno nel messaggio come link
   { const docs=_allegatiDi(s); const esc=v=>String(v||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
     document.getElementById('sq-doc').innerHTML = docs.length ? `<div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">Documenti da allegare (link)</div>`+docs.map(d=>`<label style="display:flex;gap:6px;align-items:center;font-size:11px;padding:2px 0;cursor:pointer;"><input type="checkbox" class="sq-d" data-url="${esc(d.url)}" data-label="${esc(d.label)}" ${/scheda tecnica/i.test(d.label)?'checked':''} style="width:14px;height:14px;" onchange="_sqAggiorna()"> ${esc(d.label)}</label>`).join('') : '<div style="font-size:10px;color:var(--text3);">nessuna scheda tecnica agganciata a questo spettacolo</div>'; }
@@ -8865,11 +8871,13 @@ function _sqRender(){
     <input type="text" id="sq-n-${i}" value="${esc(r.nome)}" placeholder="nome / ditta" style="flex:2;min-width:0;" autocomplete="off" oninput="_sqRighe[${i}].nome=this.value;_sqAggiorna()">
     <input type="tel" id="sq-t-${i}" value="${esc(r.tel)}" placeholder="telefono" style="flex:1.2;min-width:0;" oninput="_sqRighe[${i}].tel=this.value;_sqAggiorna()">
     <input type="text" id="sq-r-${i}" value="${esc(r.ruolo)}" placeholder="ruolo" style="flex:1;min-width:0;" list="sq-ruoli" oninput="_sqRighe[${i}].ruolo=this.value;_sqAggiorna()">
-    <button class="iBtn" style="font-size:10px;padding:3px 6px;color:var(--red);" onclick="_sqRighe.splice(${i},1);_sqRender();_sqAggiorna()">✕</button></div>`).join('')
+    <button class="iBtn" style="font-size:10px;padding:3px 6px;color:var(--red);" onclick="_sqRighe.splice(${i},1);_sqRender();_sqAggiorna()">✕</button></div>
+    ${_sqGiorni.length>1?`<div style="display:flex;gap:3px;flex-wrap:wrap;margin:-1px 0 5px 4px;align-items:center;"><span style="font-size:9px;color:var(--text3);margin-right:2px;">giorni:</span>${_sqGiorni.map(g=>{ const on=r.giorni.includes(g.data); const col=g.tipo==='montaggio'?'#fb923c':g.tipo==='residenza'?'#2dd4bf':g.tipo==='replica'?'#818cf8':'var(--purple)'; return `<button class="iBtn" title="${g.tipo}" style="font-size:9px;padding:1px 6px;${on?'color:'+col+';border-color:'+col+';':'color:var(--text3);border-style:dashed;opacity:.6;'}" onclick="_sqToggleGiorno(${i},'${g.data}')">${on?'✓ ':''}${g.data.slice(8)}/${g.data.slice(5,7)} ${g.tipo==='spettacolo'?'spett.':g.tipo==='montaggio'?'mont.':g.tipo==='replica'?'repl.':'resid.'}</button>`; }).join('')}<button class="iBtn" style="font-size:9px;padding:1px 6px;" onclick="_sqRighe[${i}].giorni=_sqRighe[${i}].giorni.length===_sqGiorni.length?[]:_sqGiorni.map(g=>g.data);_sqRender();_sqAggiorna()">tutti/nessuno</button></div>`:''}`).join('')
     +'<datalist id="sq-ruoli"><option value="service"><option value="macchinista"><option value="elettricista"><option value="fonico"><option value="facchino"><option value="responsabile"><option value="antincendio"></datalist>';
   _sqRighe.forEach((r,i)=>attachRubrica('sq-n-'+i, c=>{ _sqRighe[i].nome=c.nome; if(c.tel) _sqRighe[i].tel=c.tel; if(c._az && !_sqRighe[i].ruolo) _sqRighe[i].ruolo='service'; _sqRender(); _sqAggiorna(); }, {aziende:true, collaboratori:true}));
 }
-function _sqAggiungiRiga(){ _sqRighe.push({nome:'',tel:'',ruolo:''}); _sqRender(); setTimeout(()=>document.getElementById('sq-n-'+(_sqRighe.length-1))?.focus(),50); }
+function _sqToggleGiorno(i,d){ const r=_sqRighe[i]; const k=r.giorni.indexOf(d); if(k>=0) r.giorni.splice(k,1); else r.giorni.push(d); r.giorni.sort(); _sqRender(); _sqAggiorna(); }
+function _sqAggiungiRiga(){ _sqRighe.push({nome:'',tel:'',ruolo:'',giorni:_sqGiorni.map(g=>g.data)}); _sqRender(); setTimeout(()=>document.getElementById('sq-n-'+(_sqRighe.length-1))?.focus(),50); }
 // Giornate del lavoro: tutto il gruppo dello spettacolo (premontaggio, residenza, debutto, repliche) in ordine;
 // montaggio sul primo giorno di allestimento, spettacolo sui giorni di recita, smontaggio sull'ultimo giorno.
 function _sqGiornate(s, mont, spet, smon){
@@ -8913,7 +8921,12 @@ function _sqTesto(){
     `▪ Spettacolo: ${s.spett}\n▪ Teatro: ${s.teatro?s.teatro+' – ':''}${s.citta}\n`+
     `▪ Giornate:\n`+giornate.map(x=>'   - '+x).join('\n')+'\n'+
     (v('sq-note')?`▪ Note: ${v('sq-note')}\n`:'')+
-    (righe.length?`\nSquadra:\n`+righe.map(r=>'- '+r.nome.trim()+(r.ruolo.trim()?' ('+r.ruolo.trim()+')':'')).join('\n')+'\n':'')+
+    ((()=>{ if(!righe.length) return '';
+      const tutti=righe.every(r=>r.giorni.length===_sqGiorni.length);
+      if(tutti || _sqGiorni.length<2) return `\nSquadra:\n`+righe.map(r=>'- '+r.nome.trim()+(r.ruolo.trim()?' ('+r.ruolo.trim()+')':'')).join('\n')+'\n';
+      const fmt=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short'}); }catch{ return d; } };
+      return `\nSquadra per giornata:\n`+_sqGiorni.map(g=>{ const chi=righe.filter(r=>r.giorni.includes(g.data)); return '- '+fmt(g.data)+' ('+g.tipo+'): '+(chi.length?chi.map(r=>r.nome.trim()+(r.ruolo.trim()?' ('+r.ruolo.trim()+')':'')).join(', '):'—'); }).join('\n')+'\n';
+    })())+
     _testoAllegati([...document.querySelectorAll('.sq-d:checked')].map(c=>({label:c.dataset.label, url:c.dataset.url})), false).replace(/^\n\nDocumenti:/,'\nDocumenti:')+(document.querySelector('.sq-d:checked')?'\n':'')+
     `\nVi prego di inviarmi il preventivo del servizio richiesto comprensivo delle eventuali spese accessorie. Vi ricordo che nella fattura andranno indicati data, titolo dello spettacolo e teatro.\n\nGrazie, ${firma}\ncoordinamento tecnico AMAT`;
 }
@@ -8932,14 +8945,16 @@ function salvaSquadra(chiudi, inviatoA){
   { const g=_gruppoDi(s).slice().sort((a,b)=>a.data.localeCompare(b.data)); const primo=g.find(x=>x.premontaggio&&!x.residenza)||g.find(x=>!x.residenza)||s; const ultimo=g[g.length-1]||s;
     if(v('sq-mont')) _prodDi(primo).montaggio=v('sq-mont'); if(v('sq-spet')) g.filter(x=>!x.premontaggio).forEach(x=>{ if(!_prodDi(x).inizio) _prodDi(x).inizio=v('sq-spet'); }); if(v('sq-smon')) _prodDi(ultimo).smontaggio=v('sq-smon'); }
   p.squadraNote=v('sq-note');
-  p.squadra=_sqRighe.filter(r=>r.nome.trim()).map(r=>({nome:r.nome.trim(), tel:r.tel.trim(), ruolo:r.ruolo.trim()}));
-  const serv=p.squadra.find(r=>/service/i.test(r.ruolo)); if(serv && !p.service) p.service=serv.nome;
+  const righe=_sqRighe.filter(r=>r.nome.trim()).map(r=>({nome:r.nome.trim(), tel:r.tel.trim(), ruolo:r.ruolo.trim(), giorni:r.giorni.slice().sort()}));
+  // su ogni giornata del lavoro: solo chi ci lavora quel giorno (squadra nel piano + riga in nota)
+  _gruppoDi(s).forEach(x=>{ const px=_prodDi(x); const mie=righe.filter(r=>r.giorni.includes(x.data)); px.squadra=mie;
+    const serv=mie.find(r=>/service/i.test(r.ruolo)); if(serv && !px.service) px.service=serv.nome;
+    const rn=(x.note||'').split('|').map(l=>l.trim()).filter(Boolean).filter(l=>!/^👷 Squadra:/.test(l));
+    if(mie.length) rn.push('👷 Squadra: '+mie.map(r=>r.nome+(r.ruolo?' ('+r.ruolo+')':'')).join(', '));
+    x.note=rn.join(' | '); });
+  p.squadra=righe.filter(r=>r.giorni.includes(s.data)); if(!p.squadra.length) p.squadra=righe;
   if(inviatoA){ p.invii=p.invii||{}; const prev=(p.invii.squadra&&p.invii.squadra.via)||''; p.invii.squadra={ts:new Date().toISOString().slice(0,10), via:(prev?prev+', ':'')+'WhatsApp a '+inviatoA}; }
-  // nota "Squadra: …" aggiornata (una sola riga, sostituisce la precedente)
-  const righe=(s.note||'').split('|').map(l=>l.trim()).filter(Boolean).filter(l=>!/^👷 Squadra:/.test(l));
-  if(p.squadra.length) righe.push('👷 Squadra: '+p.squadra.map(r=>r.nome+(r.ruolo?' ('+r.ruolo+')':'')).join(', '));
-  s.note=righe.join(' | ');
-  p.squadra.forEach(r=>{ if(/service/i.test(r.ruolo) && r.nome) salvaDittaDB(r.nome.toUpperCase()); });
+  righe.forEach(r=>{ if(/service/i.test(r.ruolo) && r.nome) salvaDittaDB(r.nome.toUpperCase()); });
   sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000; renderList(); _prodAutoSave();
   if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
   if(chiudi){ document.getElementById('squadra-ov').classList.remove('open'); toast('✓ Squadra registrata su '+s.spett); }
