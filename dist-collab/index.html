@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v118</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v119</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -3001,9 +3001,10 @@ function _buildCard(s, grp){
   const isRep=!!s.replicaOf;
   return `<div class="spcard${isFat?' fatturato':''}${s.id===editingId?' editing':''}${s.residenza?' residenza':s.premontaggio?' premontaggio':''}${isRep?' replica':''}">
     <div class="sptop">
-      <div class="spdate">${isRep?'↩ ':''} ${df}${grp?`<div style="font-size:9px;color:var(--text3);letter-spacing:0;margin-top:2px;font-weight:400;">${grp.testo}</div>`:''}</div>
+      <div class="spdate">${isRep?'↩ ':''} ${df}</div>
       <div class="sptot${!hasTot?' z':isFat?' fatturato-val':''}"> ${hasTot?'€ '+s.totale.toLocaleString('it-IT'):'—'}</div>
     </div>
+    ${grp?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin:-2px 0 8px;">${grp.chips.map(c=>`<span style="font-size:11.5px;font-weight:800;padding:3px 10px;border-radius:999px;color:#0b0f1a;background:${c.col};letter-spacing:.02em;">${c.testo}</span>`).join('')}</div>`:''}
     ${isRep?'':`<div class="sptitle">${s.residenza?'<span style="font-size:9px;color:#2dd4bf;letter-spacing:.1em;text-transform:uppercase;margin-right:6px;">🏠 RESIDENZA</span>':s.premontaggio?'<span style="font-size:9px;color:#fb923c;letter-spacing:.1em;text-transform:uppercase;margin-right:6px;">🔧 PREMONTAGGIO</span>':''} ${s.spett}</div>`}
     ${isRep?`<div style="font-size:11px;color:#818cf8;">🔁 Replica — ${s.spett}</div>`:''}
     <div class="spsub">${s.citta}${s.teatro?' · '+s.teatro:''}</div>
@@ -3138,11 +3139,11 @@ function renderList(){
     const reps = (repliche_map[s.id]||[]).sort((a,b)=>a.data.localeCompare(b.data));
     const nRes=pre.filter(x=>x.residenza).length, nPre=pre.length-nRes, nRep=reps.length;
     if(!pre.length && !reps.length) return _buildCard(s);
-    const parti=[nPre?'🔧 premontaggio '+fmtB(pre.find(x=>!x.residenza).data):'', nRes?'🏠 residenza dal '+fmtB(pre.find(x=>x.residenza).data):'', nRep?'🔁 '+nRep+' replic'+(nRep>1?'he':'a')+' fino al '+fmtB(reps[reps.length-1].data):''].filter(Boolean);
-    const html=_buildCard(s, {testo: parti.join(' · ')});
+    const chips=[]; if(nPre) chips.push({col:'#fb923c', testo:'🔧 premontaggio '+fmtB(pre.find(x=>!x.residenza).data)}); if(nRes) chips.push({col:'#2dd4bf', testo:'🏠 residenza dal '+fmtB(pre.find(x=>x.residenza).data)}); if(nRep) chips.push({col:'#a5b4fc', testo:'🔁 '+nRep+' replic'+(nRep>1?'he':'a')+' fino al '+fmtB(reps[reps.length-1].data)});
+    const html=_buildCard(s, {chips});
     const tutte=[...pre, ...reps].sort((a,b)=>a.data.localeCompare(b.data));
     const label=_riepilogoGruppo(nPre,nRes,nRep);
-    const toggleBtn = `<div style="padding:2px 14px 8px;"><button class="repliche-toggle" data-label="${label}" onclick="toggleRepliche(${s.id},this)">▶ ${label}</button></div>`;
+    const toggleBtn = `<div style="padding:2px 14px 8px;"><button class="repliche-toggle" data-label="${label}" style="font-size:12px;font-weight:700;color:var(--gold);border:1px solid rgba(245,200,66,.5);background:rgba(245,200,66,.08);padding:5px 12px;border-radius:8px;" onclick="toggleRepliche(${s.id},this)">▶ ${label}</button></div>`;
     return html + toggleBtn + `<div id="rep-group-${s.id}" style="display:none;margin-top:2px;">${tutte.map(r=>_buildCard(r)).join('')}</div>`;
   }).join('');
 }
@@ -6202,7 +6203,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v118</span>
+    <span>Report generato da GammaFucker v119</span>
   </div>
   </body></html>`;
 
@@ -6308,7 +6309,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v118</span>
+    <span>Report generato da GammaFucker v119</span>
   </div>
   </body></html>`;
 
@@ -6376,7 +6377,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v118</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v119</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6448,7 +6449,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v118</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v119</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
