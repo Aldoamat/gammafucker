@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v117</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v118</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -2993,7 +2993,7 @@ function buildMesiFilter(){
   }
 }
 
-function _buildCard(s){
+function _buildCard(s, grp){
   const df=(()=>{try{const d=new Date((s.data||'')+'T12:00:00');return isNaN(d)?'—':d.toLocaleDateString('it-IT',{day:'2-digit',month:'short',year:'2-digit'});}catch{return '—';}})();
   const hp=s.nm||s.ne||s.nf||s.nfo||s.nsa||(s.collab&&s.collab.length);
   const isFat=!!s.fatturato;
@@ -3001,7 +3001,7 @@ function _buildCard(s){
   const isRep=!!s.replicaOf;
   return `<div class="spcard${isFat?' fatturato':''}${s.id===editingId?' editing':''}${s.residenza?' residenza':s.premontaggio?' premontaggio':''}${isRep?' replica':''}">
     <div class="sptop">
-      <div class="spdate">${isRep?'↩ ':''} ${df}</div>
+      <div class="spdate">${isRep?'↩ ':''} ${df}${grp?`<div style="font-size:9px;color:var(--text3);letter-spacing:0;margin-top:2px;font-weight:400;">${grp.testo}</div>`:''}</div>
       <div class="sptot${!hasTot?' z':isFat?' fatturato-val':''}"> ${hasTot?'€ '+s.totale.toLocaleString('it-IT'):'—'}</div>
     </div>
     ${isRep?'':`<div class="sptitle">${s.residenza?'<span style="font-size:9px;color:#2dd4bf;letter-spacing:.1em;text-transform:uppercase;margin-right:6px;">🏠 RESIDENZA</span>':s.premontaggio?'<span style="font-size:9px;color:#fb923c;letter-spacing:.1em;text-transform:uppercase;margin-right:6px;">🔧 PREMONTAGGIO</span>':''} ${s.spett}</div>`}
@@ -3118,6 +3118,13 @@ function renderList(){
   fil.forEach(s=>{ if(s.replicaOf){ (repliche_map[s.replicaOf]=repliche_map[s.replicaOf]||[]).push(s); } });
   // Rimuovi le repliche dall'elenco principale (verranno mostrate sotto il parent)
   fil = fil.filter(s=>!s.replicaOf);
+  // Premontaggi e residenze: accorpati sotto lo spettacolo principale (come le repliche), se è in elenco.
+  // Il gruppo si ordina per la prima giornata, così "inizia" dal premontaggio / dalla residenza.
+  const prima_map = {}, inizioDi = {};
+  fil.forEach(s=>{ if(!s.premontaggio) return; const m=_principaleDi(s); if(m && m!==s && fil.includes(m)){ (prima_map[m.id]=prima_map[m.id]||[]).push(s); } });
+  fil = fil.filter(s=>!(s.premontaggio && prima_map[(_principaleDi(s)||{}).id] && prima_map[(_principaleDi(s)||{}).id].includes(s)));
+  fil.forEach(s=>{ const pre=(prima_map[s.id]||[]); inizioDi[s.id]=pre.length?pre.map(x=>x.data).sort()[0]:s.data; });
+  fil.sort((a,b)=>inizioDi[a.id].localeCompare(inizioDi[b.id]) || a.data.localeCompare(b.data));
 
   const el=document.getElementById('splist');
   if(!fil.length){
@@ -3125,17 +3132,18 @@ function renderList(){
     return;
   }
 
+  const fmtB=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'short'}); }catch{ return d; } };
   el.innerHTML=fil.map(s=>{
-    return _buildCard(s);
-  }).map((html, idx)=>{
-
-    const s = fil[idx];
+    const pre = (prima_map[s.id]||[]).sort((a,b)=>a.data.localeCompare(b.data));
     const reps = (repliche_map[s.id]||[]).sort((a,b)=>a.data.localeCompare(b.data));
-    if(!reps.length) return html;
-    const nRep = reps.length;
-    const repsHtml = reps.map(r=>_buildCard(r)).join('');
-    const toggleBtn = `<div style="padding:2px 14px 8px;"><button class="repliche-toggle" onclick="toggleRepliche(${s.id},this)">▶ ${nRep} replica${nRep>1?'e':''}</button></div>`;
-    return html + toggleBtn + `<div id="rep-group-${s.id}" style="display:none;margin-top:2px;">${repsHtml}</div>`;
+    const nRes=pre.filter(x=>x.residenza).length, nPre=pre.length-nRes, nRep=reps.length;
+    if(!pre.length && !reps.length) return _buildCard(s);
+    const parti=[nPre?'🔧 premontaggio '+fmtB(pre.find(x=>!x.residenza).data):'', nRes?'🏠 residenza dal '+fmtB(pre.find(x=>x.residenza).data):'', nRep?'🔁 '+nRep+' replic'+(nRep>1?'he':'a')+' fino al '+fmtB(reps[reps.length-1].data):''].filter(Boolean);
+    const html=_buildCard(s, {testo: parti.join(' · ')});
+    const tutte=[...pre, ...reps].sort((a,b)=>a.data.localeCompare(b.data));
+    const label=_riepilogoGruppo(nPre,nRes,nRep);
+    const toggleBtn = `<div style="padding:2px 14px 8px;"><button class="repliche-toggle" data-label="${label}" onclick="toggleRepliche(${s.id},this)">▶ ${label}</button></div>`;
+    return html + toggleBtn + `<div id="rep-group-${s.id}" style="display:none;margin-top:2px;">${tutte.map(r=>_buildCard(r)).join('')}</div>`;
   }).join('');
 }
 
@@ -3243,21 +3251,22 @@ function aggiungiReplica(id){
     const grp = document.getElementById('rep-group-'+rootId);
     if(grp){ grp.style.display=''; }
     const btn = document.querySelector(`[onclick*="toggleRepliche(${rootId}"]`);
-    if(btn) btn.textContent = '▼ '+(tutte.length)+' replica'+(tutte.length>1?'e':'');
+    if(btn) btn.textContent = '▼ '+(btn.dataset.label||'');
   }, 100);
   toast('✓ Replica aggiunta il '+dataSucc);
   if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
 }
 
+function _riepilogoGruppo(nPre,nRes,nRep){
+  const p=[]; if(nPre) p.push(nPre+' premontaggi'+(nPre>1?'':'o')); if(nRes) p.push(nRes+' giorn'+(nRes>1?'i':'o')+' di residenza'); if(nRep) p.push(nRep+' replic'+(nRep>1?'he':'a'));
+  const n=nPre+nRes+nRep; return n+' giornat'+(n>1?'e':'a')+' ('+p.join(', ')+')';
+}
 function toggleRepliche(id, btn){
   const grp = document.getElementById('rep-group-'+id);
   if(!grp) return;
   const aperto = grp.style.display !== 'none';
   grp.style.display = aperto ? 'none' : '';
-  if(btn){
-    const n = grp.children.length;
-    btn.textContent = (aperto ? '▶ ' : '▼ ') + n + ' replica'+(n>1?'e':'');
-  }
+  if(btn){ const label=btn.dataset.label || (grp.children.length+' giornate'); btn.textContent = (aperto ? '▶ ' : '▼ ') + label; }
 }
 
 function delSpett(id){
@@ -6193,7 +6202,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v117</span>
+    <span>Report generato da GammaFucker v118</span>
   </div>
   </body></html>`;
 
@@ -6299,7 +6308,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v117</span>
+    <span>Report generato da GammaFucker v118</span>
   </div>
   </body></html>`;
 
@@ -6367,7 +6376,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v117</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v118</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6439,7 +6448,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v117</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v118</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
