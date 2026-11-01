@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v115</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v116</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -656,6 +656,15 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 </div>
 
 <div class="panel" id="panel-collab">
+  <div class="fc">
+    <div class="fct">🔎 Dove sta un tecnico / una ditta</div>
+    <p style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:8px;">Scrivi un nome: ti dice in quali giornate del mese è già impegnato (squadre, presenze a chiamata, service dei piani) e quali sono libere.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <div class="rb-wrap" style="flex:2;min-width:160px;"><input type="text" id="dv-nome" placeholder="nome tecnico o ditta" autocomplete="off" oninput="renderDoveSta()"></div>
+      <input type="month" id="dv-mese" style="flex:1;min-width:130px;font-size:12px;" onchange="renderDoveSta()">
+    </div>
+    <div id="dv-out" style="margin-top:10px;"></div>
+  </div>
   <div class="fc">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <div class="fct" style="margin-bottom:0;">👥 Collaboratori a Chiamata</div>
@@ -6184,7 +6193,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v115</span>
+    <span>Report generato da GammaFucker v116</span>
   </div>
   </body></html>`;
 
@@ -6290,7 +6299,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v115</span>
+    <span>Report generato da GammaFucker v116</span>
   </div>
   </body></html>`;
 
@@ -6358,7 +6367,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v115</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v116</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6430,7 +6439,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v115</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v116</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -6444,6 +6453,37 @@ function generaReportStagione(){
 
 let collaboratori = ld('collaboratori', []);
 
+// ── Dove sta un tecnico: impegni nel mese da squadre (prod.squadra), presenze a chiamata (s.collab), service ──
+function _impegniDi(nome, mese){
+  const n=_normTxt(nome); if(n.length<3) return [];
+  const hit=t=>{ const x=_normTxt(t); return x===n || x.includes(n) || (n.split(' ').length>1 && n.split(' ').every(w=>x.includes(w))); };
+  const out=[];
+  data.forEach(s=>{
+    if(mese && !s.data.startsWith(mese)) return;
+    const p=s.prod||{}; const ruoli=[];
+    (p.squadra||[]).forEach(r=>{ if(hit(r.nome)) ruoli.push(r.ruolo||'squadra'); });
+    (s.collab||[]).forEach(c=>{ if(hit(c.nome)) ruoli.push('a chiamata'); });
+    if(p.service && hit(p.service)) ruoli.push('service');
+    if(ruoli.length) out.push({data:s.data, s, ruoli:[...new Set(ruoli)]});
+  });
+  return out.sort((a,b)=>a.data.localeCompare(b.data));
+}
+function renderDoveSta(){
+  const nome=document.getElementById('dv-nome').value.trim(); const out=document.getElementById('dv-out');
+  let mese=document.getElementById('dv-mese').value; if(!mese){ mese=new Date().toISOString().slice(0,7); document.getElementById('dv-mese').value=mese; }
+  if(nome.length<3){ out.innerHTML=''; return; }
+  const imp=_impegniDi(nome, mese); const esc=v=>String(v||'').replace(/</g,'&lt;');
+  const [y,m]=mese.split('-').map(Number); const nG=new Date(y,m,0).getDate(); const occ={}; imp.forEach(i=>{ (occ[+i.data.slice(8)]=occ[+i.data.slice(8)]||[]).push(i); });
+  const gg=['D','L','M','M','G','V','S']; const oggi=new Date().toISOString().slice(0,10);
+  let cal='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:8px;">'+['lun','mar','mer','gio','ven','sab','dom'].map(x=>`<div style="font-size:9px;color:var(--text3);text-align:center;">${x}</div>`).join('');
+  const primo=(new Date(y,m-1,1).getDay()+6)%7; for(let i=0;i<primo;i++) cal+='<div></div>';
+  for(let d=1; d<=nG; d++){ const ds=mese+'-'+String(d).padStart(2,'0'); const o=occ[d]; const dow=new Date(y,m-1,d).getDay();
+    cal+=`<div title="${o?esc(o.map(i=>i.s.spett+' · '+i.s.citta+' ('+i.ruoli.join(', ')+')').join('\n')):'libero'}" style="text-align:center;font-size:11px;padding:5px 2px;border-radius:6px;border:1px solid ${o?'rgba(239,68,68,.5)':'var(--border)'};background:${o?'rgba(239,68,68,.15)':(dow===0||dow===6?'rgba(245,200,66,.05)':'rgba(16,185,129,.06)')};color:${o?'var(--red)':'var(--text)'};${ds===oggi?'outline:1px solid var(--gold);':''}">${d}</div>`; }
+  cal+='</div>';
+  const liberi=[]; for(let d=1; d<=nG; d++) if(!occ[d]) liberi.push(d);
+  const lista=imp.length?`<div style="font-size:11px;">${imp.map(i=>`<div style="padding:3px 0;border-top:1px solid var(--border);"><b>${_prodFmtD(i.data)}</b> · ${esc(i.s.spett)} · ${esc(i.s.citta)}${i.s.teatro?' · '+esc(i.s.teatro):''} <span style="color:var(--text3);">(${esc(i.ruoli.join(', '))})</span>${i.s.premontaggio?' <span style="color:#fb923c;">premontaggio</span>':''}${i.s.replicaOf?' <span style="color:#818cf8;">replica</span>':''}</div>`).join('')}</div>`:'<div style="font-size:11px;color:var(--text3);">nessun impegno registrato in questo mese</div>';
+  out.innerHTML=`<div style="font-size:11px;color:var(--text2);margin-bottom:6px;"><b>${esc(nome)}</b> · ${imp.length} impegn${imp.length===1?'o':'i'} · ${liberi.length} giorni liberi</div>`+cal+lista;
+}
 function aggiungiCollab(){
   const nome = (document.getElementById('cfg-collab-nome').value||'').trim();
   const tar  = +document.getElementById('cfg-collab-tariffa').value || 0;
@@ -9174,6 +9214,7 @@ function goTab(name){
   if(name==='exp')buildRepMeseSelect();
   if(name==='fatt') _undoAggiornaBottone();
   if(name==='proposte') _riscCaricaConfigUI();
+  if(name==='collab' && !window._dvRubrica){ window._dvRubrica=true; attachRubrica('dv-nome', c=>{ document.getElementById('dv-nome').value=c.nome; renderDoveSta(); }, {aziende:true, collaboratori:true}); }
   if(name==='set'){ buildCfgDittaSel(); if(ld('sheetsUrl','') && !IS_COLLAB && !document.getElementById('cfg-mittenti').value){ caricaMittenti(); caricaConsumoAI(); } }
   if(name==='forn'){ buildFornSelect(); if(ld('sheetsUrl','')) setTimeout(()=>pushConfig(true),300); }
   if(name==='collab'){ buildCollabMeseSelect(); renderCollabMese(); }
