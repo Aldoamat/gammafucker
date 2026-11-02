@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v120</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v121</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -2803,6 +2803,8 @@ function editSpett(id){
   const _noteFatt = _noteRighe.filter(l=>l.toLowerCase().includes('fattura'));
   document.getElementById('f-note-gen').value = _noteGen;
   document.getElementById('f-accordi').value = s.accordi||'';
+  // presenze collaboratori: il modulo le deve mostrare, altrimenti al salvataggio sparivano
+  buildCollabFormPresenze(); _formCollabDa(s);
   // Mostra sezione fatture se presenti
   const _fattBox = document.getElementById('f-note-fatt-box');
   const _fattList = document.getElementById('f-note-fatt-list');
@@ -2835,7 +2837,7 @@ function resetForm(){
   document.getElementById('f-teatro').innerHTML='<option>—</option>';
   ['f-spett','f-nm','f-sm','f-ne','f-se','f-nf','f-sf','f-nfo','f-sfo','f-nsa','f-ssa','f-note-gen','f-accordi'].forEach(id=>document.getElementById(id).value='');
   const _fb=document.getElementById('f-note-fatt-box'); if(_fb) _fb.style.display='none';
-  resetCollabForm();
+  resetCollabForm(); window._collabOrfani=null;
   document.getElementById('f-tm').value=tariffe.m;
   document.getElementById('f-te').value=tariffe.e;
   document.getElementById('f-tf').value=tariffe.f;
@@ -6213,7 +6215,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v120</span>
+    <span>Report generato da GammaFucker v121</span>
   </div>
   </body></html>`;
 
@@ -6319,7 +6321,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v120</span>
+    <span>Report generato da GammaFucker v121</span>
   </div>
   </body></html>`;
 
@@ -6387,7 +6389,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v120</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v121</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6459,7 +6461,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v120</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v121</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -6612,6 +6614,17 @@ function buildCollabFormPresenze(){
   });
 }
 
+function _formCollabDa(s){
+  collaboratori.forEach(c=>{
+    const p=(s.collab||[]).find(x=>String(x.collab_id)===String(c.id)||_normTxt(x.nome)===_normTxt(c.nome));
+    const chk=document.getElementById('fc-chk-'+c.id); if(!chk) return;
+    chk.checked=!!p; toggleCollabPresenza(c.id);
+    const tar=document.getElementById('fc-tar-'+c.id); if(tar) tar.value=p?p.tariffa:c.tariffa_base;
+    const nt=document.getElementById('fc-note-'+c.id); if(nt) nt.value=p?(p.note||''):'';
+  });
+  // presenze di collaboratori non più in elenco: conservate al salvataggio
+  window._collabOrfani=(s.collab||[]).filter(x=>!collaboratori.some(c=>String(x.collab_id)===String(c.id)||_normTxt(x.nome)===_normTxt(c.nome)));
+}
 function toggleCollabPresenza(id){
   const chk = document.getElementById('fc-chk-'+id);
   const det = document.getElementById('fc-det-'+id);
@@ -6620,8 +6633,8 @@ function toggleCollabPresenza(id){
 
 // Leggi presenze dal form
 function leggiCollabPresenze(){
-  if(!collaboratori.length) return [];
-  return collaboratori.filter(c=>{
+  if(!collaboratori.length) return (editingId && window._collabOrfani) ? window._collabOrfani : [];
+  return (editingId && window._collabOrfani ? window._collabOrfani : []).concat(collaboratori.filter(c=>{
     const chk = document.getElementById('fc-chk-'+c.id);
     return chk && chk.checked;
   }).map(c=>({
@@ -6629,7 +6642,7 @@ function leggiCollabPresenze(){
     nome: c.nome,
     tariffa: +(document.getElementById('fc-tar-'+c.id)||{value:c.tariffa_base}).value || c.tariffa_base,
     note: (document.getElementById('fc-note-'+c.id)||{value:''}).value.trim()
-  }));
+  })));
 }
 
 // Popola form in modalità modifica
