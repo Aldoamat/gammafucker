@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v127 ──
+// ── SPETTACOLI APP SCRIPT v128 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -151,6 +151,11 @@ function doPost(e) {
       lock.releaseLock();
       return ContentService.createTextOutput(JSON.stringify({ ok: true, mittenti: lista })).setMimeType(ContentService.MimeType.JSON);
     }
+    if (body.action === 'agganciaAllegati') {
+      lock.releaseLock();
+      var rg; try { rg = agganciaAllegatiMail(body.link, body.allegati, body.titolo); } catch(errG) { rg = { error: errG.message }; }
+      return ContentService.createTextOutput(JSON.stringify(rg)).setMimeType(ContentService.MimeType.JSON);
+    }
     if (body.action === 'allegatiMail') {
       lock.releaseLock();
       var ra; try { ra = allegatiMailThread(body.link, body.fonte); } catch(errA) { ra = { error: errA.message }; }
@@ -237,6 +242,10 @@ function doGet(e) {
     var cb = e.parameter.callback;
     if(cb) return ContentService.createTextOutput(cb+'('+payload+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
     return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
+  }
+  if(action === 'cercaMail') {
+    var rq; try { rq = cercaMailScheda(e.parameter.q, +e.parameter.giorni || 365); } catch(err) { rq = { error: err.message }; }
+    return ContentService.createTextOutput(JSON.stringify(rq)).setMimeType(ContentService.MimeType.JSON);
   }
   if(action === 'cartellaSpazio') {
     var rc; try { rc = cartellaSpazio(e.parameter.cartella); } catch(err) { rc = { error: err.message }; }
@@ -1012,6 +1021,30 @@ function _msgConAllegati(th) {
   var msgs = th.getMessages(), msg = msgs[msgs.length - 1];
   for (var i = msgs.length - 1; i >= 0; i--) { if (msg.getAttachments().length) break; if (msgs[i].getAttachments().length) { msg = msgs[i]; break; } }
   return msg;
+}
+// Ricerca mirata in Gmail per uno spettacolo: mail con allegati PDF/Word che citano le parole del titolo
+// (oggetto o testo). Serve quando la scansione automatica non ha agganciato la scheda: si sceglie a mano.
+function cercaMailScheda(q, giorni) {
+  var parole = String(q || '').replace(/[^\wÀ-ÿ' ]+/g, ' ').split(/\s+/).filter(function(w){ return w.length >= 4; }).slice(0, 5);
+  if (!parole.length) return { error: 'scrivi almeno una parola di 4 lettere' };
+  var query = 'has:attachment newer_than:' + (giorni || 365) + 'd (filename:pdf OR filename:docx OR filename:doc) ' + parole.map(function(w){ return '"' + w + '"'; }).join(' ');
+  var threads = GmailApp.search(query, 0, 12);
+  var out = threads.map(function(th){
+    var msg = _msgConAllegati(th);
+    var atts = msg.getAttachments().map(function(a, i){ return { i: i, nome: a.getName(), kb: Math.round(a.getSize() / 1024) }; }).filter(function(a){ return /\.(pdf|docx?)$/i.test(a.nome); });
+    return { link: th.getPermalink(), oggetto: msg.getSubject(), da: msg.getFrom(), data: Utilities.formatDate(msg.getDate(), 'Europe/Rome', 'dd/MM/yyyy'), allegati: atts, etichettata: th.getLabels().some(function(l){ return l.getName() === 'GF-scheda'; }) };
+  }).filter(function(t){ return t.allegati.length; });
+  return { ok: true, query: query, mail: out };
+}
+// Aggancio manuale (senza AI): salva su Drive gli allegati scelti e restituisce i link; l'app li mette sullo spettacolo
+function agganciaAllegatiMail(link, allegati, titolo) {
+  var th = _threadDaLink(link, '');
+  if (!th) return { error: 'mail non trovata' };
+  var msg = _msgConAllegati(th), tutti = msg.getAttachments();
+  var out = [];
+  (allegati || []).forEach(function(i){ var a = tutti[+i]; if (!a) return; try { out.push({ nome: a.getName(), url: _salvaAllegato(a, titolo) }); } catch(e) { out.push({ nome: a.getName(), error: e.message }); } });
+  try { th.addLabel(GmailApp.getUserLabelByName('GF-scheda') || GmailApp.createLabel('GF-scheda')); } catch(e) {}
+  return { ok: true, file: out, da: msg.getFrom(), oggetto: msg.getSubject(), contatti: _contattiScheda(msg, []) };
 }
 // Elenco allegati della mail: l'app li mostra con le spunte, così al teatro va solo la scheda di competenza
 function allegatiMailThread(link, fonte) {

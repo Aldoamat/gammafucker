@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v121</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v122</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -771,6 +771,24 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
   <div class="spacer"></div>
 </div>
 
+<!-- ══ CERCA SCHEDA IN GMAIL: aggancio manuale degli allegati ══ -->
+<div class="mover" id="cerca-mail-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto;">
+    <div class="mtitle">📧 Cerca la scheda in Gmail</div>
+    <div id="cm-titolo" style="font-size:11px;color:var(--text2);margin-bottom:8px;"></div>
+    <div style="display:flex;gap:6px;">
+      <input type="text" id="cm-q" placeholder="parole da cercare (titolo, compagnia…)" style="flex:1;" onkeydown="if(event.key==='Enter') cercaMailScheda()">
+      <select id="cm-giorni" style="font-size:12px;"><option value="180">6 mesi</option><option value="365" selected>1 anno</option><option value="730">2 anni</option></select>
+      <button class="btn btn-o btn-sm" onclick="cercaMailScheda()">🔍</button>
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;">Cerca nelle mail con allegati PDF/Word che contengono tutte le parole. Spunta gli allegati e agganciali: vanno su Drive e sullo spettacolo, senza passare dall'AI.</div>
+    <div id="cm-out" style="margin-top:10px;"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn btn-p" id="cm-btn" style="flex:1;" onclick="agganciaDaMail()">📎 Aggancia allo spettacolo</button>
+      <button class="btn btn-o" onclick="document.getElementById('cerca-mail-ov').classList.remove('open')">Chiudi</button>
+    </div>
+  </div>
+</div>
 <!-- ══ SQUADRA TECNICI / SERVICE: WhatsApp con le info del lavoro ══ -->
 <div class="mover" id="squadra-ov" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto;">
@@ -3049,6 +3067,7 @@ function _buildCard(s, grp){
       <button class="iBtn" style="color:var(--accent);border-color:rgba(124,58,237,.3);" onclick="apriInvioInfoSpazio(${s.id})">📧 Info spazio</button>
       ${s.manif!=='GESTIONE'&&(!IS_COLLAB||(s.manif&&pianiProduzione[_prodKeyDi(s)]))?`<button class="iBtn" style="color:#c084fc;border-color:rgba(192,132,252,.35);" onclick="apriPianoSpettacolo(${s.id})">🎬 Piano</button>`:''}
       ${IS_COLLAB?'':`<button class="iBtn" style="color:#25d366;border-color:rgba(37,211,102,.35);" onclick="apriSquadra(${s.id})" title="WhatsApp ai tecnici / service con le info del lavoro">👷 Squadra</button>`}
+      ${IS_COLLAB||s.premontaggio||s.replicaOf||_mailsDi(s).some(m=>m.tipo==='scheda'&&m.file)?'':`<button class="iBtn" style="color:#60a5fa;border-color:rgba(96,165,250,.35);" onclick="apriCercaMail(${s.id})" title="Cerca la scheda tecnica nelle mail e agganciala">📧 Scheda?</button>`}
       ${IS_COLLAB?'':`<button class="iBtn" style="color:var(--purple);border-color:rgba(124,58,237,.35);" onclick="apriVoceFornitore(${s.id})">🧾 Voce fornitore</button>
       <button class="iBtn ed" onclick="editSpett(${s.id})">✏️ Modifica</button>
       <button class="iBtn dl" onclick="delSpett(${s.id})">🗑</button>`}
@@ -6215,7 +6234,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v121</span>
+    <span>Report generato da GammaFucker v122</span>
   </div>
   </body></html>`;
 
@@ -6321,7 +6340,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v121</span>
+    <span>Report generato da GammaFucker v122</span>
   </div>
   </body></html>`;
 
@@ -6389,7 +6408,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v121</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v122</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6461,7 +6480,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v121</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v122</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -8906,6 +8925,52 @@ function _testoInfoSpazioDi(s, plain){
   return '\n\nInformazioni dello spazio:\n'+t;
 }
 
+// ── Cerca la scheda in Gmail e aggancia gli allegati scelti (senza AI) ──
+let _cmId=null, _cmMail=[];
+function apriCercaMail(id){
+  const s=data.find(x=>String(x.id)===String(id)); if(!s) return; _cmId=s.id; _cmMail=[];
+  document.getElementById('cm-titolo').textContent=s.spett+' · '+_prodFmtD(s.data)+' · '+s.citta+(s.teatro?' · '+s.teatro:'');
+  document.getElementById('cm-q').value=s.spett; document.getElementById('cm-out').innerHTML='';
+  document.getElementById('cerca-mail-ov').classList.add('open');
+  cercaMailScheda();
+}
+async function cercaMailScheda(){
+  const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
+  const q=document.getElementById('cm-q').value.trim(), out=document.getElementById('cm-out'); if(!q) return;
+  out.innerHTML='⏳ cerco in Gmail…';
+  try{
+    const r=await fetch(url+'?action=cercaMail&q='+encodeURIComponent(q)+'&giorni='+document.getElementById('cm-giorni').value+'&t='+Date.now()); const txt=await r.text(); let j; try{ j=JSON.parse(txt); }catch(_){ throw new Error('script in aggiornamento, riprova'); } if(j.error) throw new Error(j.error);
+    _cmMail=j.mail||[]; const esc=v=>String(v||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    if(!_cmMail.length){ out.innerHTML='<div style="font-size:11px;color:var(--text3);">nessuna mail con allegati per "'+esc(q)+'": prova con meno parole o un periodo più lungo</div>'; return; }
+    out.innerHTML=_cmMail.map((m,i)=>`<div style="border:1px solid var(--border2);border-radius:8px;padding:8px;margin-bottom:6px;">
+      <div style="font-size:12px;font-weight:700;">${esc(m.oggetto)}</div>
+      <div style="font-size:10px;color:var(--text3);">${esc(m.da)} · ${esc(m.data)}${m.etichettata?' · <span style="color:#f59e0b;">già esaminata dalla scansione</span>':''} · <a href="${esc(m.link)}" target="_blank" rel="noopener" style="color:#60a5fa;">apri in Gmail</a></div>
+      ${m.allegati.map(a=>`<label style="display:flex;gap:6px;align-items:center;font-size:11px;padding:2px 0;cursor:pointer;"><input type="checkbox" class="cm-att" data-m="${i}" value="${a.i}" style="width:14px;height:14px;"> 📎 ${esc(a.nome)} <span style="color:var(--text3);">${a.kb} KB</span></label>`).join('')}
+    </div>`).join('');
+  }catch(e){ out.innerHTML='<span style="color:#f59e0b;">'+String(e.message).replace(/</g,'&lt;')+'</span>'; }
+}
+async function agganciaDaMail(){
+  const s=data.find(x=>String(x.id)===String(_cmId)); if(!s) return;
+  const sel=[...document.querySelectorAll('.cm-att:checked')]; if(!sel.length){ toast('Spunta almeno un allegato', true); return; }
+  const url=ld('sheetsUrl',''); const btn=document.getElementById('cm-btn'); btn.disabled=true; btn.textContent='⏳ Aggancio…';
+  try{
+    const perMail={}; sel.forEach(c=>{ (perMail[c.dataset.m]=perMail[c.dataset.m]||[]).push(+c.value); });
+    let n=0;
+    for(const mi of Object.keys(perMail)){ const m=_cmMail[+mi];
+      const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'agganciaAllegati', link:m.link, allegati:perMail[mi], titolo:s.spett})});
+      const j=await res.json(); if(j.error) throw new Error(j.error);
+      if(!s.mails) s.mails=[];
+      (j.file||[]).forEach(f=>{ if(f.url){ s.mails.push({og:'Scheda tecnica — '+f.nome.replace(/\.[^.]+$/,''), link:m.link, tipo:'scheda', file:f.url, manuale:true}); n++; } });
+      // referenti dalla mail (mittente e firme), senza doppioni
+      if(!s.contatti) s.contatti=[];
+      (j.contatti||[]).forEach(c=>{ if(!c||(!c.email&&!c.telefono)) return; if(c.email && s.contatti.some(x=>(x.email||'').toLowerCase()===c.email.toLowerCase())) return; s.contatti.push({nome:c.nome||'', ruolo:c.ruolo||'', email:c.email||'', telefono:c.telefono||''}); });
+    }
+    sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000; renderList();
+    document.getElementById('cerca-mail-ov').classList.remove('open');
+    toast('✓ '+n+' allegat'+(n===1?'o agganciato':'i agganciati')+' a '+s.spett); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
+  }catch(e){ toast('Errore: '+e.message, true); }
+  finally{ btn.disabled=false; btn.textContent='📎 Aggancia allo spettacolo'; }
+}
 // ── Squadra tecnici / service: WhatsApp con le info del lavoro, squadra registrata sullo spettacolo ──
 // Orari dal piano di produzione (che a sua volta li prende dalla scheda tecnica); persone dalla rubrica,
 // dalle aziende di servizio e dai collaboratori a chiamata; la squadra scelta finisce in s.prod.squadra e in nota.
