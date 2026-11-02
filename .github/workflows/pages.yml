@@ -1,0 +1,40 @@
+# Pubblica le due app su GitHub Pages a ogni push su main:
+#   dist/        → https://aldoamat.github.io/gammafucker/
+#   dist-collab/ → https://aldoamat.github.io/gammafucker/collab/
+# Nessun servizio esterno: il repository è il sito.
+name: Pubblica app (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+    paths: ['dist/**', 'dist-collab/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compone il sito (app principale alla radice, collaboratori in /collab/)
+        run: |
+          rm -rf _site && mkdir -p _site/collab
+          cp -r dist/. _site/
+          cp -r dist-collab/. _site/collab/
+          touch _site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

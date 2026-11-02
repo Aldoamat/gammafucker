@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v123</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v124</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1411,8 +1411,12 @@ let gapiReady = false;
 let statoFilter = 'all';
 let weekFilter = true; // mostra settimana corrente all'apertura
 
-function ld(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}}
-function sv(k,v){localStorage.setItem(k,JSON.stringify(v));}
+// Su GitHub Pages le due app vivono sulla stessa origine (aldoamat.github.io): la memoria locale è condivisa,
+// quindi l'app collaboratori usa chiavi con prefisso per non mescolarsi con quella amministrazione.
+const LS_PREFIX = APP_MODE === 'collab' ? 'collab:' : '';
+const _lsk = k => LS_PREFIX + k;
+function ld(k,d){try{const v=localStorage.getItem(_lsk(k));return v?JSON.parse(v):d;}catch{return d;}}
+function sv(k,v){localStorage.setItem(_lsk(k),JSON.stringify(v));}
 
 // ══════════════════════════════════ INIT ══════════════════════════════════
 // ══ SVUOTA CACHE SERVICE WORKER ══
@@ -1639,9 +1643,9 @@ async function silentPull(){
     }
     _applicaConfigExtra(json);
     if(json.manifCustom && Array.isArray(json.manifCustom)){
-      const existing=JSON.parse(localStorage.getItem('manifCustom')||'[]');
+      const existing=JSON.parse(localStorage.getItem(_lsk('manifCustom'))||'[]');
       const merged=[...new Set([...existing,...json.manifCustom])];
-      localStorage.setItem('manifCustom',JSON.stringify(merged));
+      localStorage.setItem(_lsk('manifCustom'),JSON.stringify(merged));
       loadManifCustom();
     }
     updateDatalist();buildMesiFilter();renderList();
@@ -3483,8 +3487,8 @@ async function pushSheets(silent=false){
         buildCityList();buildCittaSel('f-citta');buildCittaSel('fil-citta');
       }
       if(json.manifCustom && Array.isArray(json.manifCustom)){
-        const ex=JSON.parse(localStorage.getItem('manifCustom')||'[]');
-        localStorage.setItem('manifCustom',JSON.stringify([...new Set([...ex,...json.manifCustom])]));
+        const ex=JSON.parse(localStorage.getItem(_lsk('manifCustom'))||'[]');
+        localStorage.setItem(_lsk('manifCustom'),JSON.stringify([...new Set([...ex,...json.manifCustom])]));
         loadManifCustom();
       }
       updateDatalist();buildMesiFilter();renderList();
@@ -3574,9 +3578,9 @@ async function pullSheets(){
       buildCityList();buildCittaSel('f-citta');buildCittaSel('fil-citta');
     }
     if(json.manifCustom && Array.isArray(json.manifCustom)){
-      const existing=JSON.parse(localStorage.getItem('manifCustom')||'[]');
+      const existing=JSON.parse(localStorage.getItem(_lsk('manifCustom'))||'[]');
       const merged=[...new Set([...existing,...json.manifCustom])];
-      localStorage.setItem('manifCustom',JSON.stringify(merged));
+      localStorage.setItem(_lsk('manifCustom'),JSON.stringify(merged));
       loadManifCustom();
     }
     // Aggiorna dittaDB
@@ -5888,17 +5892,17 @@ function _undoRegistra(prima, descr){
   const mod=[], nuovi=[];
   data.forEach(s=>{ const k=String(s.id), j=JSON.stringify(s); if(!prima.has(k)) nuovi.push(k); else if(prima.get(k)!==j) mod.push({id:k, prev:JSON.parse(prima.get(k))}); });
   if(!mod.length && !nuovi.length) return;
-  try{ localStorage.setItem('undoFattura', JSON.stringify({ts:Date.now(), descr, mod, nuovi})); }catch(e){}
+  try{ localStorage.setItem(_lsk('undoFattura'), JSON.stringify({ts:Date.now(), descr, mod, nuovi})); }catch(e){}
   _undoAggiornaBottone();
 }
 function _undoAggiornaBottone(){
   const b=document.getElementById('fatt-undo'); if(!b) return;
-  let u=null; try{ u=JSON.parse(localStorage.getItem('undoFattura')||'null'); }catch(e){}
+  let u=null; try{ u=JSON.parse(localStorage.getItem(_lsk('undoFattura'))||'null'); }catch(e){}
   b.style.display='inline-block'; b.disabled=!u; b.style.opacity=u?'1':'.5';
   b.textContent = u ? '↩ Annulla ultimo inserimento ('+(u.descr||'')+' · '+u.mod.length+' modificati'+(u.nuovi.length?', '+u.nuovi.length+' creati':'')+')' : '↩ Annulla ultimo inserimento (nessuno da annullare)';
 }
 function annullaUltimoInserimento(){
-  let u=null; try{ u=JSON.parse(localStorage.getItem('undoFattura')||'null'); }catch(e){}
+  let u=null; try{ u=JSON.parse(localStorage.getItem(_lsk('undoFattura'))||'null'); }catch(e){}
   if(!u){ toast('Niente da annullare', true); return; }
   if(!confirm('Annullare "'+(u.descr||'ultimo inserimento')+'"?\nGli spettacoli tornano come erano prima.')) return;
   u.mod.forEach(m=>{ const i=data.findIndex(s=>String(s.id)===m.id); if(i>-1) data[i]={...m.prev, ts:new Date().toISOString()}; else data.push(m.prev); });
@@ -5909,7 +5913,7 @@ function annullaUltimoInserimento(){
   }
   data.sort((a,b)=>a.data.localeCompare(b.data));
   sv('spettacoli',data); window._pullBlockUntil = Date.now()+30000;
-  localStorage.removeItem('undoFattura'); _undoAggiornaBottone();
+  localStorage.removeItem(_lsk('undoFattura')); _undoAggiornaBottone();
   _logModifica('fattura', 'Annullato inserimento: '+(u.descr||''));
   renderList(); toast('↩ Inserimento annullato'+(u.nuovi.length?' · '+u.nuovi.length+' spettacoli creati rimossi':''));
   if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
@@ -6234,7 +6238,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v123</span>
+    <span>Report generato da GammaFucker v124</span>
   </div>
   </body></html>`;
 
@@ -6340,7 +6344,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v123</span>
+    <span>Report generato da GammaFucker v124</span>
   </div>
   </body></html>`;
 
@@ -6408,7 +6412,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v123</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v124</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6480,7 +6484,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v123</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v124</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');

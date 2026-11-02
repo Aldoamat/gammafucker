@@ -4,8 +4,8 @@
 //
 //  node release.mjs build [N]   → bump versione (v26→v27 o vN), sincronizza
 //                                 getScript() da apps-script/Codice.js,
-//                                 prepara dist/ per Netlify. Nessun deploy.
-//  node release.mjs deploy      → git commit + push (Netlify pubblica dal repo),
+//                                 prepara dist/ e dist-collab/. Nessun deploy.
+//  node release.mjs deploy      → git commit + push (GitHub Pages pubblica dal repo),
 //                                 clasp push + deploy. Solo dopo il build.
 //                                 --netlify: forza netlify deploy via CLI; --clasp: forza clasp da qui
 //                                 (di norma lo script lo deploya la GitHub Action dopo il push).
@@ -134,7 +134,7 @@ function deploy() {
       try { sh('git pull --rebase --autostash origin main'); } catch { console.log('  (pull non riuscito: continuo con il push)'); }
       sh('git push origin HEAD');
       try { sh(`git push -f origin refs/tags/${tag}`); } catch { console.log('  (tag non aggiornato, non è un problema)'); }
-      pushed = true; console.log('  → push su ' + remote + ' (Netlify pubblica l\'app, la GitHub Action lo script)');
+      pushed = true; console.log('  → push su ' + remote + ' (le Action pubblicano app su GitHub Pages e script)');
     }
   }
 
@@ -151,8 +151,8 @@ function deploy() {
   }
   }
 
-  console.log('\n[3/3] Netlify');
-  if (pushed && !process.argv.includes('--netlify')) console.log('  saltato: il sito è collegato a GitHub e si aggiorna dal push (usa "deploy --netlify" per forzare la CLI)');
+  console.log('\n[3/3] Sito');
+  if (pushed && !process.argv.includes('--netlify')) console.log('  GitHub Pages: pubblicazione dal push (Action "Pubblica app"); --netlify per il vecchio hosting');
   else sh(`netlify deploy --prod --dir=dist --message "${tag}"`);
 
   console.log(`\n✓ Rilascio ${tag} completato`);
