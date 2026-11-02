@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v122</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v123</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -777,8 +777,8 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div class="mtitle">📧 Cerca la scheda in Gmail</div>
     <div id="cm-titolo" style="font-size:11px;color:var(--text2);margin-bottom:8px;"></div>
     <div style="display:flex;gap:6px;">
-      <input type="text" id="cm-q" placeholder="parole da cercare (titolo, compagnia…)" style="flex:1;" onkeydown="if(event.key==='Enter') cercaMailScheda()">
-      <select id="cm-giorni" style="font-size:12px;"><option value="180">6 mesi</option><option value="365" selected>1 anno</option><option value="730">2 anni</option></select>
+      <input type="text" id="cm-q" placeholder="parole da cercare (titolo, compagnia…)" style="flex:1 1 auto;min-width:0;width:100%;" onkeydown="if(event.key==='Enter') cercaMailScheda()">
+      <select id="cm-giorni" style="font-size:12px;flex:0 0 auto;width:auto;"><option value="180">6 mesi</option><option value="365" selected>1 anno</option><option value="730">2 anni</option></select>
       <button class="btn btn-o btn-sm" onclick="cercaMailScheda()">🔍</button>
     </div>
     <div style="font-size:10px;color:var(--text3);margin-top:4px;">Cerca nelle mail con allegati PDF/Word che contengono tutte le parole. Spunta gli allegati e agganciali: vanno su Drive e sullo spettacolo, senza passare dall'AI.</div>
@@ -6234,7 +6234,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v122</span>
+    <span>Report generato da GammaFucker v123</span>
   </div>
   </body></html>`;
 
@@ -6340,7 +6340,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v122</span>
+    <span>Report generato da GammaFucker v123</span>
   </div>
   </body></html>`;
 
@@ -6408,7 +6408,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v122</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v123</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6480,7 +6480,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v122</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v123</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -8957,7 +8957,7 @@ async function agganciaDaMail(){
     const perMail={}; sel.forEach(c=>{ (perMail[c.dataset.m]=perMail[c.dataset.m]||[]).push(+c.value); });
     let n=0;
     for(const mi of Object.keys(perMail)){ const m=_cmMail[+mi];
-      const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'agganciaAllegati', link:m.link, allegati:perMail[mi], titolo:s.spett})});
+      const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'agganciaAllegati', link:m.link, threadId:m.id||'', oggetto:m.oggetto||'', allegati:perMail[mi], titolo:s.spett})});
       const j=await res.json(); if(j.error) throw new Error(j.error);
       if(!s.mails) s.mails=[];
       (j.file||[]).forEach(f=>{ if(f.url){ s.mails.push({og:'Scheda tecnica — '+f.nome.replace(/\.[^.]+$/,''), link:m.link, tipo:'scheda', file:f.url, manuale:true}); n++; } });

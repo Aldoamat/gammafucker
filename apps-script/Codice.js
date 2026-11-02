@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v128 ──
+// ── SPETTACOLI APP SCRIPT v129 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -153,7 +153,7 @@ function doPost(e) {
     }
     if (body.action === 'agganciaAllegati') {
       lock.releaseLock();
-      var rg; try { rg = agganciaAllegatiMail(body.link, body.allegati, body.titolo); } catch(errG) { rg = { error: errG.message }; }
+      var rg; try { rg = agganciaAllegatiMail(body.link, body.allegati, body.titolo, body.threadId, body.oggetto); } catch(errG) { rg = { error: errG.message }; }
       return ContentService.createTextOutput(JSON.stringify(rg)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'allegatiMail') {
@@ -1032,13 +1032,15 @@ function cercaMailScheda(q, giorni) {
   var out = threads.map(function(th){
     var msg = _msgConAllegati(th);
     var atts = msg.getAttachments().map(function(a, i){ return { i: i, nome: a.getName(), kb: Math.round(a.getSize() / 1024) }; }).filter(function(a){ return /\.(pdf|docx?)$/i.test(a.nome); });
-    return { link: th.getPermalink(), oggetto: msg.getSubject(), da: msg.getFrom(), data: Utilities.formatDate(msg.getDate(), 'Europe/Rome', 'dd/MM/yyyy'), allegati: atts, etichettata: th.getLabels().some(function(l){ return l.getName() === 'GF-scheda'; }) };
+    return { link: th.getPermalink(), id: th.getId(), oggetto: msg.getSubject(), da: msg.getFrom(), data: Utilities.formatDate(msg.getDate(), 'Europe/Rome', 'dd/MM/yyyy'), allegati: atts, etichettata: th.getLabels().some(function(l){ return l.getName() === 'GF-scheda'; }) };
   }).filter(function(t){ return t.allegati.length; });
   return { ok: true, query: query, mail: out };
 }
 // Aggancio manuale (senza AI): salva su Drive gli allegati scelti e restituisce i link; l'app li mette sullo spettacolo
-function agganciaAllegatiMail(link, allegati, titolo) {
-  var th = _threadDaLink(link, '');
+function agganciaAllegatiMail(link, allegati, titolo, threadId, oggetto) {
+  var th = null;
+  if (threadId) { try { th = GmailApp.getThreadById(threadId); } catch(e) {} }
+  if (!th) th = _threadDaLink(link, oggetto || '');
   if (!th) return { error: 'mail non trovata' };
   var msg = _msgConAllegati(th), tutti = msg.getAttachments();
   var out = [];
