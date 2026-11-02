@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v119</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v120</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -664,6 +664,16 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <input type="month" id="dv-mese" style="flex:1;min-width:130px;font-size:12px;" onchange="renderDoveSta()">
     </div>
     <div id="dv-out" style="margin-top:10px;"></div>
+  </div>
+  <div class="fc">
+    <div class="fct">📋 Presenze rapide per città</div>
+    <p style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:8px;">Tutte le giornate di una città in un mese: spunta chi c'era e la cifra, senza aprire le schede una per una. Scegli i collaboratori da mostrare (es. quelli che lavorano solo in quello spazio).</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <select id="pr-citta" style="flex:1;min-width:140px;font-size:12px;" onchange="renderPresenzeRapide()"><option value="">— città —</option></select>
+      <input type="month" id="pr-mese" style="flex:1;min-width:130px;font-size:12px;" onchange="renderPresenzeRapide()">
+    </div>
+    <div id="pr-collab" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"></div>
+    <div id="pr-out" style="margin-top:10px;overflow-x:auto;"></div>
   </div>
   <div class="fc">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -6203,7 +6213,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v119</span>
+    <span>Report generato da GammaFucker v120</span>
   </div>
   </body></html>`;
 
@@ -6309,7 +6319,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v119</span>
+    <span>Report generato da GammaFucker v120</span>
   </div>
   </body></html>`;
 
@@ -6377,7 +6387,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v119</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v120</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6449,7 +6459,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v119</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v120</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -6463,6 +6473,43 @@ function generaReportStagione(){
 
 let collaboratori = ld('collaboratori', []);
 
+// ── Presenze rapide: griglia giornate × collaboratori per una città e un mese ──
+let _prSel = ld('prCollabSel', null);   // id dei collaboratori mostrati (persistito)
+function _prInit(){
+  const sel=document.getElementById('pr-citta'); if(sel && sel.options.length<=1){ Object.keys(teatriDB||{}).sort().forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); }); }
+  const m=document.getElementById('pr-mese'); if(m && !m.value) m.value=new Date().toISOString().slice(0,7);
+  if(!_prSel) _prSel=collaboratori.map(c=>c.id);
+  const box=document.getElementById('pr-collab'); if(box) box.innerHTML=collaboratori.map(c=>`<label class="iBtn" style="font-size:11px;padding:3px 8px;cursor:pointer;${_prSel.includes(c.id)?'color:var(--green);border-color:rgba(16,185,129,.5);':'color:var(--text3);border-style:dashed;'}"><input type="checkbox" ${_prSel.includes(c.id)?'checked':''} style="display:none" onchange="_prToggleCollab(${c.id})">${_prSel.includes(c.id)?'✓ ':''}${c.nome}</label>`).join('')||'<span style="font-size:11px;color:var(--text3);">nessun collaboratore: aggiungili qui sotto</span>';
+}
+function _prToggleCollab(id){ const k=_prSel.indexOf(id); if(k>=0) _prSel.splice(k,1); else _prSel.push(id); sv('prCollabSel', _prSel); _prInit(); renderPresenzeRapide(); }
+function renderPresenzeRapide(){
+  const citta=document.getElementById('pr-citta').value, mese=document.getElementById('pr-mese').value, out=document.getElementById('pr-out');
+  if(!citta||!mese){ out.innerHTML=''; return; }
+  const cols=collaboratori.filter(c=>_prSel.includes(c.id)); const esc=v=>String(v||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const righe=data.filter(s=>_cittaEq(s.citta,citta) && s.data.startsWith(mese)).sort((a,b)=>a.data.localeCompare(b.data)||String(a.teatro).localeCompare(String(b.teatro)));
+  if(!righe.length){ out.innerHTML='<div style="font-size:11px;color:var(--text3);">nessuna giornata in '+esc(citta)+' nel mese</div>'; return; }
+  const fmt=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit'}); }catch{ return d; } };
+  let h=`<table style="border-collapse:collapse;font-size:11px;width:100%;"><tr style="color:var(--text3);font-size:10px;"><th style="text-align:left;padding:3px 4px;">data</th><th style="text-align:left;padding:3px 4px;">spazio · evento</th>${cols.map(c=>`<th style="padding:3px 4px;white-space:nowrap;">${esc(c.nome.split(' ')[0])}</th>`).join('')}</tr>`;
+  righe.forEach(s=>{ const we=[0,6].includes(new Date(s.data+'T12:00:00').getDay());
+    h+=`<tr style="border-top:1px solid var(--border);${we?'background:rgba(245,200,66,.04);':''}"><td style="padding:4px;white-space:nowrap;${new Date(s.data+'T12:00:00').getDay()===0?'color:var(--red);':''}">${fmt(s.data)}</td>
+      <td style="padding:4px;"><div style="font-size:10px;color:var(--text3);">${esc(s.teatro||'')}</div><div>${s.residenza?'🏠 ':s.premontaggio?'🔧 ':s.replicaOf?'🔁 ':''}${esc(s.spett)}</div></td>`;
+    cols.forEach(c=>{ const p=(s.collab||[]).find(x=>String(x.collab_id)===String(c.id)||_normTxt(x.nome)===_normTxt(c.nome));
+      h+=`<td style="padding:3px 4px;text-align:center;white-space:nowrap;"><input type="checkbox" ${p?'checked':''} style="width:16px;height:16px;vertical-align:middle;" onchange="_prSet(${s.id},${c.id},this.checked,null)"> <input type="number" value="${p?p.tariffa:c.tariffa_base}" min="0" style="width:58px;font-size:11px;padding:2px 4px;${p?'':'opacity:.4;'}" onchange="_prSet(${s.id},${c.id},true,+this.value)" title="€ giornata"></td>`; });
+    h+='</tr>'; });
+  const tot={}; righe.forEach(s=>(s.collab||[]).forEach(x=>{ const c=cols.find(c=>String(x.collab_id)===String(c.id)||_normTxt(x.nome)===_normTxt(c.nome)); if(c){ tot[c.id]=tot[c.id]||{n:0,e:0}; tot[c.id].n++; tot[c.id].e+=+x.tariffa||0; } }));
+  h+=`<tr style="border-top:2px solid var(--border2);font-weight:700;"><td colspan="2" style="padding:4px;">totale mese</td>${cols.map(c=>`<td style="text-align:center;padding:4px;white-space:nowrap;">${tot[c.id]?tot[c.id].n+' gg · € '+tot[c.id].e.toLocaleString('it-IT'):'—'}</td>`).join('')}</tr></table>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;">Ogni spunta si salva da sola (anche su Sheets). La cifra si modifica nel campo accanto; è la stessa presenza che vedi nella scheda dello spettacolo e nel report mensile collaboratori.</div>`;
+  out.innerHTML=h;
+}
+function _prSet(id, cid, on, tariffa){
+  const s=data.find(x=>String(x.id)===String(id)); const c=collaboratori.find(x=>x.id===cid); if(!s||!c) return;
+  s.collab=(s.collab||[]).filter(x=>!(String(x.collab_id)===String(c.id)||_normTxt(x.nome)===_normTxt(c.nome)));
+  if(on){ const inp=document.querySelector(`#pr-out input[type=number][onchange*="_prSet(${id},${cid}"]`); const t=tariffa!=null?tariffa:(inp?+inp.value:c.tariffa_base); s.collab.push({collab_id:c.id, nome:c.nome, tariffa:+t||0, note:''}); }
+  s.ts=new Date().toISOString();
+  sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000;
+  renderPresenzeRapide(); renderList();
+  clearTimeout(window._prPush); window._prPush=setTimeout(()=>{ if(ld('sheetsUrl','')) pushSheets(true); }, 1500);
+}
 // ── Dove sta un tecnico: impegni nel mese da squadre (prod.squadra), presenze a chiamata (s.collab), service ──
 function _impegniDi(nome, mese){
   const n=_normTxt(nome); if(n.length<3) return [];
@@ -9239,6 +9286,7 @@ function goTab(name){
   if(name==='exp')buildRepMeseSelect();
   if(name==='fatt') _undoAggiornaBottone();
   if(name==='proposte') _riscCaricaConfigUI();
+  if(name==='collab') _prInit();
   if(name==='collab' && !window._dvRubrica){ window._dvRubrica=true; attachRubrica('dv-nome', c=>{ document.getElementById('dv-nome').value=c.nome; renderDoveSta(); }, {aziende:true, collaboratori:true}); }
   if(name==='set'){ buildCfgDittaSel(); if(ld('sheetsUrl','') && !IS_COLLAB && !document.getElementById('cfg-mittenti').value){ caricaMittenti(); caricaConsumoAI(); } }
   if(name==='forn'){ buildFornSelect(); if(ld('sheetsUrl','')) setTimeout(()=>pushConfig(true),300); }
