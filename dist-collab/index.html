@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v124</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v125</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1397,6 +1397,11 @@ const COLLAB_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxpVQXe7vwSD1
 const APP_SHEETS_URL = COLLAB_SHEETS_URL;
 const COLLAB_ACCESS_CODE = 'gamma2025';
 const IS_COLLAB = APP_MODE === 'collab';
+// Su GitHub Pages le due app vivono sulla stessa origine (aldoamat.github.io): la memoria locale è condivisa,
+// quindi l'app collaboratori usa chiavi con prefisso per non mescolarsi con quella amministrazione.
+// (definito PRIMA di qualsiasi ld(): altrimenti i dati locali risultano vuoti)
+var LS_PREFIX = APP_MODE === 'collab' ? 'collab:' : '';
+function _lsk(k){ return LS_PREFIX + k; }
 if(IS_COLLAB) document.documentElement.classList.add('collab');
 let data      = ld('spettacoli',[]);
 let teatriDB  = ld('teatriDB',DEF_TEATRI);
@@ -1411,10 +1416,6 @@ let gapiReady = false;
 let statoFilter = 'all';
 let weekFilter = true; // mostra settimana corrente all'apertura
 
-// Su GitHub Pages le due app vivono sulla stessa origine (aldoamat.github.io): la memoria locale è condivisa,
-// quindi l'app collaboratori usa chiavi con prefisso per non mescolarsi con quella amministrazione.
-const LS_PREFIX = APP_MODE === 'collab' ? 'collab:' : '';
-const _lsk = k => LS_PREFIX + k;
 function ld(k,d){try{const v=localStorage.getItem(_lsk(k));return v?JSON.parse(v):d;}catch{return d;}}
 function sv(k,v){localStorage.setItem(_lsk(k),JSON.stringify(v));}
 
@@ -3036,7 +3037,7 @@ function _buildCard(s, grp){
   return `<div class="spcard${isFat?' fatturato':''}${s.id===editingId?' editing':''}${s.residenza?' residenza':s.premontaggio?' premontaggio':''}${isRep?' replica':''}">
     <div class="sptop">
       <div class="spdate">${isRep?'↩ ':''} ${df}</div>
-      <div class="sptot${!hasTot?' z':isFat?' fatturato-val':''}"> ${hasTot?'€ '+s.totale.toLocaleString('it-IT'):'—'}</div>
+      ${grp&&grp.totGruppo>0&&grp.totGruppo!==(+s.totale||0)?`<div class="sptot${grp.fatturatoTutte?' fatturato-val':''}" title="totale delle ${grp.nGiorni} giornate"> € ${grp.totGruppo.toLocaleString('it-IT')}<div style="font-size:9px;font-weight:400;color:var(--text3);text-align:right;">${grp.nGiorni} giornate${hasTot?' · questa € '+s.totale.toLocaleString('it-IT'):''}</div></div>`:`<div class="sptot${!hasTot?' z':isFat?' fatturato-val':''}"> ${hasTot?'€ '+s.totale.toLocaleString('it-IT'):'—'}</div>`}
     </div>
     ${grp?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin:-2px 0 8px;">${grp.chips.map(c=>`<span style="font-size:11.5px;font-weight:800;padding:3px 10px;border-radius:999px;color:#0b0f1a;background:${c.col};letter-spacing:.02em;">${c.testo}</span>`).join('')}</div>`:''}
     ${isRep?'':`<div class="sptitle">${s.residenza?'<span style="font-size:9px;color:#2dd4bf;letter-spacing:.1em;text-transform:uppercase;margin-right:6px;">🏠 RESIDENZA</span>':s.premontaggio?'<span style="font-size:9px;color:#fb923c;letter-spacing:.1em;text-transform:uppercase;margin-right:6px;">🔧 PREMONTAGGIO</span>':''} ${s.spett}</div>`}
@@ -3159,6 +3160,15 @@ function renderList(){
   const prima_map = {}, inizioDi = {};
   fil.forEach(s=>{ if(!s.premontaggio) return; const m=_principaleDi(s); if(m && m!==s && fil.includes(m)){ (prima_map[m.id]=prima_map[m.id]||[]).push(s); } });
   fil = fil.filter(s=>!(s.premontaggio && prima_map[(_principaleDi(s)||{}).id] && prima_map[(_principaleDi(s)||{}).id].includes(s)));
+  // Altre date dello stesso titolo nella stessa città (es. tre giorni di "Residenza Rosencrantz" dal calendario):
+  // vanno sotto la prima data come "altre date". Titoli generici (prove, pulizie…) restano separati.
+  const altre_map = {}; const GENERICI=/^(PROVE?|PROVA|RIUNIONE|MANUTENZIONE|PULIZIE|CHIUSO|CHIUSURA|MONTAGGIO|SMONTAGGIO|ALLESTIMENTO|INCONTRO|CONFERENZA)$/;
+  { const visti=new Set();
+    fil.forEach(s=>{ if(visti.has(s.id)) return; const t=_normTxt(s.spett); if(t.length<6 || GENERICI.test(t)) return;
+      const altre=_gruppoDi(s).filter(x=>x!==s && fil.includes(x) && !x.premontaggio && !x.replicaOf && !visti.has(x.id) && x.data>s.data);
+      if(altre.length){ altre_map[s.id]=altre; altre.forEach(x=>visti.add(x.id)); } visti.add(s.id); }); }
+  const figli=new Set(Object.values(altre_map).flat().map(x=>x.id));
+  fil = fil.filter(s=>!figli.has(s.id));
   fil.forEach(s=>{ const pre=(prima_map[s.id]||[]); inizioDi[s.id]=pre.length?pre.map(x=>x.data).sort()[0]:s.data; });
   fil.sort((a,b)=>inizioDi[a.id].localeCompare(inizioDi[b.id]) || a.data.localeCompare(b.data));
 
@@ -3171,13 +3181,17 @@ function renderList(){
   const fmtB=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'short'}); }catch{ return d; } };
   el.innerHTML=fil.map(s=>{
     const pre = (prima_map[s.id]||[]).sort((a,b)=>a.data.localeCompare(b.data));
-    const reps = (repliche_map[s.id]||[]).sort((a,b)=>a.data.localeCompare(b.data));
-    const nRes=pre.filter(x=>x.residenza).length, nPre=pre.length-nRes, nRep=reps.length;
-    if(!pre.length && !reps.length) return _buildCard(s);
-    const chips=[]; if(nPre) chips.push({col:'#fb923c', testo:'🔧 premontaggio '+fmtB(pre.find(x=>!x.residenza).data)}); if(nRes) chips.push({col:'#2dd4bf', testo:'🏠 residenza dal '+fmtB(pre.find(x=>x.residenza).data)}); if(nRep) chips.push({col:'#a5b4fc', testo:'🔁 '+nRep+' replic'+(nRep>1?'he':'a')+' fino al '+fmtB(reps[reps.length-1].data)});
-    const html=_buildCard(s, {chips});
-    const tutte=[...pre, ...reps].sort((a,b)=>a.data.localeCompare(b.data));
-    const label=_riepilogoGruppo(nPre,nRes,nRep);
+    const altre = (altre_map[s.id]||[]).sort((a,b)=>a.data.localeCompare(b.data));
+    // repliche: quelle collegate a questa data e quelle collegate alle altre date del gruppo
+    const reps = [...(repliche_map[s.id]||[]), ...altre.flatMap(x=>repliche_map[x.id]||[])].sort((a,b)=>a.data.localeCompare(b.data));
+    const nRes=pre.filter(x=>x.residenza).length, nPre=pre.length-nRes, nRep=reps.length, nAlt=altre.length;
+    if(!pre.length && !reps.length && !altre.length) return _buildCard(s);
+    const chips=[]; if(nPre) chips.push({col:'#fb923c', testo:'🔧 premontaggio '+fmtB(pre.find(x=>!x.residenza).data)}); if(nRes) chips.push({col:'#2dd4bf', testo:'🏠 residenza dal '+fmtB(pre.find(x=>x.residenza).data)}); if(nRep) chips.push({col:'#a5b4fc', testo:'🔁 '+nRep+' replic'+(nRep>1?'he':'a')+' fino al '+fmtB(reps[reps.length-1].data)}); if(nAlt) chips.push({col:'#f5c842', testo:'📅 altre '+nAlt+' dat'+(nAlt>1?'e':'a')+' fino al '+fmtB(altre[altre.length-1].data)});
+    const tutte=[...pre, ...altre, ...reps].sort((a,b)=>a.data.localeCompare(b.data));
+    // costi: nella scheda chiusa si vede il totale di tutte le giornate, ovunque siano stati inseriti
+    const totGruppo=[s, ...tutte].reduce((a,x)=>a+(+x.totale||0),0);
+    const html=_buildCard(s, {chips, totGruppo, nGiorni:tutte.length+1, fatturatoTutte:[s,...tutte].every(x=>!x.totale||x.fatturato)});
+    const label=_riepilogoGruppo(nPre,nRes,nRep,nAlt);
     const toggleBtn = `<div style="padding:2px 14px 8px;"><button class="repliche-toggle" data-label="${label}" style="font-size:12px;font-weight:700;color:var(--gold);border:1px solid rgba(245,200,66,.5);background:rgba(245,200,66,.08);padding:5px 12px;border-radius:8px;" onclick="toggleRepliche(${s.id},this)">▶ ${label}</button></div>`;
     return html + toggleBtn + `<div id="rep-group-${s.id}" style="display:none;margin-top:2px;">${tutte.map(r=>_buildCard(r)).join('')}</div>`;
   }).join('');
@@ -3293,9 +3307,9 @@ function aggiungiReplica(id){
   if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
 }
 
-function _riepilogoGruppo(nPre,nRes,nRep){
-  const p=[]; if(nPre) p.push(nPre+' premontaggi'+(nPre>1?'':'o')); if(nRes) p.push(nRes+' giorn'+(nRes>1?'i':'o')+' di residenza'); if(nRep) p.push(nRep+' replic'+(nRep>1?'he':'a'));
-  const n=nPre+nRes+nRep; return n+' giornat'+(n>1?'e':'a')+' ('+p.join(', ')+')';
+function _riepilogoGruppo(nPre,nRes,nRep,nAlt){
+  const p=[]; if(nPre) p.push(nPre+' premontaggi'+(nPre>1?'':'o')); if(nRes) p.push(nRes+' giorn'+(nRes>1?'i':'o')+' di residenza'); if(nRep) p.push(nRep+' replic'+(nRep>1?'he':'a')); if(nAlt) p.push(nAlt+' altr'+(nAlt>1?'e date':'a data'));
+  const n=nPre+nRes+nRep+(nAlt||0); return n+' giornat'+(n>1?'e':'a')+' ('+p.join(', ')+')';
 }
 function toggleRepliche(id, btn){
   const grp = document.getElementById('rep-group-'+id);
@@ -6238,7 +6252,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v124</span>
+    <span>Report generato da GammaFucker v125</span>
   </div>
   </body></html>`;
 
@@ -6344,7 +6358,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v124</span>
+    <span>Report generato da GammaFucker v125</span>
   </div>
   </body></html>`;
 
@@ -6412,7 +6426,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v124</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v125</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6484,7 +6498,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v124</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v125</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
