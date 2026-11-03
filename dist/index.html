@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v125</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v126</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -3044,6 +3044,7 @@ function _buildCard(s, grp){
     ${isRep?`<div style="font-size:11px;color:#818cf8;">🔁 Replica — ${s.spett}</div>`:''}
     <div class="spsub">${s.citta}${s.teatro?' · '+s.teatro:''}</div>
     ${s.accordi?`<div style="font-size:10px;color:#60a5fa;margin-top:4px;padding:4px 6px;background:rgba(96,165,250,.06);border-left:2px solid rgba(96,165,250,.3);border-radius:3px;">📋 ${s.accordi}</div>`:''}
+    ${grp&&grp.giorni?_riepilogoGiornateHtml(s, grp.giorni):''}
     ${(()=>{ const er=_mailsDi(s).filter(m=>!(s.mails||[]).includes(m)); return er.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;align-items:center;"><span style="font-size:9px;color:var(--text3);">dal gruppo:</span>${er.map(mm=>`<a href="${mm.file||mm.link}" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;color:#60a5fa;border-color:rgba(96,165,250,.25);font-size:10px;padding:2px 7px;opacity:.85;">${mm.tipo==='scheda'?'📎':'✉'} ${mm.og.length>26?mm.og.substring(0,26)+'…':mm.og}</a>`).join('')}</div>`:''; })()}
     ${(s.mails&&s.mails.length)?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">${s.mails.map((mm,mi)=>`
       <a href="${mm.file||mm.link}" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;color:#60a5fa;border-color:rgba(96,165,250,.3);font-size:10px;padding:2px 7px;">${mm.tipo==='scheda'?'📎':'✉'} ${mm.og.length>26?mm.og.substring(0,26)+'…':mm.og}</a>`).join('')}
@@ -3190,7 +3191,7 @@ function renderList(){
     const tutte=[...pre, ...altre, ...reps].sort((a,b)=>a.data.localeCompare(b.data));
     // costi: nella scheda chiusa si vede il totale di tutte le giornate, ovunque siano stati inseriti
     const totGruppo=[s, ...tutte].reduce((a,x)=>a+(+x.totale||0),0);
-    const html=_buildCard(s, {chips, totGruppo, nGiorni:tutte.length+1, fatturatoTutte:[s,...tutte].every(x=>!x.totale||x.fatturato)});
+    const html=_buildCard(s, {chips, totGruppo, nGiorni:tutte.length+1, fatturatoTutte:[s,...tutte].every(x=>!x.totale||x.fatturato), giorni:[s,...tutte].sort((a,b)=>a.data.localeCompare(b.data))});
     const label=_riepilogoGruppo(nPre,nRes,nRep,nAlt);
     const toggleBtn = `<div style="padding:2px 14px 8px;"><button class="repliche-toggle" data-label="${label}" style="font-size:12px;font-weight:700;color:var(--gold);border:1px solid rgba(245,200,66,.5);background:rgba(245,200,66,.08);padding:5px 12px;border-radius:8px;" onclick="toggleRepliche(${s.id},this)">▶ ${label}</button></div>`;
     return html + toggleBtn + `<div id="rep-group-${s.id}" style="display:none;margin-top:2px;">${tutte.map(r=>_buildCard(r)).join('')}</div>`;
@@ -3307,6 +3308,22 @@ function aggiungiReplica(id){
   if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
 }
 
+// Scheda chiusa: per ogni giornata del gruppo cosa rifatturiamo (tecnici × tariffa, collaboratori), le note
+// e gli accordi delle altre giornate, così l'amministrazione non deve aprire tutto
+function _riepilogoGiornateHtml(s, giorni){
+  const esc=v=>String(v||'').replace(/</g,'&lt;');
+  const fmt=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short'}); }catch{ return d; } };
+  const righe=giorni.map(x=>{
+    const fatt=_fatturazioneTesto(x);
+    const note=(x.note||'').split('|').map(l=>l.trim()).filter(l=>l && !/^⚠/.test(l) && !/^👷 Squadra:/.test(l));
+    const acc=(x!==s && x.accordi && x.accordi!==s.accordi)?x.accordi:'';
+    if(!fatt && !note.length && !acc) return '';
+    const tipo=x.residenza?'🏠':x.premontaggio?'🔧':x.replicaOf?'🔁':'🎭';
+    return `<div style="padding:3px 0;border-top:1px solid var(--border);"><span style="color:var(--gold);font-weight:700;">${tipo} ${fmt(x.data)}</span>${x.totale>0?' <span style="color:var(--text);font-weight:700;">€ '+(+x.totale).toLocaleString('it-IT')+'</span>'+(x.fatturato?' <span style="color:var(--green);font-size:9px;">fatturato</span>':''):''}${fatt?' · '+esc(fatt):''}${acc?`<div style="color:#60a5fa;">📋 ${esc(acc)}</div>`:''}${note.length?`<div style="color:var(--text3);">${note.map(esc).join('<br>')}</div>`:''}</div>`;
+  }).filter(Boolean);
+  if(!righe.length) return '';
+  return `<div style="font-size:10px;margin-top:5px;padding:2px 8px 4px;background:rgba(245,200,66,.04);border:1px solid rgba(245,200,66,.18);border-radius:6px;line-height:1.45;"><div style="font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;padding:3px 0 1px;">Riepilogo giornate · cosa rifatturiamo</div>${righe.join('')}</div>`;
+}
 function _riepilogoGruppo(nPre,nRes,nRep,nAlt){
   const p=[]; if(nPre) p.push(nPre+' premontaggi'+(nPre>1?'':'o')); if(nRes) p.push(nRes+' giorn'+(nRes>1?'i':'o')+' di residenza'); if(nRep) p.push(nRep+' replic'+(nRep>1?'he':'a')); if(nAlt) p.push(nAlt+' altr'+(nAlt>1?'e date':'a data'));
   const n=nPre+nRes+nRep+(nAlt||0); return n+' giornat'+(n>1?'e':'a')+' ('+p.join(', ')+')';
@@ -6252,7 +6269,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v125</span>
+    <span>Report generato da GammaFucker v126</span>
   </div>
   </body></html>`;
 
@@ -6358,7 +6375,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v125</span>
+    <span>Report generato da GammaFucker v126</span>
   </div>
   </body></html>`;
 
@@ -6426,7 +6443,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v125</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v126</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6498,7 +6515,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v125</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v126</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
