@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v129</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v130</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -345,7 +345,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
   <div class="fc">
     <div class="fct">👷 Prestazioni</div>
     <div class="pb">
-      <div class="pbh">🔧 Macchinista</div>
+      <div class="pbh">🔧 Macchinista (prestazioni)</div>
       <div class="r3">
         <div class="field"><label>N. Prest.</label><input type="number" id="f-nm" min="0" placeholder="0" oninput="calcSub('m')"></div>
         <div class="field"><label>Tariffa €</label><input type="number" id="f-tm" min="0" oninput="calcSub('m')"></div>
@@ -353,7 +353,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       </div>
     </div>
     <div class="pb">
-      <div class="pbh">⚡ Elettricista</div>
+      <div class="pbh">⚡ Elettricista (prestazioni)</div>
       <div class="r3">
         <div class="field"><label>N. Prest.</label><input type="number" id="f-ne" min="0" placeholder="0" oninput="calcSub('e')"></div>
         <div class="field"><label>Tariffa €</label><input type="number" id="f-te" min="0" oninput="calcSub('e')"></div>
@@ -361,7 +361,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       </div>
     </div>
     <div class="pb">
-      <div class="pbh">📦 Facchinaggio</div>
+      <div class="pbh">📦 Facchinaggio (prestazioni)</div>
       <div class="r3">
         <div class="field"><label>N. Prest.</label><input type="number" id="f-nf" min="0" placeholder="0" oninput="calcSub('f')"></div>
         <div class="field"><label>Tariffa €</label><input type="number" id="f-tf" min="0" oninput="calcSub('f')"></div>
@@ -3067,11 +3067,11 @@ function _buildCard(s, grp){
       ${isFat?`<span class="tag fat">✓ fatturato</span>`:hasTot?`<span class="tag s">€ fatturabile</span>`:''}
     </div>
     ${hp?`<div class="spprest">
-      ${s.nm?`<span>🔧 Macchinista ${s.nm}×${s.tm}€</span>`:''}
-      ${s.ne?`<span>⚡ Elettricista ${s.ne}×${s.te}€</span>`:''}
-      ${s.nf?`<span>📦 Facchinaggio ${s.nf}×${s.tf}€</span>`:''}
-      ${s.nfo?`<span>🎤 Fonico ${s.nfo}×${s.tfo}€</span>`:''}
-      ${s.nsa?`<span>🪡 Sarta ${s.nsa}×${s.tsa}€</span>`:''}
+      ${s.nm?`<span>🔧 ${_prest(s.nm,'m')} × ${s.tm}€</span>`:''}
+      ${s.ne?`<span>⚡ ${_prest(s.ne,'e')} × ${s.te}€</span>`:''}
+      ${s.nf?`<span>📦 ${_prest(s.nf,'f')} × ${s.tf}€</span>`:''}
+      ${s.nfo?`<span>🎤 ${_prest(s.nfo,'fo')} × ${s.tfo}€</span>`:''}
+      ${s.nsa?`<span>🪡 ${_prest(s.nsa,'sa')} × ${s.tsa}€</span>`:''}
       ${(s.collab&&s.collab.length)?s.collab.map(col=>`<span>👤 ${col.nome} €${col.tariffa}</span>`).join(''):''}
     </div>`:''}
     <div class="spact">
@@ -6202,11 +6202,11 @@ function generaReportPDF(){
 
   const voci = (s) => {
     const rows = [];
-    if(s.nm>0) rows.push({serv:'🔧 Macchinista', n:s.nm, t:s.tm, tot:s.sm});
-    if(s.ne>0) rows.push({serv:'⚡ Elettricista', n:s.ne, t:s.te, tot:s.se});
-    if(s.nf>0) rows.push({serv:'📦 Facchinaggio', n:s.nf, t:s.tf, tot:s.sf});
-    if(s.nfo>0) rows.push({serv:'🎤 Fonico', n:s.nfo, t:s.tfo, tot:s.sfo});
-    if(s.nsa>0) rows.push({serv:'🪡 Sarta', n:s.nsa, t:s.tsa, tot:s.ssa});
+    if(s.nm>0) rows.push({serv:'🔧 Prestazioni da macchinista', n:s.nm, t:s.tm, tot:s.sm});
+    if(s.ne>0) rows.push({serv:'⚡ Prestazioni da elettricista', n:s.ne, t:s.te, tot:s.se});
+    if(s.nf>0) rows.push({serv:'📦 Prestazioni di facchinaggio', n:s.nf, t:s.tf, tot:s.sf});
+    if(s.nfo>0) rows.push({serv:'🎤 Prestazioni da fonico', n:s.nfo, t:s.tfo, tot:s.sfo});
+    if(s.nsa>0) rows.push({serv:'🪡 Prestazioni da sarta', n:s.nsa, t:s.tsa, tot:s.ssa});
     return rows;
   };
 
@@ -6218,7 +6218,7 @@ function generaReportPDF(){
     const voceRows = v.length ? v.map(row=>`
       <tr>
         <td style="padding:4px 10px;font-size:10px;color:#374151;">${row.serv}</td>
-        <td style="padding:4px 10px;font-size:10px;text-align:center;color:#6b7280;">${row.n} × € ${(+row.t).toFixed(2)}</td>
+        <td style="padding:4px 10px;font-size:10px;text-align:center;color:#6b7280;">${row.n} prestazion${row.n==1?'e':'i'} × € ${(+row.t).toFixed(2)}</td>
         <td style="padding:4px 10px;font-size:10px;text-align:right;font-weight:700;color:#1a1a2e;">€ ${(+row.tot).toLocaleString('it-IT',{minimumFractionDigits:2})}</td>
       </tr>`).join('') : `<tr><td colspan="3" style="padding:4px 10px;font-size:10px;color:#9ca3af;font-style:italic;">Nessuna voce di costo</td></tr>`;
     
@@ -6289,7 +6289,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v129</span>
+    <span>Report generato da GammaFucker v130</span>
   </div>
   </body></html>`;
 
@@ -6314,11 +6314,11 @@ function generaReportCitta(){
 
   const voci = (s) => {
     const rows = [];
-    if(s.nm>0) rows.push({serv:'🔧 Macchinista', n:s.nm, t:s.tm, tot:s.sm});
-    if(s.ne>0) rows.push({serv:'⚡ Elettricista', n:s.ne, t:s.te, tot:s.se});
-    if(s.nf>0) rows.push({serv:'📦 Facchinaggio', n:s.nf, t:s.tf, tot:s.sf});
-    if(s.nfo>0) rows.push({serv:'🎤 Fonico', n:s.nfo, t:s.tfo, tot:s.sfo});
-    if(s.nsa>0) rows.push({serv:'🪡 Sarta', n:s.nsa, t:s.tsa, tot:s.ssa});
+    if(s.nm>0) rows.push({serv:'🔧 Prestazioni da macchinista', n:s.nm, t:s.tm, tot:s.sm});
+    if(s.ne>0) rows.push({serv:'⚡ Prestazioni da elettricista', n:s.ne, t:s.te, tot:s.se});
+    if(s.nf>0) rows.push({serv:'📦 Prestazioni di facchinaggio', n:s.nf, t:s.tf, tot:s.sf});
+    if(s.nfo>0) rows.push({serv:'🎤 Prestazioni da fonico', n:s.nfo, t:s.tfo, tot:s.sfo});
+    if(s.nsa>0) rows.push({serv:'🪡 Prestazioni da sarta', n:s.nsa, t:s.tsa, tot:s.ssa});
     return rows;
   };
 
@@ -6333,7 +6333,7 @@ function generaReportCitta(){
     const voceRows = v.length ? v.map(row=>`
       <tr>
         <td style="padding:4px 10px;font-size:10px;color:#374151;">${row.serv}</td>
-        <td style="padding:4px 10px;font-size:10px;text-align:center;color:#6b7280;">${row.n} × € ${(+row.t).toFixed(2)}</td>
+        <td style="padding:4px 10px;font-size:10px;text-align:center;color:#6b7280;">${row.n} prestazion${row.n==1?'e':'i'} × € ${(+row.t).toFixed(2)}</td>
         <td style="padding:4px 10px;font-size:10px;text-align:right;font-weight:700;color:#1a1a2e;">€ ${(+row.tot).toLocaleString('it-IT',{minimumFractionDigits:2})}</td>
       </tr>`).join('') : `<tr><td colspan="3" style="padding:4px 10px;font-size:10px;color:#9ca3af;font-style:italic;">Nessuna voce di costo</td></tr>`;
     return `<div style="break-inside:avoid;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:14px;overflow:hidden;">
@@ -6395,7 +6395,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v129</span>
+    <span>Report generato da GammaFucker v130</span>
   </div>
   </body></html>`;
 
@@ -6405,9 +6405,12 @@ function generaReportCitta(){
 }
 
 // cosa stiamo rifatturando alle compagnie: tecnici × tariffa (senza i collaboratori a chiamata)
+// Si ragiona a PRESTAZIONI (montaggio, smontaggio, carico/scarico), non a persone: "1 macchinista" nel modulo
+// vuol dire 1 prestazione da macchinista. Tutti i testi usano questa dicitura.
+function _prest(n, tipo){ n=+n||0; const nomi={m:'da macchinista', e:'da elettricista', fo:'da fonico', sa:'da sarta', f:'di facchinaggio'}; return n+' prestazion'+(n===1?'e ':'i ')+(nomi[tipo]||tipo); }
 function _fatturazioneTesto(s){
-  const v=[]; const r=(n,t,sing,plur)=>{ if(+n>0) v.push(n+' '+(n>1?plur:sing)+(+t>0?' × €'+(+t).toLocaleString('it-IT'):'')); };
-  r(s.nm,s.tm,'macchinista','macchinisti'); r(s.ne,s.te,'elettricista','elettricisti'); r(s.nfo,s.tfo,'fonico','fonici'); r(s.nsa,s.tsa,'sarta','sarte'); r(s.nf,s.tf,'facchino','facchini');
+  const v=[]; const r=(n,t,tipo)=>{ if(+n>0) v.push(_prest(n,tipo)+(+t>0?' × €'+(+t).toLocaleString('it-IT'):'')); };
+  r(s.nm,s.tm,'m'); r(s.ne,s.te,'e'); r(s.nfo,s.tfo,'fo'); r(s.nsa,s.tsa,'sa'); r(s.nf,s.tf,'f');
   // i collaboratori a chiamata (Chiara, Allegra, Giovanni…) sono un costo interno: NON si rifatturano alle compagnie,
   // quindi non compaiono qui; restano nel report mensile collaboratori
   return v.join(' · ');
@@ -6476,7 +6479,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v129</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v130</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6548,7 +6551,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v129</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v130</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -8514,11 +8517,11 @@ function _prodDefault(s){
   p.refTeatro = _refTeatroSpazio(s);
   if(si.ztl === 'necessario') p.ztl.serve = true;
   const tec = [];
-  if(s.nm) tec.push(s.nm+' macchinist'+(s.nm>1?'i':'a'));
-  if(s.ne) tec.push(s.ne+' elettricist'+(s.ne>1?'i':'a'));
-  if(s.nf) tec.push(s.nf+' facchin'+(s.nf>1?'i':'o'));
-  if(s.nfo) tec.push(s.nfo+' fonic'+(s.nfo>1?'i':'o'));
-  if(s.nsa) tec.push(s.nsa+' sart'+(s.nsa>1?'e':'a'));
+  if(s.nm) tec.push(_prest(s.nm,'m'));
+  if(s.ne) tec.push(_prest(s.ne,'e'));
+  if(s.nf) tec.push(_prest(s.nf,'f'));
+  if(s.nfo) tec.push(_prest(s.nfo,'fo'));
+  if(s.nsa) tec.push(_prest(s.nsa,'sa'));
   (s.collab||[]).forEach(col=>{ if(col.nome) tec.push(col.nome); });
   if(tec.length) p.tecnici = tec.join(', ');
   return p;
