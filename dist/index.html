@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v126</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v127</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -6269,7 +6269,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v126</span>
+    <span>Report generato da GammaFucker v127</span>
   </div>
   </body></html>`;
 
@@ -6375,7 +6375,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v126</span>
+    <span>Report generato da GammaFucker v127</span>
   </div>
   </body></html>`;
 
@@ -6384,11 +6384,12 @@ function generaReportCitta(){
   w.document.close();
 }
 
-// cosa stiamo fatturando: tecnici × tariffa + collaboratori a chiamata
+// cosa stiamo rifatturando alle compagnie: tecnici × tariffa (senza i collaboratori a chiamata)
 function _fatturazioneTesto(s){
   const v=[]; const r=(n,t,sing,plur)=>{ if(+n>0) v.push(n+' '+(n>1?plur:sing)+(+t>0?' × €'+(+t).toLocaleString('it-IT'):'')); };
   r(s.nm,s.tm,'macchinista','macchinisti'); r(s.ne,s.te,'elettricista','elettricisti'); r(s.nfo,s.tfo,'fonico','fonici'); r(s.nsa,s.tsa,'sarta','sarte'); r(s.nf,s.tf,'facchino','facchini');
-  (s.collab||[]).forEach(c=>v.push((c.nome||'collaboratore')+(+c.tariffa>0?' €'+(+c.tariffa).toLocaleString('it-IT'):'')));
+  // i collaboratori a chiamata (Chiara, Allegra, Giovanni…) sono un costo interno: NON si rifatturano alle compagnie,
+  // quindi non compaiono qui; restano nel report mensile collaboratori
   return v.join(' · ');
 }
 function generaReportFiltri(){
@@ -6443,7 +6444,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v126</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v127</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6515,7 +6516,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v126</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v127</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
