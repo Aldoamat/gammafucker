@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v130</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v131</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -795,7 +795,28 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div class="mtitle">👷 Squadra</div>
     <div id="sqro-titolo" style="font-size:11px;color:var(--text2);margin-bottom:8px;"></div>
     <div id="sqro-box" style="font-size:12px;line-height:1.6;"></div>
-    <button class="btn btn-o" style="margin-top:12px;width:100%;" onclick="document.getElementById('squadra-ro-ov').classList.remove('open')">Chiudi</button>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-p" style="flex:1;background:#25d366;" onclick="apriSquadraCompagnia(_sqroId)">💬 Squadra alla compagnia</button>
+      <button class="btn btn-o" style="flex:1;" onclick="document.getElementById('squadra-ro-ov').classList.remove('open')">Chiudi</button>
+    </div>
+  </div>
+</div>
+<!-- ══ SQUADRA → RESPONSABILE COMPAGNIA via WhatsApp ══ -->
+<div class="mover" id="sqc-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:520px;max-height:92vh;overflow-y:auto;">
+    <div class="mtitle">💬 Squadra alla compagnia</div>
+    <div id="sqc-titolo" style="font-size:11px;color:var(--text2);margin-bottom:8px;"></div>
+    <div class="field"><label>Messaggio</label><textarea id="sqc-testo" style="min-height:190px;font-size:12px;"></textarea></div>
+    <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin:8px 0 4px;">Destinatari (contatti compagnia con telefono)</div>
+    <div id="sqc-bottoni" style="display:flex;flex-direction:column;gap:6px;"></div>
+    <div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
+      <input type="tel" id="sqc-num" placeholder="altro numero (es. 333 1234567)" style="flex:1;min-width:0;" oninput="_sqcAggiornaLibero()">
+      <a id="sqc-wa-libero" href="#" target="_blank" rel="noopener" class="btn btn-p" style="text-decoration:none;background:#25d366;opacity:.5;" onclick="if(!_waNumero(document.getElementById('sqc-num').value)){event.preventDefault();return;} _sqcSegna(document.getElementById('sqc-num').value)">💬 Invia</a>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn btn-o" style="flex:1;" onclick="navigator.clipboard.writeText(document.getElementById('sqc-testo').value).then(()=>toast('✓ Testo copiato')).catch(()=>toast('Copia non riuscita',true))">📋 Copia testo</button>
+      <button class="btn btn-o" style="flex:1;" onclick="document.getElementById('sqc-ov').classList.remove('open')">Chiudi</button>
+    </div>
   </div>
 </div>
 <!-- ══ SQUADRA TECNICI / SERVICE: WhatsApp con le info del lavoro ══ -->
@@ -819,6 +840,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div id="sq-bottoni" style="display:flex;flex-direction:column;gap:6px;"></div>
     <div style="display:flex;gap:8px;margin-top:10px;">
       <button class="btn btn-o" style="flex:1;" onclick="_sqCopia()">📋 Copia testo</button>
+      <button class="btn btn-o" style="flex:1;color:#25d366;border-color:#25d366;" onclick="salvaSquadra(false);apriSquadraCompagnia(_sqId)">💬 Alla compagnia</button>
       <button class="btn btn-p" style="flex:1;" onclick="salvaSquadra(true)">💾 Registra squadra</button>
       <button class="btn btn-o" onclick="document.getElementById('squadra-ov').classList.remove('open')">Chiudi</button>
     </div>
@@ -6289,7 +6311,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v130</span>
+    <span>Report generato da GammaFucker v131</span>
   </div>
   </body></html>`;
 
@@ -6395,7 +6417,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v130</span>
+    <span>Report generato da GammaFucker v131</span>
   </div>
   </body></html>`;
 
@@ -6479,7 +6501,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v130</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v131</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6551,7 +6573,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v130</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v131</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -8856,7 +8878,7 @@ function _segnaInvio(s, tipo, via){
 }
 function _toggleInvio(id, tipo){
   const s=data.find(x=>String(x.id)===String(id)); if(!s) return; const p=_prodDi(s); p.invii=p.invii||{};
-  if(p.invii[tipo]){ if(!confirm('Togliere la spunta "'+(tipo==='infoCompagnia'?'info spazio inviate alla compagnia':tipo==='squadra'?'info inviate alla squadra':'scheda inviata al teatro')+'"?')) return; delete p.invii[tipo]; sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000; renderList(); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300); }
+  if(p.invii[tipo]){ if(!confirm('Togliere la spunta "'+(tipo==='infoCompagnia'?'info spazio inviate alla compagnia':tipo==='squadra'?'info inviate alla squadra':tipo==='squadraComp'?'squadra inviata alla compagnia':'scheda inviata al teatro')+'"?')) return; delete p.invii[tipo]; sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000; renderList(); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300); }
   else _segnaInvio(s, tipo, 'segnato a mano');
 }
 function _inviiHtml(s){
@@ -8864,7 +8886,7 @@ function _inviiHtml(s){
   const inv=(s.prod&&s.prod.invii)||{};
   const fmt=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}); }catch{ return d; } };
   const chip=(tipo,lab,ico)=>{ const v=inv[tipo]; return `<button class="iBtn" title="${v?_prodEsc((v.via||'')+' · '+fmt(v.ts)):'non ancora: tocca per segnare a mano'}" style="font-size:10px;padding:2px 7px;${v?'color:var(--green);border-color:rgba(16,185,129,.45);':'color:var(--text3);border-style:dashed;'}" onclick="${IS_COLLAB?'':`_toggleInvio(${s.id},'${tipo}')`}">${v?'✓':'○'} ${ico} ${lab}${v?' '+fmt(v.ts):''}</button>`; };
-  return `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">${chip('infoCompagnia','info spazio → compagnia','🏛')}${chip('schedaTeatro','scheda → teatro','📄')}${chip('squadra','info → squadra','👷')}</div>`;
+  return `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">${chip('infoCompagnia','info spazio → compagnia','🏛')}${chip('schedaTeatro','scheda → teatro','📄')}${chip('squadra','info → squadra','👷')}${chip('squadraComp','squadra → compagnia','💬')}</div>`;
 }
 
 // ── referenti compagnia a mano (oltre a quelli letti da schede e mail) ──
@@ -9043,8 +9065,9 @@ async function agganciaDaMail(){
   finally{ btn.disabled=false; btn.textContent='📎 Aggancia allo spettacolo'; }
 }
 // ── Squadra in sola lettura (collaboratori): giornate del lavoro e chi c'è ogni giorno ──
+let _sqroId=null;
 function apriSquadraRO(id){
-  const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
+  const s=data.find(x=>String(x.id)===String(id)); if(!s) return; _sqroId=s.id;
   const esc=v=>String(v||'').replace(/</g,'&lt;');
   const g=_gruppoDi(s).slice().sort((a,b)=>a.data.localeCompare(b.data)); if(!g.length) g.push(s);
   document.getElementById('sqro-titolo').textContent=s.spett+' · '+s.citta+(s.teatro?' · '+s.teatro:'');
@@ -9056,6 +9079,76 @@ function apriSquadraRO(id){
   document.getElementById('sqro-box').innerHTML=righe;
   document.getElementById('squadra-ro-ov').classList.add('open');
 }
+// ── Squadra → responsabile compagnia: WhatsApp con chi lavora e quando (entrambe le app, dalla squadra registrata) ──
+let _sqcId=null;
+function _sqcSquadra(s){
+  // unione per nome della squadra registrata su tutte le giornate del gruppo, con i giorni in cui compare
+  const g=_gruppoDi(s).slice().sort((a,b)=>a.data.localeCompare(b.data)); if(!g.length) g.push(s);
+  const giorni=g.map(x=>({data:x.data, tipo:x.residenza?'residenza':x.premontaggio?'montaggio':x.replicaOf?'replica':'spettacolo'}));
+  const perNome=new Map();
+  g.forEach(x=>((x.prod&&x.prod.squadra)||[]).forEach(r=>{ const k=_normTxt(r.nome); if(!k) return; if(!perNome.has(k)) perNome.set(k,{nome:r.nome, tel:r.tel||'', ruolo:r.ruolo||'', giorni:[]}); const e=perNome.get(k); if(!e.ruolo&&r.ruolo) e.ruolo=r.ruolo; if(!e.tel&&r.tel) e.tel=r.tel; (r.giorni&&r.giorni.length?r.giorni:[x.data]).forEach(d=>{ if(!e.giorni.includes(d)) e.giorni.push(d); }); }));
+  return {giorni, righe:[...perNome.values()].map(r=>{ r.giorni.sort(); return r; })};
+}
+function _sqcTesto(s){
+  const {giorni, righe}=_sqcSquadra(s);
+  const g=_gruppoDi(s).slice().sort((a,b)=>a.data.localeCompare(b.data)); if(!g.length) g.push(s);
+  const primo=g.find(x=>x.premontaggio&&!x.residenza)||g.find(x=>!x.residenza)||s; const show=g.find(x=>!x.premontaggio)||s; const ultimo=g[g.length-1]||s;
+  const mont=(primo.prod&&primo.prod.montaggio)||'', spet=(show.prod&&show.prod.inizio)||'', smon=(ultimo.prod&&ultimo.prod.smontaggio)||g.map(x=>x.prod&&x.prod.smontaggio).find(Boolean)||'';
+  const giornate=_sqGiornate(s, mont, spet, smon);
+  const fmt=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short'}); }catch{ return d; } };
+  const ruolo=r=>r.ruolo?' ('+r.ruolo+')':'';
+  // la squadra include anche il telefono: alla compagnia serve per sentirsi direttamente con chi è in teatro
+  const tel=r=>r.tel?' · '+r.tel:'';
+  let sq='';
+  if(righe.length){
+    const tutti=righe.every(r=>r.giorni.length>=giorni.length);
+    if(tutti || giorni.length<2) sq='\nSquadra tecnica AMAT:\n'+righe.map(r=>'- '+r.nome+ruolo(r)+tel(r)).join('\n')+'\n';
+    else sq='\nSquadra tecnica AMAT per giornata:\n'+giorni.map(x=>{ const chi=righe.filter(r=>r.giorni.includes(x.data)); return '- '+fmt(x.data)+' ('+x.tipo+'): '+(chi.length?chi.map(r=>r.nome+ruolo(r)).join(', '):'—'); }).join('\n')+'\n'+'\nRecapiti: '+righe.filter(r=>r.tel).map(r=>r.nome+' '+r.tel).join(' · ')+'\n';
+  } else sq='\n(squadra non ancora assegnata)\n';
+  const refT=_refTeatroSpazio(s)||(s.prod&&s.prod.refTeatro)||'';
+  const firma=IS_COLLAB?(ld('nomeUtente','')||''):'Aldo Bernardini';
+  return `Buongiorno, ecco la squadra tecnica che vi accoglierà in teatro:\n\n`+
+    `▪ Spettacolo: ${s.spett}\n▪ Teatro: ${s.teatro?s.teatro+' – ':''}${s.citta}\n`+
+    `▪ Giornate:\n`+giornate.map(x=>'   - '+x).join('\n')+'\n'+sq+
+    (refT?`\nReferente teatro: ${refT}\n`:'')+
+    `\nPer qualsiasi necessità tecnica restiamo a disposizione.\n\n${firma}\ncoordinamento tecnico AMAT`;
+}
+function _sqcDestinatari(s){
+  // contatti compagnia con telefono: referente tecnico e referente compagnia dal piano + contatti dello spettacolo
+  const out=[]; const vis=new Set();
+  const add=(nome,tel,ruolo)=>{ const n=_waNumero(tel); if(!n||vis.has(n)) return; vis.add(n); out.push({nome:nome||tel, tel, ruolo:ruolo||''}); };
+  const p=s.prod||{};
+  const daRiga=(riga,ruolo)=>{ const m=String(riga||'').match(/(\+?\d[\d .\/-]{7,}\d)/); if(m) add(String(riga).split('·')[0].trim(), m[1].trim(), ruolo); };
+  daRiga(p.refTec,'referente tecnico'); daRiga(p.refComp,'referente compagnia');
+  _contattiDi(s).filter(c=>c.ruolo!=='mittente' && c.telefono).forEach(c=>add(c.nome||c.compagnia||'', c.telefono, c.ruolo||c.compagnia||''));
+  return out;
+}
+function apriSquadraCompagnia(id){
+  const s=data.find(x=>String(x.id)===String(id)); if(!s) return; _sqcId=s.id;
+  document.getElementById('sqc-titolo').textContent=s.spett+' · '+_prodFmtD(s.data)+' · '+s.citta+(s.teatro?' · '+s.teatro:'');
+  document.getElementById('sqc-testo').value=_sqcTesto(s);
+  document.getElementById('sqc-num').value='';
+  _sqcRender();
+  document.getElementById('sqc-ov').classList.add('open');
+}
+function _sqcRender(){
+  const s=data.find(x=>String(x.id)===String(_sqcId)); if(!s) return;
+  const esc=v=>String(v||'').replace(/</g,'&lt;');
+  const testo=encodeURIComponent(document.getElementById('sqc-testo').value);
+  const dest=_sqcDestinatari(s);
+  document.getElementById('sqc-bottoni').innerHTML=dest.length?dest.map(d=>`<a href="https://wa.me/${_waNumero(d.tel)}?text=${testo}" target="_blank" rel="noopener" class="btn btn-p" style="text-align:center;text-decoration:none;background:#25d366;" onclick="_sqcSegna('${_js(d.nome)}')">💬 WhatsApp a ${esc(d.nome)}${d.ruolo?' · '+esc(d.ruolo):''}</a>`).join('')
+    :'<div style="font-size:11px;color:var(--text3);">nessun contatto compagnia con telefono: scrivi il numero qui sotto o aggiungilo ai contatti dello spettacolo</div>';
+  _sqcAggiornaLibero();
+}
+function _sqcAggiornaLibero(){ const num=_waNumero(document.getElementById('sqc-num').value); const a=document.getElementById('sqc-wa-libero'); a.href=num?'https://wa.me/'+num+'?text='+encodeURIComponent(document.getElementById('sqc-testo').value):'#'; a.style.opacity=num?'1':'.5'; }
+function _sqcSegna(a){
+  const s=data.find(x=>String(x.id)===String(_sqcId)); if(!s) return; const p=_prodDi(s);
+  p.invii=p.invii||{}; const prev=(p.invii.squadraComp&&p.invii.squadraComp.via)||'';
+  p.invii.squadraComp={ts:new Date().toISOString().slice(0,10), via:(prev?prev+', ':'')+'WhatsApp a '+a};
+  sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000; renderList(); if(typeof _prodAutoSave==='function') _prodAutoSave();
+  if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
+}
+document.addEventListener('input', e=>{ if(e.target && e.target.id==='sqc-testo') _sqcRender(); });
 // ── Squadra tecnici / service: WhatsApp con le info del lavoro, squadra registrata sullo spettacolo ──
 // Orari dal piano di produzione (che a sua volta li prende dalla scheda tecnica); persone dalla rubrica,
 // dalle aziende di servizio e dai collaboratori a chiamata; la squadra scelta finisce in s.prod.squadra e in nota.
