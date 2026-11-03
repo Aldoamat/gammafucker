@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v127</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v128</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -3092,6 +3092,38 @@ function _stagioneDa(dataISO){
 }
 
 
+// Accorpa le giornate di uno spettacolo (repliche, premontaggi, residenze, altre date con lo stesso titolo):
+// usato dalla Lista e dal Report. Restituisce i capofila in ordine di prima giornata, con le giornate collegate.
+function _raggruppaGiornate(lista){
+  let fil=lista.slice();
+  const repliche_map = {};
+  fil.forEach(s=>{ if(s.replicaOf){ (repliche_map[s.replicaOf]=repliche_map[s.replicaOf]||[]).push(s); } });
+  // Rimuovi le repliche dall'elenco principale (verranno mostrate sotto il parent)
+  fil = fil.filter(s=>!s.replicaOf);
+  // Premontaggi e residenze: accorpati sotto lo spettacolo principale (come le repliche), se è in elenco.
+  // Il gruppo si ordina per la prima giornata, così "inizia" dal premontaggio / dalla residenza.
+  const prima_map = {}, inizioDi = {};
+  fil.forEach(s=>{ if(!s.premontaggio) return; const m=_principaleDi(s); if(m && m!==s && fil.includes(m)){ (prima_map[m.id]=prima_map[m.id]||[]).push(s); } });
+  fil = fil.filter(s=>!(s.premontaggio && prima_map[(_principaleDi(s)||{}).id] && prima_map[(_principaleDi(s)||{}).id].includes(s)));
+  // Altre date dello stesso titolo nella stessa città (es. tre giorni di "Residenza Rosencrantz" dal calendario):
+  // vanno sotto la prima data come "altre date". Titoli generici (prove, pulizie…) restano separati.
+  const altre_map = {}; const GENERICI=/^(PROVE?|PROVA|RIUNIONE|MANUTENZIONE|PULIZIE|CHIUSO|CHIUSURA|MONTAGGIO|SMONTAGGIO|ALLESTIMENTO|INCONTRO|CONFERENZA)$/;
+  { const visti=new Set();
+    fil.forEach(s=>{ if(visti.has(s.id)) return; const t=_normTxt(s.spett); if(t.length<6 || GENERICI.test(t)) return;
+      const altre=_gruppoDi(s).filter(x=>x!==s && fil.includes(x) && !x.premontaggio && !x.replicaOf && !visti.has(x.id) && x.data>s.data);
+      if(altre.length){ altre_map[s.id]=altre; altre.forEach(x=>visti.add(x.id)); } visti.add(s.id); }); }
+  const figli=new Set(Object.values(altre_map).flat().map(x=>x.id));
+  fil = fil.filter(s=>!figli.has(s.id));
+  fil.forEach(s=>{ const pre=(prima_map[s.id]||[]); inizioDi[s.id]=pre.length?pre.map(x=>x.data).sort()[0]:s.data; });
+  fil.sort((a,b)=>inizioDi[a.id].localeCompare(inizioDi[b.id]) || a.data.localeCompare(b.data));
+  return fil.map(s=>{
+    const pre=(prima_map[s.id]||[]).sort((a,b)=>a.data.localeCompare(b.data));
+    const altre=(altre_map[s.id]||[]).sort((a,b)=>a.data.localeCompare(b.data));
+    const reps=[...(repliche_map[s.id]||[]), ...altre.flatMap(x=>repliche_map[x.id]||[])].sort((a,b)=>a.data.localeCompare(b.data));
+    const tutte=[...pre, ...altre, ...reps].sort((a,b)=>a.data.localeCompare(b.data));
+    return {s, pre, altre, reps, tutte, giorni:[s,...tutte].sort((a,b)=>a.data.localeCompare(b.data))};
+  });
+}
 // Filtri della Lista (ricerca, mese, città, tipo, stagione, settimana, stato): usati dalla lista e dal Report
 function _listaFiltrata(){
   const q=(document.getElementById('fil-q').value||'').toLowerCase();
@@ -3152,26 +3184,8 @@ function renderList(){
   if(mt){const nm=['','Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];document.getElementById('s-m').textContent=nm[+mt[0].split('-')[1]];}
 
   // Separa eventi principali da repliche
-  const repliche_map = {};
-  fil.forEach(s=>{ if(s.replicaOf){ (repliche_map[s.replicaOf]=repliche_map[s.replicaOf]||[]).push(s); } });
-  // Rimuovi le repliche dall'elenco principale (verranno mostrate sotto il parent)
-  fil = fil.filter(s=>!s.replicaOf);
-  // Premontaggi e residenze: accorpati sotto lo spettacolo principale (come le repliche), se è in elenco.
-  // Il gruppo si ordina per la prima giornata, così "inizia" dal premontaggio / dalla residenza.
-  const prima_map = {}, inizioDi = {};
-  fil.forEach(s=>{ if(!s.premontaggio) return; const m=_principaleDi(s); if(m && m!==s && fil.includes(m)){ (prima_map[m.id]=prima_map[m.id]||[]).push(s); } });
-  fil = fil.filter(s=>!(s.premontaggio && prima_map[(_principaleDi(s)||{}).id] && prima_map[(_principaleDi(s)||{}).id].includes(s)));
-  // Altre date dello stesso titolo nella stessa città (es. tre giorni di "Residenza Rosencrantz" dal calendario):
-  // vanno sotto la prima data come "altre date". Titoli generici (prove, pulizie…) restano separati.
-  const altre_map = {}; const GENERICI=/^(PROVE?|PROVA|RIUNIONE|MANUTENZIONE|PULIZIE|CHIUSO|CHIUSURA|MONTAGGIO|SMONTAGGIO|ALLESTIMENTO|INCONTRO|CONFERENZA)$/;
-  { const visti=new Set();
-    fil.forEach(s=>{ if(visti.has(s.id)) return; const t=_normTxt(s.spett); if(t.length<6 || GENERICI.test(t)) return;
-      const altre=_gruppoDi(s).filter(x=>x!==s && fil.includes(x) && !x.premontaggio && !x.replicaOf && !visti.has(x.id) && x.data>s.data);
-      if(altre.length){ altre_map[s.id]=altre; altre.forEach(x=>visti.add(x.id)); } visti.add(s.id); }); }
-  const figli=new Set(Object.values(altre_map).flat().map(x=>x.id));
-  fil = fil.filter(s=>!figli.has(s.id));
-  fil.forEach(s=>{ const pre=(prima_map[s.id]||[]); inizioDi[s.id]=pre.length?pre.map(x=>x.data).sort()[0]:s.data; });
-  fil.sort((a,b)=>inizioDi[a.id].localeCompare(inizioDi[b.id]) || a.data.localeCompare(b.data));
+  const _gruppi=_raggruppaGiornate(fil); fil=_gruppi.map(g=>g.s);
+
 
   const el=document.getElementById('splist');
   if(!fil.length){
@@ -3180,15 +3194,12 @@ function renderList(){
   }
 
   const fmtB=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'short'}); }catch{ return d; } };
-  el.innerHTML=fil.map(s=>{
-    const pre = (prima_map[s.id]||[]).sort((a,b)=>a.data.localeCompare(b.data));
-    const altre = (altre_map[s.id]||[]).sort((a,b)=>a.data.localeCompare(b.data));
-    // repliche: quelle collegate a questa data e quelle collegate alle altre date del gruppo
-    const reps = [...(repliche_map[s.id]||[]), ...altre.flatMap(x=>repliche_map[x.id]||[])].sort((a,b)=>a.data.localeCompare(b.data));
+  el.innerHTML=_gruppi.map(g=>{
+    const s=g.s, pre=g.pre, altre=g.altre, reps=g.reps;
     const nRes=pre.filter(x=>x.residenza).length, nPre=pre.length-nRes, nRep=reps.length, nAlt=altre.length;
     if(!pre.length && !reps.length && !altre.length) return _buildCard(s);
     const chips=[]; if(nPre) chips.push({col:'#fb923c', testo:'🔧 premontaggio '+fmtB(pre.find(x=>!x.residenza).data)}); if(nRes) chips.push({col:'#2dd4bf', testo:'🏠 residenza dal '+fmtB(pre.find(x=>x.residenza).data)}); if(nRep) chips.push({col:'#a5b4fc', testo:'🔁 '+nRep+' replic'+(nRep>1?'he':'a')+' fino al '+fmtB(reps[reps.length-1].data)}); if(nAlt) chips.push({col:'#f5c842', testo:'📅 altre '+nAlt+' dat'+(nAlt>1?'e':'a')+' fino al '+fmtB(altre[altre.length-1].data)});
-    const tutte=[...pre, ...altre, ...reps].sort((a,b)=>a.data.localeCompare(b.data));
+    const tutte=g.tutte;
     // costi: nella scheda chiusa si vede il totale di tutte le giornate, ovunque siano stati inseriti
     const totGruppo=[s, ...tutte].reduce((a,x)=>a+(+x.totale||0),0);
     const html=_buildCard(s, {chips, totGruppo, nGiorni:tutte.length+1, fatturatoTutte:[s,...tutte].every(x=>!x.totale||x.fatturato), giorni:[s,...tutte].sort((a,b)=>a.data.localeCompare(b.data))});
@@ -6269,7 +6280,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v127</span>
+    <span>Report generato da GammaFucker v128</span>
   </div>
   </body></html>`;
 
@@ -6375,7 +6386,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v127</span>
+    <span>Report generato da GammaFucker v128</span>
   </div>
   </body></html>`;
 
@@ -6403,17 +6414,29 @@ function generaReportFiltri(){
   const perCitta={}; spett.forEach(s=>{ (perCitta[s.citta||'—']=perCitta[s.citta||'—']||[]).push(s); });
   const sezioni=Object.keys(perCitta).sort().map(citta=>{
     const lista=perCitta[citta]; const totC=lista.reduce((a,s)=>a+(+s.totale||0),0);
-    const righe=lista.map(s=>`
-      <tr style="border-top:1px solid #e2e8f0;${s.premontaggio||s.replicaOf?'background:#fbfbfd;':''}">
-        <td style="padding:6px 10px;font-size:10px;color:#6b7280;white-space:nowrap;vertical-align:top;">${fmtD(s.data)}</td>
+    // accorpamento come nella Lista: capofila + giornate collegate (premontaggi, residenza, repliche, altre date)
+    const tipoDi=x=>x.residenza?'🏠 residenza':x.premontaggio?'🔧 premontaggio':x.replicaOf?'🔁 replica':'🎭 spettacolo';
+    const cellaImp=x=>`<td style="padding:6px 10px;font-size:10px;text-align:right;white-space:nowrap;vertical-align:top;font-weight:700;color:${x.fatturato?'#059669':'#1a1a2e'};">${fmt(x.totale)}${x.fatturato?'<div style="font-size:8px;font-weight:600;color:#059669;">✓ fatturato</div>':(+x.totale>0?'<div style="font-size:8px;font-weight:600;color:#d97706;">da fatturare</div>':'')}</td>`;
+    const righe=_raggruppaGiornate(lista).map(g=>{
+      const s=g.s; const multi=g.giorni.length>1; const totG=g.giorni.reduce((a,x)=>a+(+x.totale||0),0);
+      let h=`<tr style="border-top:2px solid #cbd5e1;">
+        <td style="padding:6px 10px;font-size:10px;color:#6b7280;white-space:nowrap;vertical-align:top;">${multi?fmtD(g.giorni[0].data)+'<br><span style="color:#9ca3af;">→ '+fmtD(g.giorni[g.giorni.length-1].data)+'</span>':fmtD(s.data)}</td>
         <td style="padding:6px 10px;vertical-align:top;">
-          <div style="font-size:11px;font-weight:700;">${s.replicaOf?'🔁 ':''}${s.residenza?'🏠 ':s.premontaggio?'🔧 ':''}${esc(s.spett)}</div>
+          <div style="font-size:11px;font-weight:700;">${esc(s.spett)}${multi?' <span style="font-size:9px;font-weight:600;color:#7c3aed;">· '+g.giorni.length+' giornate</span>':''}</div>
           <div style="font-size:9px;color:#6b7280;">${esc(s.teatro||'')}${s.manif?' · <span style="color:#7c3aed;">'+esc(s.manif)+'</span>':''}</div>
           ${s.accordi?`<div style="margin-top:4px;padding:4px 8px;background:#eff6ff;border-left:3px solid #3b82f6;border-radius:3px;font-size:9.5px;color:#1e40af;">📋 ${esc(s.accordi)}</div>`:''}
         </td>
-        <td style="padding:6px 10px;font-size:9.5px;color:#374151;vertical-align:top;">${esc(_fatturazioneTesto(s))||'<span style="color:#9ca3af;">—</span>'}</td>
-        <td style="padding:6px 10px;font-size:10px;text-align:right;white-space:nowrap;vertical-align:top;font-weight:700;color:${s.fatturato?'#059669':'#1a1a2e'};">${fmt(s.totale)}${s.fatturato?'<div style="font-size:8px;font-weight:600;color:#059669;">✓ fatturato</div>':(+s.totale>0?'<div style="font-size:8px;font-weight:600;color:#d97706;">da fatturare</div>':'')}</td>
-      </tr>`).join('');
+        <td style="padding:6px 10px;font-size:9.5px;color:#374151;vertical-align:top;">${multi?'<span style="color:#9ca3af;">vedi giornate</span>':(esc(_fatturazioneTesto(s))||'<span style="color:#9ca3af;">—</span>')}</td>
+        ${multi?`<td style="padding:6px 10px;font-size:10px;text-align:right;white-space:nowrap;vertical-align:top;font-weight:700;color:${g.giorni.every(x=>!x.totale||x.fatturato)?'#059669':'#1a1a2e'};">${fmt(totG)}<div style="font-size:8px;font-weight:600;color:#6b7280;">totale giornate</div></td>`:cellaImp(s)}
+      </tr>`;
+      if(multi) g.giorni.forEach(x=>{ const acc=(x!==s && x.accordi && x.accordi!==s.accordi)?x.accordi:'';
+        h+=`<tr style="border-top:1px solid #eef2f7;background:#fbfbfd;">
+          <td style="padding:4px 10px 4px 18px;font-size:9.5px;color:#6b7280;white-space:nowrap;vertical-align:top;">${fmtD(x.data)}</td>
+          <td style="padding:4px 10px;vertical-align:top;font-size:9.5px;color:#4b5563;">${tipoDi(x)}${acc?`<div style="margin-top:3px;padding:3px 8px;background:#eff6ff;border-left:3px solid #3b82f6;border-radius:3px;font-size:9px;color:#1e40af;">📋 ${esc(acc)}</div>`:''}</td>
+          <td style="padding:4px 10px;font-size:9.5px;color:#374151;vertical-align:top;">${esc(_fatturazioneTesto(x))||'<span style="color:#9ca3af;">—</span>'}</td>
+          ${cellaImp(x)}
+        </tr>`; });
+      return h; }).join('');
     return `<div style="break-inside:avoid;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:14px;overflow:hidden;background:#fff;">
       <div style="background:#065f46;color:#fff;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;">
         <span style="font-weight:800;font-size:12px;">${esc(citta)}</span><span style="font-size:11px;color:#a7f3d0;">${lista.length} spett. · ${fmt(totC)}</span>
@@ -6444,7 +6467,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v127</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v128</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6516,7 +6539,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v127</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v128</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
