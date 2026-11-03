@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v128</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v129</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -787,6 +787,15 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <button class="btn btn-p" id="cm-btn" style="flex:1;" onclick="agganciaDaMail()">📎 Aggancia allo spettacolo</button>
       <button class="btn btn-o" onclick="document.getElementById('cerca-mail-ov').classList.remove('open')">Chiudi</button>
     </div>
+  </div>
+</div>
+<!-- ══ SQUADRA in sola lettura (app collaboratori) ══ -->
+<div class="mover" id="squadra-ro-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto;">
+    <div class="mtitle">👷 Squadra</div>
+    <div id="sqro-titolo" style="font-size:11px;color:var(--text2);margin-bottom:8px;"></div>
+    <div id="sqro-box" style="font-size:12px;line-height:1.6;"></div>
+    <button class="btn btn-o" style="margin-top:12px;width:100%;" onclick="document.getElementById('squadra-ro-ov').classList.remove('open')">Chiudi</button>
   </div>
 </div>
 <!-- ══ SQUADRA TECNICI / SERVICE: WhatsApp con le info del lavoro ══ -->
@@ -3072,7 +3081,7 @@ function _buildCard(s, grp){
       ${!IS_COLLAB&&!s.replicaOf?`<button class="iBtn" style="color:#6366f1;border-color:rgba(99,102,241,.35);" onclick="aggiungiReplica(${s.id})">➕ Replica</button>`:''}
       <button class="iBtn" style="color:var(--accent);border-color:rgba(124,58,237,.3);" onclick="apriInvioInfoSpazio(${s.id})">📧 Info spazio</button>
       ${s.manif!=='GESTIONE'&&(!IS_COLLAB||(s.manif&&pianiProduzione[_prodKeyDi(s)]))?`<button class="iBtn" style="color:#c084fc;border-color:rgba(192,132,252,.35);" onclick="apriPianoSpettacolo(${s.id})">🎬 Piano</button>`:''}
-      ${IS_COLLAB?'':`<button class="iBtn" style="color:#25d366;border-color:rgba(37,211,102,.35);" onclick="apriSquadra(${s.id})" title="WhatsApp ai tecnici / service con le info del lavoro">👷 Squadra</button>`}
+      ${IS_COLLAB?(_gruppoDi(s).some(x=>x.prod&&x.prod.squadra&&x.prod.squadra.length)?`<button class="iBtn" style="color:#25d366;border-color:rgba(37,211,102,.35);" onclick="apriSquadraRO(${s.id})">👷 Squadra</button>`:''):`<button class="iBtn" style="color:#25d366;border-color:rgba(37,211,102,.35);" onclick="apriSquadra(${s.id})" title="WhatsApp ai tecnici / service con le info del lavoro">👷 Squadra</button>`}
       ${IS_COLLAB||s.premontaggio||s.replicaOf||_mailsDi(s).some(m=>m.tipo==='scheda'&&m.file)?'':`<button class="iBtn" style="color:#60a5fa;border-color:rgba(96,165,250,.35);" onclick="apriCercaMail(${s.id})" title="Cerca la scheda tecnica nelle mail e agganciala">📧 Scheda?</button>`}
       ${IS_COLLAB?'':`<button class="iBtn" style="color:var(--purple);border-color:rgba(124,58,237,.35);" onclick="apriVoceFornitore(${s.id})">🧾 Voce fornitore</button>
       <button class="iBtn ed" onclick="editSpett(${s.id})">✏️ Modifica</button>
@@ -6280,7 +6289,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v128</span>
+    <span>Report generato da GammaFucker v129</span>
   </div>
   </body></html>`;
 
@@ -6386,7 +6395,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v128</span>
+    <span>Report generato da GammaFucker v129</span>
   </div>
   </body></html>`;
 
@@ -6467,7 +6476,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v128</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v129</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6539,7 +6548,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v128</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v129</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9029,6 +9038,20 @@ async function agganciaDaMail(){
     toast('✓ '+n+' allegat'+(n===1?'o agganciato':'i agganciati')+' a '+s.spett); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
   }catch(e){ toast('Errore: '+e.message, true); }
   finally{ btn.disabled=false; btn.textContent='📎 Aggancia allo spettacolo'; }
+}
+// ── Squadra in sola lettura (collaboratori): giornate del lavoro e chi c'è ogni giorno ──
+function apriSquadraRO(id){
+  const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
+  const esc=v=>String(v||'').replace(/</g,'&lt;');
+  const g=_gruppoDi(s).slice().sort((a,b)=>a.data.localeCompare(b.data)); if(!g.length) g.push(s);
+  document.getElementById('sqro-titolo').textContent=s.spett+' · '+s.citta+(s.teatro?' · '+s.teatro:'');
+  const tipo=x=>x.residenza?'🏠 residenza':x.premontaggio?'🔧 montaggio':x.replicaOf?'🔁 replica':'🎭 spettacolo';
+  const righe=g.map(x=>{ const p=x.prod||{}; const sq=(p.squadra||[]);
+    const orari=[p.montaggio?'montaggio '+p.montaggio:'', p.inizio?'spettacolo ore '+p.inizio:'', p.smontaggio?'smontaggio '+p.smontaggio:''].filter(Boolean).join(' · ');
+    return `<div style="padding:6px 0;border-top:1px solid var(--border);"><div><b style="color:var(--gold);">${_prodFmtD(x.data)}</b> · ${tipo(x)}${orari?' <span style="color:var(--text2);">· '+esc(orari)+'</span>':''}</div>
+      ${sq.length?sq.map(r=>`<div style="padding-left:10px;">👤 ${esc(r.nome)}${r.ruolo?' <span style="color:var(--text3);">('+esc(r.ruolo)+')</span>':''}${r.tel?' · <a href="tel:'+esc(String(r.tel).replace(/\s+/g,''))+'" style="color:#25d366;">'+esc(r.tel)+'</a>':''}</div>`).join(''):'<div style="padding-left:10px;color:var(--text3);">nessuno assegnato</div>'}</div>`; }).join('');
+  document.getElementById('sqro-box').innerHTML=righe;
+  document.getElementById('squadra-ro-ov').classList.add('open');
 }
 // ── Squadra tecnici / service: WhatsApp con le info del lavoro, squadra registrata sullo spettacolo ──
 // Orari dal piano di produzione (che a sua volta li prende dalla scheda tecnica); persone dalla rubrica,
