@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v132</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v133</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -810,6 +810,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div id="dafare-box" style="font-size:12px;"></div>
     <div style="display:flex;gap:8px;margin-top:12px;">
       <button class="btn btn-o" style="flex:1;" id="dafare-piu" onclick="_daFareTutti=true;renderDaFare()">mostra tutti</button>
+      <button class="btn btn-o" style="flex:1;color:var(--text3);" id="dafare-ign" onclick="_daFareIgnorati=!_daFareIgnorati;_daFareTutti=false;renderDaFare()">ignorati</button>
       <button class="btn btn-o" style="flex:1;" onclick="document.getElementById('dafare-ov').classList.remove('open')">Chiudi</button>
     </div>
   </div>
@@ -6324,7 +6325,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v132</span>
+    <span>Report generato da GammaFucker v133</span>
   </div>
   </body></html>`;
 
@@ -6430,7 +6431,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v132</span>
+    <span>Report generato da GammaFucker v133</span>
   </div>
   </body></html>`;
 
@@ -6514,7 +6515,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v132</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v133</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6586,7 +6587,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v132</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v133</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9113,20 +9114,26 @@ function _daFareLista(){
     .filter(s=>{ const g=_gruppoDi(s); const k=(g.length?g:[s]).map(x=>String(x.id)).sort().join(','); if(visti.has(k)) return false; visti.add(k); return true; })
     .map(s=>({s, ..._daFareMancanze(s)})).filter(x=>x.m.length);
 }
-function apriDaFare(){ _daFareTutti=false; renderDaFare(); document.getElementById('dafare-ov').classList.add('open'); }
+// spettacoli ignorati di proposito (non c'è niente da fare): escono dalla lista, recuperabili con "ignorati"
+function _daFareSkip(id, v){ const s=data.find(x=>String(x.id)===String(id)); if(!s) return; const p=_prodDi(s); if(v) p.daFareSkip=new Date().toISOString().slice(0,10); else delete p.daFareSkip; sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000; if(typeof _prodAutoSave==='function') _prodAutoSave(); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300); renderDaFare(); }
+let _daFareIgnorati=false;
+function apriDaFare(){ _daFareTutti=false; _daFareIgnorati=false; renderDaFare(); document.getElementById('dafare-ov').classList.add('open'); }
 function renderDaFare(){
   const esc=v=>String(v||'').replace(/</g,'&lt;');
-  const tutti=_daFareLista(); const lista=_daFareTutti?tutti:tutti.slice(0,10);
+  const all=_daFareLista(); const ign=all.filter(x=>x.s.prod&&x.s.prod.daFareSkip); const tutti=_daFareIgnorati?ign:all.filter(x=>!(x.s.prod&&x.s.prod.daFareSkip));
+  const lista=_daFareTutti?tutti:tutti.slice(0,10);
   const box=document.getElementById('dafare-box');
-  if(!tutti.length){ box.innerHTML='<div style="padding:14px;text-align:center;color:var(--green);">✓ Tutto a posto: i prossimi spettacoli hanno scheda e info inviate.</div>'; }
-  else box.innerHTML=lista.map(x=>{ const s=x.s; const gg=_giornateRiga(s);
+  if(!tutti.length){ box.innerHTML='<div style="padding:14px;text-align:center;color:var(--green);">'+(_daFareIgnorati?'nessuno spettacolo ignorato':'✓ Tutto a posto: i prossimi spettacoli hanno scheda e info inviate.')+'</div>'; }
+  else box.innerHTML=lista.map(x=>{ const s=x.s; const gg=_giornateRiga(s); const sk=!!(s.prod&&s.prod.daFareSkip);
     const vuoto=!x.scheda && !x.mailComp && !(s.prod&&s.prod.invii&&Object.keys(s.prod.invii).length);
-    return `<div style="padding:8px 0;border-top:1px solid var(--border);">
-      <div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;"><b style="color:var(--gold);">${_prodFmtD(s.data)}</b> <b>${esc(s.spett)}</b> <span style="color:var(--text2);">· ${esc(s.citta)}${s.teatro?' · '+esc(s.teatro):''}</span>${vuoto?'<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(239,68,68,.15);color:#ef4444;">nessuna info ricevuta né inviata</span>':''}</div>
+    return `<div style="padding:8px 0;border-top:1px solid var(--border);${sk?'opacity:.75;':''}">
+      <div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;"><b style="color:var(--gold);">${_prodFmtD(s.data)}</b> <b>${esc(s.spett)}</b> <span style="color:var(--text2);">· ${esc(s.citta)}${s.teatro?' · '+esc(s.teatro):''}</span>${vuoto?'<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(239,68,68,.15);color:#ef4444;">nessuna info ricevuta né inviata</span>':''}
+        <span style="flex:1;"></span>${sk?`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:var(--green);border-color:rgba(16,185,129,.4);" onclick="_daFareSkip(${s.id},false)" title="Rimetti nella lista">↩ ripristina</button>`:`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:var(--text3);" onclick="_daFareSkip(${s.id},true)" title="Niente da fare per questo spettacolo: toglilo dalla lista">⏭ ignora</button>`}</div>
       ${gg?`<div style="font-size:10px;color:var(--text3);margin:2px 0;">${esc(gg)}</div>`:''}
       ${x.m.map(r=>`<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:2px 0 2px 8px;"><span style="color:var(--text2);">${r.lab}</span>${r.az}</div>`).join('')}
     </div>`; }).join('');
   const piu=document.getElementById('dafare-piu'); piu.style.display=(!_daFareTutti && tutti.length>10)?'':'none'; piu.textContent='mostra tutti ('+tutti.length+')';
+  const bi=document.getElementById('dafare-ign'); bi.style.display=(ign.length||_daFareIgnorati)?'':'none'; bi.textContent=_daFareIgnorati?'← torna alla lista':'ignorati ('+ign.length+')';
 }
 function _daFareAz(fn){ document.getElementById('dafare-ov').classList.remove('open'); fn(); }
 // ── Squadra → responsabile compagnia: WhatsApp con chi lavora e quando (entrambe le app, dalla squadra registrata) ──
