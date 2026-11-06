@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v133</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v134</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -6325,7 +6325,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v133</span>
+    <span>Report generato da GammaFucker v134</span>
   </div>
   </body></html>`;
 
@@ -6431,7 +6431,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v133</span>
+    <span>Report generato da GammaFucker v134</span>
   </div>
   </body></html>`;
 
@@ -6515,7 +6515,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v133</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v134</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6587,7 +6587,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v133</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v134</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9100,12 +9100,19 @@ function _daFareMancanze(s){
   const inv=(s.prod&&s.prod.invii)||{};
   const scheda=_mailsDi(s).some(m=>m.tipo==='scheda'&&m.file);
   const mailComp=_mailsDi(s).some(m=>m.link);
-  const m=[];
+  const m=[], fatte=[];
+  const fmt=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}); }catch{ return d||''; } };
+  const ok=(lab,v)=>fatte.push('✓ '+lab+(v&&v.ts?' il '+fmt(v.ts):''));
   if(!scheda) m.push({k:'scheda', lab:'📄 scheda tecnica non ricevuta', az:`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#60a5fa;border-color:rgba(96,165,250,.35);" onclick="_daFareAz(()=>apriCercaMail(${s.id}))">📧 Scheda?</button>`});
+  else { const sm=_mailsDi(s).find(x=>x.tipo==='scheda'&&x.file); ok('📄 scheda tecnica ricevuta', sm&&sm.data?{ts:String(sm.data).slice(0,10)}:null); }
   if(!inv.infoCompagnia) m.push({k:'info', lab:'🏛 info spazio non inviate alla compagnia', az:`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:var(--accent);border-color:rgba(124,58,237,.3);" onclick="_daFareAz(()=>apriInvioInfoSpazio(${s.id}))">📧 Info spazio</button>`});
+  else ok('🏛 info spazio inviate alla compagnia', inv.infoCompagnia);
   if(scheda && !inv.schedaTeatro) m.push({k:'teatro', lab:'📄 scheda non inoltrata al teatro', az:mailComp?`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#f59e0b;border-color:rgba(245,158,11,.4);" onclick="_daFareAz(()=>apriInoltro(${s.id}))">↪ Inoltra</button>`:''});
+  else if(inv.schedaTeatro) ok('📄 scheda inoltrata al teatro', inv.schedaTeatro);
   if(!inv.squadra) m.push({k:'squadra', lab:'👷 info non inviate alla squadra', az:`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#25d366;border-color:rgba(37,211,102,.35);" onclick="_daFareAz(()=>apriSquadra(${s.id}))">👷 Squadra</button>`});
-  return {m, scheda, mailComp};
+  else ok('👷 info inviate alla squadra', inv.squadra);
+  if(inv.squadraComp) ok('💬 squadra inviata alla compagnia', inv.squadraComp);
+  return {m, fatte, scheda, mailComp};
 }
 function _daFareLista(){
   const oggi=new Date().toISOString().slice(0,10); const visti=new Set();
@@ -9130,6 +9137,7 @@ function renderDaFare(){
       <div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;"><b style="color:var(--gold);">${_prodFmtD(s.data)}</b> <b>${esc(s.spett)}</b> <span style="color:var(--text2);">· ${esc(s.citta)}${s.teatro?' · '+esc(s.teatro):''}</span>${vuoto?'<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(239,68,68,.15);color:#ef4444;">nessuna info ricevuta né inviata</span>':''}
         <span style="flex:1;"></span>${sk?`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:var(--green);border-color:rgba(16,185,129,.4);" onclick="_daFareSkip(${s.id},false)" title="Rimetti nella lista">↩ ripristina</button>`:`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:var(--text3);" onclick="_daFareSkip(${s.id},true)" title="Niente da fare per questo spettacolo: toglilo dalla lista">⏭ ignora</button>`}</div>
       ${gg?`<div style="font-size:10px;color:var(--text3);margin:2px 0;">${esc(gg)}</div>`:''}
+      ${(x.fatte||[]).map(f=>`<div style="padding:1px 0 1px 8px;font-size:11px;color:var(--green);">${esc(f)}</div>`).join('')}
       ${x.m.map(r=>`<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:2px 0 2px 8px;"><span style="color:var(--text2);">${r.lab}</span>${r.az}</div>`).join('')}
     </div>`; }).join('');
   const piu=document.getElementById('dafare-piu'); piu.style.display=(!_daFareTutti && tutti.length>10)?'':'none'; piu.textContent='mostra tutti ('+tutti.length+')';
