@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v131</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v132</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -445,6 +445,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <select id="fil-manif" onchange="renderList()"><option value="">Tutti i tipi</option></select>
     <select id="fil-stagione" onchange="renderList()"><option value="">Tutte le stagioni</option></select>
     <button class="btn btn-o btn-sm collab-only" style="display:none;white-space:nowrap;" id="btn-rep-stag" onclick="generaReportFiltri()" title="Report degli spettacoli con i filtri impostati qui sopra">🎭 Report</button>
+    <button class="btn btn-o btn-sm admin-only" style="white-space:nowrap;color:#f59e0b;border-color:rgba(245,158,11,.45);" onclick="apriDaFare()" title="Prossimi spettacoli senza scheda tecnica o senza info inviate">📋 Da fare</button>
   </div>
 
   <div class="splist" id="splist"></div>
@@ -798,6 +799,18 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div style="display:flex;gap:8px;margin-top:12px;">
       <button class="btn btn-p" style="flex:1;background:#25d366;" onclick="apriSquadraCompagnia(_sqroId)">💬 Squadra alla compagnia</button>
       <button class="btn btn-o" style="flex:1;" onclick="document.getElementById('squadra-ro-ov').classList.remove('open')">Chiudi</button>
+    </div>
+  </div>
+</div>
+<!-- ══ DA FARE: prossimi spettacoli senza scheda / senza info inviate ══ -->
+<div class="mover" id="dafare-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:600px;max-height:92vh;overflow-y:auto;">
+    <div class="mtitle">📋 Da fare · prossimi spettacoli</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">I prossimi spettacoli a calendario a cui manca qualcosa: scheda tecnica ricevuta, info spazio alla compagnia, scheda al teatro, info alla squadra. Tocca un'azione per sistemarla da qui.</div>
+    <div id="dafare-box" style="font-size:12px;"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-o" style="flex:1;" id="dafare-piu" onclick="_daFareTutti=true;renderDaFare()">mostra tutti</button>
+      <button class="btn btn-o" style="flex:1;" onclick="document.getElementById('dafare-ov').classList.remove('open')">Chiudi</button>
     </div>
   </div>
 </div>
@@ -6311,7 +6324,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v131</span>
+    <span>Report generato da GammaFucker v132</span>
   </div>
   </body></html>`;
 
@@ -6417,7 +6430,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v131</span>
+    <span>Report generato da GammaFucker v132</span>
   </div>
   </body></html>`;
 
@@ -6501,7 +6514,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v131</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v132</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6573,7 +6586,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v131</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v132</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9079,6 +9092,43 @@ function apriSquadraRO(id){
   document.getElementById('sqro-box').innerHTML=righe;
   document.getElementById('squadra-ro-ov').classList.add('open');
 }
+// ── Da fare: i prossimi spettacoli a cui manca qualcosa (scheda ricevuta / info spazio / scheda al teatro / squadra) ──
+// Una riga per lavoro (le giornate del gruppo contano come uno), in ordine di calendario, dai primi 10 in su.
+let _daFareTutti=false;
+function _daFareMancanze(s){
+  const inv=(s.prod&&s.prod.invii)||{};
+  const scheda=_mailsDi(s).some(m=>m.tipo==='scheda'&&m.file);
+  const mailComp=_mailsDi(s).some(m=>m.link);
+  const m=[];
+  if(!scheda) m.push({k:'scheda', lab:'📄 scheda tecnica non ricevuta', az:`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#60a5fa;border-color:rgba(96,165,250,.35);" onclick="_daFareAz(()=>apriCercaMail(${s.id}))">📧 Scheda?</button>`});
+  if(!inv.infoCompagnia) m.push({k:'info', lab:'🏛 info spazio non inviate alla compagnia', az:`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:var(--accent);border-color:rgba(124,58,237,.3);" onclick="_daFareAz(()=>apriInvioInfoSpazio(${s.id}))">📧 Info spazio</button>`});
+  if(scheda && !inv.schedaTeatro) m.push({k:'teatro', lab:'📄 scheda non inoltrata al teatro', az:mailComp?`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#f59e0b;border-color:rgba(245,158,11,.4);" onclick="_daFareAz(()=>apriInoltro(${s.id}))">↪ Inoltra</button>`:''});
+  if(!inv.squadra) m.push({k:'squadra', lab:'👷 info non inviate alla squadra', az:`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#25d366;border-color:rgba(37,211,102,.35);" onclick="_daFareAz(()=>apriSquadra(${s.id}))">👷 Squadra</button>`});
+  return {m, scheda, mailComp};
+}
+function _daFareLista(){
+  const oggi=new Date().toISOString().slice(0,10); const visti=new Set();
+  return data.filter(s=>s.data>=oggi && !s.premontaggio && !s.replicaOf && s.manif!=='GESTIONE' && !/ANNULLAT/i.test(s.spett||''))
+    .sort((a,b)=>a.data.localeCompare(b.data))
+    .filter(s=>{ const g=_gruppoDi(s); const k=(g.length?g:[s]).map(x=>String(x.id)).sort().join(','); if(visti.has(k)) return false; visti.add(k); return true; })
+    .map(s=>({s, ..._daFareMancanze(s)})).filter(x=>x.m.length);
+}
+function apriDaFare(){ _daFareTutti=false; renderDaFare(); document.getElementById('dafare-ov').classList.add('open'); }
+function renderDaFare(){
+  const esc=v=>String(v||'').replace(/</g,'&lt;');
+  const tutti=_daFareLista(); const lista=_daFareTutti?tutti:tutti.slice(0,10);
+  const box=document.getElementById('dafare-box');
+  if(!tutti.length){ box.innerHTML='<div style="padding:14px;text-align:center;color:var(--green);">✓ Tutto a posto: i prossimi spettacoli hanno scheda e info inviate.</div>'; }
+  else box.innerHTML=lista.map(x=>{ const s=x.s; const gg=_giornateRiga(s);
+    const vuoto=!x.scheda && !x.mailComp && !(s.prod&&s.prod.invii&&Object.keys(s.prod.invii).length);
+    return `<div style="padding:8px 0;border-top:1px solid var(--border);">
+      <div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;"><b style="color:var(--gold);">${_prodFmtD(s.data)}</b> <b>${esc(s.spett)}</b> <span style="color:var(--text2);">· ${esc(s.citta)}${s.teatro?' · '+esc(s.teatro):''}</span>${vuoto?'<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(239,68,68,.15);color:#ef4444;">nessuna info ricevuta né inviata</span>':''}</div>
+      ${gg?`<div style="font-size:10px;color:var(--text3);margin:2px 0;">${esc(gg)}</div>`:''}
+      ${x.m.map(r=>`<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:2px 0 2px 8px;"><span style="color:var(--text2);">${r.lab}</span>${r.az}</div>`).join('')}
+    </div>`; }).join('');
+  const piu=document.getElementById('dafare-piu'); piu.style.display=(!_daFareTutti && tutti.length>10)?'':'none'; piu.textContent='mostra tutti ('+tutti.length+')';
+}
+function _daFareAz(fn){ document.getElementById('dafare-ov').classList.remove('open'); fn(); }
 // ── Squadra → responsabile compagnia: WhatsApp con chi lavora e quando (entrambe le app, dalla squadra registrata) ──
 let _sqcId=null;
 function _sqcSquadra(s){
