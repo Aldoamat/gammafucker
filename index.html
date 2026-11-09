@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v137</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v138</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -814,10 +814,25 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     </div>
     <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">Controlla prestazioni, importi, accordi e note (fatture fornitori) di ogni giornata. ✎ apre lo spettacolo in modifica e al salvataggio torni qui: le correzioni valgono ovunque. Poi genera il report.</div>
     <div id="sett-box" style="font-size:12px;"></div>
-    <div style="display:flex;gap:8px;margin-top:12px;">
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
       <button class="btn btn-p" style="flex:1;" onclick="reportSettimana()">🧾 Report</button>
+      <button class="btn btn-p" style="flex:1;background:linear-gradient(135deg,#059669,#34d399);" onclick="apriInvioSettimana()">📧 Invia</button>
       <button class="btn btn-o" style="flex:1;color:#34d399;border-color:rgba(52,211,153,.5);" onclick="excelSettimana()">📊 Excel</button>
       <button class="btn btn-o" onclick="document.getElementById('settimana-ov').classList.remove('open')">Chiudi</button>
+    </div>
+  </div>
+</div>
+<!-- ══ INVIO REPORT SETTIMANA per mail (PDF allegato) ══ -->
+<div class="mover" id="invio-sett-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto;">
+    <div class="mtitle">📧 Invia report della settimana</div>
+    <div id="is-titolo" style="font-size:11px;color:var(--text2);margin-bottom:10px;"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="field"><label>Destinatari <span style="font-weight:400;color:var(--text3);">(separati da ; o virgola)</span></label><input type="text" id="is-dest"></div>
+      <div class="field"><label>Oggetto</label><input type="text" id="is-ogg"></div>
+      <div class="field"><label>Testo</label><textarea id="is-testo" style="min-height:130px;font-size:12px;"></textarea></div>
+      <div style="font-size:10px;color:var(--text3);">ALLEGATO — il report in PDF (stesso contenuto del bottone Report, con le voci fornitori).</div>
+      <div style="display:flex;gap:8px;"><button class="btn btn-p" id="is-btn" style="flex:1;" onclick="inviaSettimana()">📤 Invia</button><button class="btn btn-o" onclick="reportSettimana()">👁 Anteprima</button><button class="btn btn-o" onclick="document.getElementById('invio-sett-ov').classList.remove('open')">Annulla</button></div>
     </div>
   </div>
 </div>
@@ -6363,7 +6378,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v137</span>
+    <span>Report generato da GammaFucker v138</span>
   </div>
   </body></html>`;
 
@@ -6469,7 +6484,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v137</span>
+    <span>Report generato da GammaFucker v138</span>
   </div>
   </body></html>`;
 
@@ -6497,6 +6512,9 @@ function generaReportFiltri(){
 // Report stampabile di una lista di spettacoli (usato dai filtri della Lista e dal report settimanale).
 // opts.note=true aggiunge sotto "cosa fatturiamo" anche le righe di nota (fatture fornitori, rimborsi…),
 // escluse le righe tecniche (⚠ scheda, 👷 squadra).
+// Logo dell'app (bandiera dei pirati, 96px) incorporato per i report stampabili e i PDF inviati per mail
+const _LOGO_B64='data:image/jpeg;base64,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';
+const _LOGO_IMG='<img src="'+_LOGO_B64+'" alt="" style="width:40px;height:40px;border-radius:50%;vertical-align:middle;margin-right:10px;">';
 function _reportSpettacoli(lista, descrizione, opts){
   opts=opts||{};
   const spett=lista.slice().sort((a,b)=>a.data.localeCompare(b.data));
@@ -6554,7 +6572,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     .footer{margin-top:18px;font-size:9px;color:#aaa;border-top:1px solid #e2e8f0;padding-top:8px;display:flex;justify-content:space-between;}
   </style></head><body>
   <div class="no-print" style="margin-bottom:14px;"><button class="btn-print" onclick="window.print()">🖨 Stampa / Salva PDF</button></div>
-  <div class="header"><div><div class="title">🎭 Report spettacoli</div><div style="font-size:11px;color:#666;margin-top:3px;">${esc(descrizione)} · AMAT Marche</div></div><div style="font-size:10px;color:#888;white-space:nowrap;">Generato il ${new Date().toLocaleDateString('it-IT')}</div></div>
+  <div class="header"><div style="display:flex;align-items:center;">${_LOGO_IMG}<div><div class="title">Report spettacoli</div><div style="font-size:11px;color:#666;margin-top:3px;">${esc(descrizione)} · AMAT Marche</div></div></div><div style="font-size:10px;color:#888;white-space:nowrap;">Generato il ${new Date().toLocaleDateString('it-IT')}</div></div>
   <div class="summary">
     <div class="sum-item"><div class="sum-val">${spett.length}</div><div class="sum-lbl">Spettacoli</div></div>
     <div class="sum-item"><div class="sum-val">${Object.keys(perCitta).length}</div><div class="sum-lbl">Città</div></div>
@@ -6562,8 +6580,9 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v137</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v138</span></div>
   </body></html>`;
+  if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
 function generaReportStagione(){
@@ -6623,8 +6642,8 @@ function generaReportStagione(){
   </style></head><body>
   <div class="no-print" style="margin-bottom:14px;"><button class="btn-print" onclick="window.print()">\ud83d\udda8 Stampa / Salva PDF</button></div>
   <div class="header">
-    <div><div class="title">\ud83c\udfad Stagione ${stag}</div>
-    <div style="font-size:11px;color:#666;margin-top:3px;">AMAT Marche \u00b7 riepilogo per citt\u00e0</div></div>
+    <div style="display:flex;align-items:center;">${_LOGO_IMG}<div><div class="title">Stagione ${stag}</div>
+    <div style="font-size:11px;color:#666;margin-top:3px;">AMAT Marche \u00b7 riepilogo per citt\u00e0</div></div></div>
     <div style="font-size:10px;color:#888;">Generato il ${new Date().toLocaleDateString('it-IT')}</div>
   </div>
   <div class="summary">
@@ -6634,7 +6653,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v137</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v138</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9224,6 +9243,35 @@ function reportSettimana(){
   const lista=_settLista(); if(!lista.length){ toast('Nessuno spettacolo in questa settimana', true); return; }
   const r=_settRange(); const f=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch{ return d; } };
   _reportSpettacoli(lista, 'spese da rifatturare · settimana '+f(r.da)+' – '+f(r.a), {note:true});
+}
+// Mail del report settimanale: PDF del report (lo stesso del bottone Report) allegato dal backend (sendEmail con pdfHtml).
+// Destinatari e testo proposti qui sotto, modificabili prima dell'invio; i destinatari si ricordano per la volta dopo.
+const _SETT_DEST_DEFAULT='b.giovagnoli@amat.marche.it; m.osimani@amat.marche.it; l.battistoni@amat.marche.it';
+function apriInvioSettimana(){
+  const lista=_settLista(); if(!lista.length){ toast('Nessuno spettacolo in questa settimana', true); return; }
+  const r=_settRange(); const f=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch{ return d; } };
+  const periodo='dal '+f(r.da)+' al '+f(r.a);
+  document.getElementById('is-titolo').textContent='Settimana '+periodo+' · '+lista.length+' giornate';
+  document.getElementById('is-dest').value=ld('settDest','')||_SETT_DEST_DEFAULT;
+  document.getElementById('is-ogg').value='Spettacoli della settimana '+periodo+' – costi da rifatturare';
+  document.getElementById('is-testo').value='Carissimi,\nquesti sono gli spettacoli della settimana appena trascorsa ('+periodo+') con i costi da rifatturare alle compagnie, stante le info che ho reperito su Gamma.\n\nA.';
+  document.getElementById('invio-sett-ov').classList.add('open');
+}
+async function inviaSettimana(){
+  const lista=_settLista(); if(!lista.length) return;
+  const dest=document.getElementById('is-dest').value.split(/[;,\s]+/).map(x=>x.trim()).filter(x=>x.includes('@')).join(',');
+  if(!dest){ toast('Nessun destinatario', true); return; }
+  const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
+  const r=_settRange(); const f=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch{ return d; } };
+  const html=_reportSpettacoli(lista, 'spese da rifatturare · settimana '+f(r.da)+' – '+f(r.a), {note:true, ritorna:true}).replace(/<div class="no-print"[\s\S]*?<\/div>/,'');
+  const btn=document.getElementById('is-btn'); btn.disabled=true; btn.textContent='⏳ Invio…';
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'sendEmail', to:dest, subject:document.getElementById('is-ogg').value.trim(), message:document.getElementById('is-testo').value, allegati:[], pdfHtml:html, pdfNome:'Report settimana '+r.da+' '+r.a+'.pdf'})});
+    const j=await res.json(); if(j.result!=='sent') throw new Error(j.result||j.error||'errore');
+    sv('settDest', document.getElementById('is-dest').value.trim());
+    document.getElementById('invio-sett-ov').classList.remove('open'); toast('✓ Report inviato a '+dest);
+  }catch(e){ toast('Errore: '+e.message, true); }
+  finally{ btn.disabled=false; btn.textContent='📤 Invia'; }
 }
 // ── Da fare: i prossimi spettacoli a cui manca qualcosa (scheda ricevuta / info spazio / scheda al teatro / squadra) ──
 // Una riga per lavoro (le giornate del gruppo contano come uno), in ordine di calendario, dai primi 10 in su.
