@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v135</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v136</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -815,7 +815,8 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">Controlla prestazioni, importi, accordi e note (fatture fornitori) di ogni giornata. ✎ apre lo spettacolo in modifica e al salvataggio torni qui: le correzioni valgono ovunque. Poi genera il report.</div>
     <div id="sett-box" style="font-size:12px;"></div>
     <div style="display:flex;gap:8px;margin-top:12px;">
-      <button class="btn btn-p" style="flex:1;" onclick="reportSettimana()">🧾 Genera report spese</button>
+      <button class="btn btn-p" style="flex:1;" onclick="reportSettimana()">🧾 Report</button>
+      <button class="btn btn-o" style="flex:1;color:#34d399;border-color:rgba(52,211,153,.5);" onclick="excelSettimana()">📊 Excel</button>
       <button class="btn btn-o" onclick="document.getElementById('settimana-ov').classList.remove('open')">Chiudi</button>
     </div>
   </div>
@@ -6362,7 +6363,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v135</span>
+    <span>Report generato da GammaFucker v136</span>
   </div>
   </body></html>`;
 
@@ -6468,7 +6469,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v135</span>
+    <span>Report generato da GammaFucker v136</span>
   </div>
   </body></html>`;
 
@@ -6561,7 +6562,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v135</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v136</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6633,7 +6634,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v135</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v136</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9153,31 +9154,64 @@ function _settRange(){
 }
 function _settLista(){ const r=_settRange(); return data.filter(s=>s.data>=r.da && s.data<=r.a).sort((a,b)=>a.data.localeCompare(b.data)||String(a.citta).localeCompare(String(b.citta))); }
 function apriSettimana(){ _settOffset=1; renderSettimana(); document.getElementById('settimana-ov').classList.add('open'); }
+const _settAperti=new Set();
+function _settNoteDi(x){ return (x.note||'').split('|').map(l=>l.trim()).filter(l=>l && !/^⚠/.test(l) && !/^👷 Squadra:/.test(l)); }
 function renderSettimana(){
   const esc=v=>String(v||'').replace(/</g,'&lt;');
   const r=_settRange(); const lista=_settLista();
   const fmt=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short'}); }catch{ return d; } };
+  const eur=v=>'€ '+(+v).toLocaleString('it-IT',{minimumFractionDigits:2});
   document.getElementById('sett-titolo').textContent=(_settOffset===1?'settimana scorsa · ':_settOffset===0?'questa settimana · ':'')+fmt(r.da)+' – '+fmt(r.a);
   const box=document.getElementById('sett-box');
   if(!lista.length){ box.innerHTML='<div style="padding:14px;text-align:center;color:var(--text3);">nessuno spettacolo in questa settimana</div>'; return; }
-  const tot=lista.reduce((a,s)=>a+(+s.totale||0),0);
-  box.innerHTML=`<div style="font-size:10px;color:var(--text2);margin-bottom:4px;">${lista.length} giornate · totale previsto € ${tot.toLocaleString('it-IT',{minimumFractionDigits:2})}</div>`+lista.map(s=>{
-    const tipo=s.residenza?'🏠':s.premontaggio?'🔧':s.replicaOf?'🔁':s.manif==='GESTIONE'?'🏛':'🎭';
-    const note=(s.note||'').split('|').map(l=>l.trim()).filter(l=>l && !/^⚠/.test(l) && !/^👷 Squadra:/.test(l));
-    const fatt=_fatturazioneTesto(s);
-    const manca=!fatt && !(+s.totale) && s.manif!=='GESTIONE' && !s.premontaggio;
-    return `<div style="padding:7px 0;border-top:1px solid var(--border);${manca?'background:rgba(239,68,68,.05);':''}">
-      <div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;">
-        <b style="color:var(--gold);">${tipo} ${fmt(s.data)}</b> <b>${esc(s.spett)}</b> <span style="color:var(--text2);">· ${esc(s.citta)}${s.teatro?' · '+esc(s.teatro):''}</span>${s.manif?' <span style="font-size:9px;color:var(--purple);">'+esc(s.manif)+'</span>':''}
+  const gruppi=_raggruppaGiornate(lista); const tot=lista.reduce((a,s)=>a+(+s.totale||0),0);
+  const tipo=x=>x.residenza?'🏠':x.premontaggio?'🔧':x.replicaOf?'🔁':x.manif==='GESTIONE'?'🏛':'🎭';
+  const bottoni=x=>`<button class="iBtn" style="font-size:10px;padding:2px 7px;${x.fatturato?'color:var(--green);border-color:rgba(16,185,129,.4);':'color:var(--text3);border-style:dashed;'}" onclick="event.stopPropagation();toggleFatturato(${x.id});renderSettimana()" title="Segna fatturato / da fatturare">${x.fatturato?'✓ fatturato':'○ da fatturare'}</button>
+      <button class="iBtn" style="font-size:10px;padding:2px 7px;color:#f59e0b;border-color:rgba(245,158,11,.45);" onclick="event.stopPropagation();_settModifica(${x.id})" title="Apri in modifica">✎</button>`;
+  const dettaglio=x=>{ const fatt=_fatturazioneTesto(x), note=_settNoteDi(x); const manca=!fatt && !(+x.totale) && x.manif!=='GESTIONE' && !x.premontaggio;
+    return `<div style="font-size:11px;color:var(--text2);">${fatt?'🔧 '+esc(fatt):(manca?'<span style="color:#ef4444;">nessuna prestazione né importo: da verificare</span>':'<span style="color:var(--text3);">nessuna prestazione tecnica</span>')}</div>
+      ${x.accordi?`<div style="font-size:10px;color:#60a5fa;">📋 ${esc(x.accordi)}</div>`:''}
+      ${note.length?`<div style="font-size:10px;color:var(--text3);">${note.map(esc).join('<br>')}</div>`:''}`; };
+  box.innerHTML=`<div style="font-size:10px;color:var(--text2);margin-bottom:4px;">${gruppi.length} spettacol${gruppi.length===1?'o':'i'} · ${lista.length} giornate · totale ${eur(tot)}</div>`+gruppi.map(g=>{
+    const s=g.s, multi=g.giorni.length>1, aperto=_settAperti.has(String(s.id)), totG=g.giorni.reduce((a,x)=>a+(+x.totale||0),0);
+    const tuttiFat=g.giorni.every(x=>!(+x.totale)||x.fatturato), daVerificare=g.giorni.some(x=>!_fatturazioneTesto(x) && !(+x.totale) && x.manif!=='GESTIONE' && !x.premontaggio);
+    const nPrest=g.giorni.reduce((a,x)=>a+(+x.nm||0)+(+x.ne||0)+(+x.nfo||0)+(+x.nsa||0)+(+x.nf||0),0), nFatt=g.giorni.reduce((a,x)=>a+_settNoteDi(x).length,0);
+    return `<div style="padding:7px 0;border-top:1px solid var(--border);${daVerificare?'background:rgba(239,68,68,.05);':''}">
+      <div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;${multi?'cursor:pointer;':''}" ${multi?`onclick="_settToggle('${s.id}')"`:''}>
+        ${multi?`<span style="font-size:10px;color:var(--gold);">${aperto?'▼':'▶'}</span>`:''}
+        <b style="color:var(--gold);">${multi?fmt(g.giorni[0].data)+' → '+fmt(g.giorni[g.giorni.length-1].data):tipo(s)+' '+fmt(s.data)}</b> <b>${esc(s.spett)}</b> <span style="color:var(--text2);">· ${esc(s.citta)}${s.teatro?' · '+esc(s.teatro):''}</span>${s.manif?' <span style="font-size:9px;color:var(--purple);">'+esc(s.manif)+'</span>':''}
+        ${multi?`<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(124,58,237,.18);color:#c4b5fd;">${g.giorni.length} giornate</span>`:''}
         <span style="flex:1;"></span>
-        ${+s.totale>0?`<b style="color:${s.fatturato?'var(--green)':'var(--text)'};">€ ${(+s.totale).toLocaleString('it-IT')}</b>`:''}
-        <button class="iBtn" style="font-size:10px;padding:2px 7px;${s.fatturato?'color:var(--green);border-color:rgba(16,185,129,.4);':'color:var(--text3);border-style:dashed;'}" onclick="toggleFatturato(${s.id});renderSettimana()" title="Segna fatturato / da fatturare">${s.fatturato?'✓ fatturato':'○ da fatturare'}</button>
-        <button class="iBtn" style="font-size:10px;padding:2px 7px;color:#f59e0b;border-color:rgba(245,158,11,.45);" onclick="_settModifica(${s.id})" title="Apri in modifica">✎ Modifica</button>
+        ${totG>0?`<b style="color:${tuttiFat?'var(--green)':'var(--text)'};">${eur(totG)}</b>`:''}
+        ${multi?'':bottoni(s)}
       </div>
-      <div style="font-size:11px;color:var(--text2);padding-left:8px;margin-top:2px;">${fatt?'🔧 '+esc(fatt):(manca?'<span style="color:#ef4444;">nessuna prestazione né importo: da verificare</span>':'<span style="color:var(--text3);">nessuna prestazione tecnica</span>')}</div>
-      ${s.accordi?`<div style="font-size:10px;color:#60a5fa;padding-left:8px;">📋 ${esc(s.accordi)}</div>`:''}
-      ${note.length?`<div style="font-size:10px;color:var(--text3);padding-left:8px;">${note.map(esc).join('<br>')}</div>`:''}
+      ${multi?`<div style="font-size:10px;color:var(--text2);padding-left:16px;">${nPrest} prestazion${nPrest===1?'e':'i'} · ${nFatt} ${nFatt===1?'voce fornitore':'voci fornitori'}${g.giorni.filter(x=>+x.totale&&x.fatturato).length?' · '+g.giorni.filter(x=>+x.totale&&x.fatturato).length+' fatturat'+(g.giorni.filter(x=>+x.totale&&x.fatturato).length===1?'a':'e'):''}</div>
+        ${aperto?g.giorni.map(x=>`<div style="margin:5px 0 0 16px;padding:5px 8px;border-left:2px solid rgba(245,200,66,.35);background:var(--bg);border-radius:0 6px 6px 0;">
+          <div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;"><b style="color:var(--gold);">${tipo(x)} ${fmt(x.data)}</b>${x.teatro&&x.teatro!==s.teatro?' <span style="color:var(--text2);">· '+esc(x.teatro)+'</span>':''}<span style="flex:1;"></span>${+x.totale>0?`<b style="color:${x.fatturato?'var(--green)':'var(--text)'};">${eur(x.totale)}</b>`:''}${bottoni(x)}</div>${dettaglio(x)}</div>`).join(''):''}`
+        :`<div style="padding-left:8px;margin-top:2px;">${dettaglio(s)}</div>`}
     </div>`; }).join('');
+}
+function _settToggle(id){ id=String(id); if(_settAperti.has(id)) _settAperti.delete(id); else _settAperti.add(id); renderSettimana(); }
+// Excel della settimana: una riga per spettacolo (giornate accorpate) con prestazioni, voci fornitori, accordi, importo e totale
+function excelSettimana(){
+  const lista=_settLista(); if(!lista.length){ toast('Nessuno spettacolo in questa settimana', true); return; }
+  if(typeof XLSX==='undefined'){ toast('Libreria Excel non caricata: riprova tra un attimo', true); return; }
+  const r=_settRange(); const gruppi=_raggruppaGiornate(lista);
+  const fd=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch{ return d; } };
+  const aoa=[['Spese da rifatturare · settimana '+fd(r.da)+' – '+fd(r.a)],[],['Dal','Al','Spettacolo','Città','Teatro','Tipo','Giornate','Prestazioni tecniche','Voci fornitori / note','Accordi','Importo €','Fatturato']];
+  gruppi.forEach(g=>{ const s=g.s; const gg=g.giorni; const tot=gg.reduce((a,x)=>a+(+x.totale||0),0);
+    const prest=gg.map(x=>(gg.length>1?fd(x.data).slice(0,5)+': ':'')+_fatturazioneTesto(x)).filter(x=>!/: $/.test(x)&&x).join('\n');
+    const note=gg.flatMap(x=>_settNoteDi(x).map(n=>(gg.length>1?fd(x.data).slice(0,5)+': ':'')+n)).join('\n');
+    const acc=[...new Set(gg.map(x=>x.accordi).filter(Boolean))].join('\n');
+    const fat=gg.filter(x=>+x.totale).length?(gg.filter(x=>+x.totale).every(x=>x.fatturato)?'sì':gg.some(x=>+x.totale&&x.fatturato)?'in parte':'no'):'';
+    aoa.push([new Date(gg[0].data+'T00:00:00'), new Date(gg[gg.length-1].data+'T00:00:00'), s.spett, s.citta, s.teatro||'', s.manif||'', gg.length, prest, note, acc, tot, fat]); });
+  const n=aoa.length; aoa.push([]); aoa.push(['','','','','','','','','','TOTALE',{f:`SUM(K4:K${n})`},'']);
+  const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true});
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:11}}];
+  ws['!cols']=[{wch:11},{wch:11},{wch:30},{wch:14},{wch:22},{wch:10},{wch:8},{wch:40},{wch:48},{wch:30},{wch:12},{wch:9}];
+  Object.keys(ws).forEach(k=>{ if(k[0]==='!') return; const c=ws[k]; const {r:rr,c:cc}=XLSX.utils.decode_cell(k); if(rr<3) return; if(cc<=1 && c.v instanceof Date){ c.t='d'; c.z='dd/mm/yyyy'; } if(cc===10){ c.z='#,##0.00'; } if(cc===7||cc===8||cc===9) c.s={alignment:{wrapText:true}}; });
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Settimana');
+  XLSX.writeFile(wb, 'spese_settimana_'+r.da+'_'+r.a+'.xlsx');
 }
 function _settModifica(id){ _settRiapri=true; document.getElementById('settimana-ov').classList.remove('open'); editSpett(id); }
 function _settDopoForm(){ if(!_settRiapri) return; _settRiapri=false; setTimeout(()=>{ goTab('list'); renderSettimana(); document.getElementById('settimana-ov').classList.add('open'); },50); }
