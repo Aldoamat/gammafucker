@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v138</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v139</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -4945,17 +4945,24 @@ function renderFatturaPreview(voci){
       const sel = document.createElement('select');
       const deciso = (s && !isNew) || v._gestione;
       sel.style.cssText = 'font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid '+(deciso?'var(--border2)':'#f59e0b')+';background:var(--bg);color:var(--text1);width:100%;margin-bottom:6px;';
-      const rif = new Date((v.data||new Date().toISOString().slice(0,10))+'T12:00:00');
-      const vicini = data.filter(x=>Math.abs(new Date(x.data+'T12:00:00')-rif)<45*86400000 && x.manif!=='GESTIONE');
+      // mese di riferimento = mese della data letta in fattura; se in quel mese/anno non c'è niente (es. anno letto
+      // male: 1962) si prende lo stesso mese nell'anno più vicino a oggi che ha spettacoli; se ancora niente, ±45 gg da oggi
+      const oggiISO=new Date().toISOString().slice(0,10);
+      let mese=(v.data||oggiISO).slice(0,7); if(!/^\d{4}-\d{2}$/.test(mese)) mese=oggiISO.slice(0,7);
+      let vicini = data.filter(x=>x.data.slice(0,7)===mese && x.manif!=='GESTIONE');
+      if(!vicini.length){ const mm=mese.slice(5,7); const anni=[...new Set(data.filter(x=>x.data.slice(5,7)===mm && x.manif!=='GESTIONE').map(x=>+x.data.slice(0,4)))].sort((a,b)=>Math.abs(a-+oggiISO.slice(0,4))-Math.abs(b-+oggiISO.slice(0,4)));
+        if(anni.length){ mese=anni[0]+'-'+mm; vicini=data.filter(x=>x.data.slice(0,7)===mese && x.manif!=='GESTIONE'); } }
+      if(!vicini.length){ const rif=new Date(oggiISO+'T12:00:00'); vicini=data.filter(x=>Math.abs(new Date(x.data+'T12:00:00')-rif)<45*86400000 && x.manif!=='GESTIONE'); }
+      const meseLabel=(()=>{ try{ return new Date(mese+'-15T12:00:00').toLocaleDateString('it-IT',{month:'long',year:'numeric'}); }catch{ return mese; } })();
       const stessa = vicini.filter(x=>v.citta && _cittaEq(x.citta,v.citta)).sort((a,b)=>a.data.localeCompare(b.data));
-      const altre  = vicini.filter(x=>!(v.citta && _cittaEq(x.citta,v.citta))).sort((a,b)=>Math.abs(new Date(a.data+'T12:00:00')-rif)-Math.abs(new Date(b.data+'T12:00:00')-rif)).slice(0,60);
+      const altre  = vicini.filter(x=>!(v.citta && _cittaEq(x.citta,v.citta))).sort((a,b)=>a.data.localeCompare(b.data)||String(a.citta).localeCompare(String(b.citta)));
       if(v._candidati) v._candidati.forEach(c=>{ if(!stessa.includes(c) && !altre.includes(c)) stessa.unshift(c); });
       if(s && !stessa.includes(s) && !altre.includes(s)) stessa.unshift(s);
       const fd = d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit'}); }catch{ return d; } };
       const opt = x=>`<option value="${x.id}"${s&&String(s.id)===String(x.id)?' selected':''}>${fd(x.data)} ${x.citta} · ${x.spett}${x.teatro?' ('+x.teatro+')':''}${x.premontaggio?' · premontaggio':x.replicaOf?' · replica':''}</option>`;
       sel.innerHTML = `<option value="__nuovo"${(!s||isNew)&&!v._gestione?' selected':''}>✎ come letta in fattura → nuovo evento${v.spettacolo_nome||v.descrizione?': '+String(v.spettacolo_nome||v.descrizione).slice(0,40):''}</option>` +
-        (stessa.length?`<optgroup label="In programma a ${v.citta||'—'}">${stessa.map(opt).join('')}</optgroup>`:'') +
-        (altre.length?`<optgroup label="Altri eventi vicini alla data">${altre.map(opt).join('')}</optgroup>`:'') +
+        (stessa.length?`<optgroup label="${meseLabel} · ${v.citta||'—'}">${stessa.map(opt).join('')}</optgroup>`:'') +
+        (altre.length?`<optgroup label="${meseLabel} · tutti gli spettacoli">${altre.map(opt).join('')}</optgroup>`:'') +
         `<option value="__gestione"${v._gestione?' selected':''}>🏛 Gestione ${v.citta||''} (nuova riga)</option>`;
       sel.onchange = ()=>{ scegliCandidato(globalIdx, sel.value); };
       div.appendChild(sel);
@@ -6378,7 +6385,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v138</span>
+    <span>Report generato da GammaFucker v139</span>
   </div>
   </body></html>`;
 
@@ -6484,7 +6491,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v138</span>
+    <span>Report generato da GammaFucker v139</span>
   </div>
   </body></html>`;
 
@@ -6580,7 +6587,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v138</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v139</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -6653,7 +6660,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v138</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v139</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
