@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v136</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v137</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -6363,7 +6363,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v136</span>
+    <span>Report generato da GammaFucker v137</span>
   </div>
   </body></html>`;
 
@@ -6469,7 +6469,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v136</span>
+    <span>Report generato da GammaFucker v137</span>
   </div>
   </body></html>`;
 
@@ -6562,7 +6562,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v136</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v137</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6634,7 +6634,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v136</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v137</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9155,6 +9155,11 @@ function _settRange(){
 function _settLista(){ const r=_settRange(); return data.filter(s=>s.data>=r.da && s.data<=r.a).sort((a,b)=>a.data.localeCompare(b.data)||String(a.citta).localeCompare(String(b.citta))); }
 function apriSettimana(){ _settOffset=1; renderSettimana(); document.getElementById('settimana-ov').classList.add('open'); }
 const _settAperti=new Set();
+// Prestazioni di un gruppo di giornate sommate per tipologia: "4 prestazioni da macchinista · 2 da elettricista · 1 di facchinaggio"
+function _prestGruppo(giorni){
+  const tot={m:0,e:0,fo:0,sa:0,f:0}; giorni.forEach(x=>{ tot.m+=+x.nm||0; tot.e+=+x.ne||0; tot.fo+=+x.nfo||0; tot.sa+=+x.nsa||0; tot.f+=+x.nf||0; });
+  return ['m','e','fo','sa','f'].filter(k=>tot[k]>0).map(k=>_prest(tot[k],k)).join(' · ');
+}
 function _settNoteDi(x){ return (x.note||'').split('|').map(l=>l.trim()).filter(l=>l && !/^⚠/.test(l) && !/^👷 Squadra:/.test(l)); }
 function renderSettimana(){
   const esc=v=>String(v||'').replace(/</g,'&lt;');
@@ -9175,7 +9180,7 @@ function renderSettimana(){
   box.innerHTML=`<div style="font-size:10px;color:var(--text2);margin-bottom:4px;">${gruppi.length} spettacol${gruppi.length===1?'o':'i'} · ${lista.length} giornate · totale ${eur(tot)}</div>`+gruppi.map(g=>{
     const s=g.s, multi=g.giorni.length>1, aperto=_settAperti.has(String(s.id)), totG=g.giorni.reduce((a,x)=>a+(+x.totale||0),0);
     const tuttiFat=g.giorni.every(x=>!(+x.totale)||x.fatturato), daVerificare=g.giorni.some(x=>!_fatturazioneTesto(x) && !(+x.totale) && x.manif!=='GESTIONE' && !x.premontaggio);
-    const nPrest=g.giorni.reduce((a,x)=>a+(+x.nm||0)+(+x.ne||0)+(+x.nfo||0)+(+x.nsa||0)+(+x.nf||0),0), nFatt=g.giorni.reduce((a,x)=>a+_settNoteDi(x).length,0);
+    const prestG=_prestGruppo(g.giorni), nFatt=g.giorni.reduce((a,x)=>a+_settNoteDi(x).length,0);
     return `<div style="padding:7px 0;border-top:1px solid var(--border);${daVerificare?'background:rgba(239,68,68,.05);':''}">
       <div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;${multi?'cursor:pointer;':''}" ${multi?`onclick="_settToggle('${s.id}')"`:''}>
         ${multi?`<span style="font-size:10px;color:var(--gold);">${aperto?'▼':'▶'}</span>`:''}
@@ -9185,7 +9190,7 @@ function renderSettimana(){
         ${totG>0?`<b style="color:${tuttiFat?'var(--green)':'var(--text)'};">${eur(totG)}</b>`:''}
         ${multi?'':bottoni(s)}
       </div>
-      ${multi?`<div style="font-size:10px;color:var(--text2);padding-left:16px;">${nPrest} prestazion${nPrest===1?'e':'i'} · ${nFatt} ${nFatt===1?'voce fornitore':'voci fornitori'}${g.giorni.filter(x=>+x.totale&&x.fatturato).length?' · '+g.giorni.filter(x=>+x.totale&&x.fatturato).length+' fatturat'+(g.giorni.filter(x=>+x.totale&&x.fatturato).length===1?'a':'e'):''}</div>
+      ${multi?`<div style="font-size:10px;color:var(--text2);padding-left:16px;">${esc(prestG)||'nessuna prestazione'} · ${nFatt} ${nFatt===1?'voce fornitore':'voci fornitori'}${g.giorni.filter(x=>+x.totale&&x.fatturato).length?' · '+g.giorni.filter(x=>+x.totale&&x.fatturato).length+' fatturat'+(g.giorni.filter(x=>+x.totale&&x.fatturato).length===1?'a':'e'):''}</div>
         ${aperto?g.giorni.map(x=>`<div style="margin:5px 0 0 16px;padding:5px 8px;border-left:2px solid rgba(245,200,66,.35);background:var(--bg);border-radius:0 6px 6px 0;">
           <div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;"><b style="color:var(--gold);">${tipo(x)} ${fmt(x.data)}</b>${x.teatro&&x.teatro!==s.teatro?' <span style="color:var(--text2);">· '+esc(x.teatro)+'</span>':''}<span style="flex:1;"></span>${+x.totale>0?`<b style="color:${x.fatturato?'var(--green)':'var(--text)'};">${eur(x.totale)}</b>`:''}${bottoni(x)}</div>${dettaglio(x)}</div>`).join(''):''}`
         :`<div style="padding-left:8px;margin-top:2px;">${dettaglio(s)}</div>`}
