@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v140</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v141</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -4387,8 +4387,10 @@ function loadFatturaExcel(input){
         const wb = XLSX.read(data_arr, {type:'array', cellDates:true});
         const ws = wb.Sheets[wb.SheetNames[0]];
         // report presenze della ditta (turni per giorno con luogo/trasferta): lettura diretta, senza AI
+        // tutti i fogli del file (es. "Logistica" + "Antincendio" nello stesso report): ognuno con le sue giornate
+        const fogli = wb.SheetNames.map(n=>({foglio:n, griglia:XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, raw:true, defval:''})})).filter(f=>f.griglia.some(r=>r.some(c=>/data presenza giorno/i.test(String(c)))));
+        if(fogli.length){ input.value=''; _importaReportPresenze(fogli, file.name); return; }
         const griglia = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
-        if(griglia.some(r=>r.some(c=>/data presenza giorno/i.test(String(c))))){ input.value=''; _importaReportPresenze(griglia, file.name); return; }
         csvText = XLSX.utils.sheet_to_csv(ws);
       }
       testo_el.dataset.excelTesto = csvText.substring(0, 8000); // max 8k chars
@@ -4411,25 +4413,33 @@ function loadFatturaExcel(input){
 // una riga per addetto (tipo appalto, orari, ore, importo nella colonna "Tot. ore"); luogo, km e trasferta
 // solo sulla prima riga del giorno. Produce per ogni giorno una voce servizio e una voce trasferta disgiunta,
 // poi passa all'abbinamento deterministico delle fatture come PREVISIONE (numero PREV-REP).
-function _importaReportPresenze(griglia, nomeFile){
-  const hIdx = griglia.findIndex(r=>r.some(c=>/data presenza giorno/i.test(String(c))));
-  const H = griglia[hIdx].map(c=>String(c).trim().toLowerCase());
-  const col = re=>H.findIndex(h=>re.test(h));
-  const cTipo=col(/tipo appalto/), cData=col(/data presenza/), cIn=col(/^ingresso/), cOut=col(/^uscita/), cOre=col(/totale ore/), cImp=col(/^tot\.? ?ore$/), cLuogo=col(/luogo/), cKm=col(/^km/), cTra=col(/trasferta/), cPasti=col(/pasti/);
-  if(cData<0||cImp<0){ toast('Report presenze: colonne non riconosciute', true); return; }
+function _importaReportPresenze(fogli, nomeFile){
+  if(!Array.isArray(fogli) || !fogli.length || !fogli[0].griglia) fogli=[{foglio:'', griglia:fogli}];
   const dataDi = v=>{ if(v instanceof Date && !isNaN(v)) return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0'); const m=String(v||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'):''; };
   const oraDi = v=>{ if(v instanceof Date && !isNaN(v)) return String(v.getHours()).padStart(2,'0')+':'+String(v.getMinutes()).padStart(2,'0'); const m=String(v||'').match(/(\d{1,2}):(\d{2})/); return m?m[1].padStart(2,'0')+':'+m[2]:''; };
   const num = v=>{ const n=typeof v==='number'?v:parseFloat(String(v||'').replace(/\./g,'').replace(',','.')); return isNaN(n)?0:n; };
-  const giorni=[]; let g=null;
-  for(let i=hIdx+1;i<griglia.length;i++){
-    const r=griglia[i]; const c0=String(r[0]||'');
-    if(/^data presenza/i.test(c0)){ g={data:dataDi(c0), luogo:'', km:0, trasferta:0, pasti:0, righe:[]}; giorni.push(g); continue; }
-    const d=dataDi(r[cData]); if(!d) continue;              // righe di somma / vuote
-    if(!g || g.data!==d){ g={data:d, luogo:'', km:0, trasferta:0, pasti:0, righe:[]}; giorni.push(g); }
-    g.righe.push({tipo:String(r[cTipo]||'addetto').trim(), in:oraDi(r[cIn]), out:oraDi(r[cOut]), ore:num(r[cOre]), importo:num(r[cImp])});
-    if(cLuogo>=0 && r[cLuogo]) g.luogo=String(r[cLuogo]).trim();
-    if(cKm>=0) g.km+=num(r[cKm]); if(cTra>=0) g.trasferta+=num(r[cTra]); if(cPasti>=0) g.pasti+=num(r[cPasti]);
-  }
+  const giorni=[];
+  fogli.forEach(({foglio, griglia})=>{
+    const hIdx = griglia.findIndex(r=>r.some(c=>/data presenza giorno/i.test(String(c))));
+    const H = griglia[hIdx].map(c=>String(c).trim().toLowerCase());
+    const col = re=>H.findIndex(h=>re.test(h));
+    // l'importo del turno sta in "Tot. ore" (antincendio) o "Tot. servizio" (logistica)
+    const cTipo=col(/tipo appalto/), cData=col(/data presenza/), cIn=col(/^ingresso/), cOut=col(/^uscita/), cOre=col(/totale ore/), cImp=col(/^tot\.? ?(ore|servizio)/), cLuogo=col(/luogo/), cKm=col(/^km/), cTra=col(/trasferta/), cPasti=col(/pasti/);
+    if(cData<0||cImp<0){ toast('Report presenze ('+foglio+'): colonne non riconosciute', true); return; }
+    // "ECONOMIA CLIENTI" non dice il mestiere: in quel caso lo dice il nome del foglio (Logistica → facchinaggio)
+    const tipoDi = v=>{ const s=String(v||'').trim(); if(/addetto|antincendio|hospitality|coordinat|security|facchin|carrell|vigilan/i.test(s)) return s; const f=String(foglio||'').toLowerCase(); return /logist|facchin/.test(f)?'addetto facchinaggio':/antinc|sicur|security/.test(f)?'addetto antincendio':(s||foglio||'addetto'); };
+    let g=null;
+    for(let i=hIdx+1;i<griglia.length;i++){
+      const r=griglia[i]; const c0=String(r[0]||'');
+      if(/^data presenza/i.test(c0)){ g={data:dataDi(c0), foglio, luogo:'', km:0, trasferta:0, pasti:0, righe:[]}; giorni.push(g); continue; }
+      const d=dataDi(r[cData]); if(!d) continue;              // righe di somma / vuote
+      if(!g || g.data!==d){ g={data:d, foglio, luogo:'', km:0, trasferta:0, pasti:0, righe:[]}; giorni.push(g); }
+      g.righe.push({tipo:tipoDi(r[cTipo]), in:oraDi(r[cIn]), out:oraDi(r[cOut]), ore:num(r[cOre]), importo:num(r[cImp])});
+      if(cLuogo>=0 && r[cLuogo]) g.luogo=String(r[cLuogo]).trim();
+      if(cKm>=0) g.km+=num(r[cKm]); if(cTra>=0) g.trasferta+=num(r[cTra]); if(cPasti>=0) g.pasti+=num(r[cPasti]);
+    }
+  });
+  giorni.sort((a,b)=>a.data.localeCompare(b.data));
   if(!giorni.length){ toast('Report presenze: nessuna giornata trovata', true); return; }
   const fornEl=document.getElementById('prev-fornitore');
   let forn=fornEl.value.trim(); if(!forn){ forn=(prompt('Ditta che ha mandato il report presenze:', '')||'').trim().toUpperCase(); if(!forn) return; fornEl.value=forn; }
@@ -4442,9 +4452,10 @@ function _importaReportPresenze(griglia, nomeFile){
     const parti=gg.luogo.split('/').map(x=>x.trim()).filter(Boolean);
     if(parti.length>=2){ teatro=parti[0]; citta=parti[parti.length-1]; } else if(parti.length===1){ citta=_risolviCitta(parti[0], parti[0])||''; if(!citta) teatro=parti[0]; }
     citta=_risolviCitta(citta, teatro)||citta;
-    const perTipo={}; gg.righe.forEach(x=>{ const k=x.tipo.toLowerCase(); (perTipo[k]=perTipo[k]||{n:0,imp:0,ore:x.in&&x.out?x.in+'-'+x.out:''}); perTipo[k].n++; perTipo[k].imp+=x.importo; });
+    // una voce per mestiere E turno (es. 2 facchini 10-14 e 2 facchini 20:30-00:30 lo stesso giorno restano distinti)
+    const perTipo={}; gg.righe.forEach(x=>{ const ore=x.in&&x.out?x.in+'-'+x.out:''; const k=x.tipo.toLowerCase()+'|'+ore; (perTipo[k]=perTipo[k]||{tipo:x.tipo.toLowerCase(),n:0,imp:0,ore}); perTipo[k].n++; perTipo[k].imp+=x.importo; });
     Object.keys(perTipo).forEach(k=>{ const t=perTipo[k]; if(t.imp<=0) return; tot+=t.imp;
-      righe.push({descrizione:t.n+' '+(k.replace(/^addetto\s+/,'addett'+(t.n>1?'i ':'o ')))+(t.ore?' '+t.ore:'')+' (report presenze)', importo:+t.imp.toFixed(2), date:[gg.data], citta, teatro, tipo:'servizio'}); });
+      righe.push({descrizione:t.n+' '+(t.tipo.replace(/^addetto\s+/,'addett'+(t.n>1?'i ':'o ')))+(t.ore?' '+t.ore:'')+' (report presenze)', importo:+t.imp.toFixed(2), date:[gg.data], citta, teatro, tipo:'servizio'}); });
     const tra=gg.trasferta+gg.pasti;
     // trasferta/pasti: rimborso senza data → l'abbinamento lo somma come spese accessorie alla prestazione del giorno
     if(tra>0){ tot+=tra; righe.push({descrizione:'trasferta'+(gg.km?' '+gg.km+' km':'')+(gg.pasti?' + pasti':''), importo:+tra.toFixed(2), tipo:'rimborso'}); }
@@ -6387,7 +6398,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v140</span>
+    <span>Report generato da GammaFucker v141</span>
   </div>
   </body></html>`;
 
@@ -6493,7 +6504,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v140</span>
+    <span>Report generato da GammaFucker v141</span>
   </div>
   </body></html>`;
 
@@ -6589,7 +6600,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v140</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v141</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -6662,7 +6673,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v140</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v141</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
