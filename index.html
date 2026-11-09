@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v134</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v135</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -446,6 +446,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <select id="fil-stagione" onchange="renderList()"><option value="">Tutte le stagioni</option></select>
     <button class="btn btn-o btn-sm collab-only" style="display:none;white-space:nowrap;" id="btn-rep-stag" onclick="generaReportFiltri()" title="Report degli spettacoli con i filtri impostati qui sopra">🎭 Report</button>
     <button class="btn btn-o btn-sm admin-only" style="white-space:nowrap;color:#f59e0b;border-color:rgba(245,158,11,.45);" onclick="apriDaFare()" title="Prossimi spettacoli senza scheda tecnica o senza info inviate">📋 Da fare</button>
+    <button class="btn btn-o btn-sm admin-only" style="white-space:nowrap;color:#34d399;border-color:rgba(52,211,153,.45);" onclick="apriSettimana()" title="Verifica e report della settimana appena trascorsa">📅 Settimana</button>
   </div>
 
   <div class="splist" id="splist"></div>
@@ -799,6 +800,23 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div style="display:flex;gap:8px;margin-top:12px;">
       <button class="btn btn-p" style="flex:1;background:#25d366;" onclick="apriSquadraCompagnia(_sqroId)">💬 Squadra alla compagnia</button>
       <button class="btn btn-o" style="flex:1;" onclick="document.getElementById('squadra-ro-ov').classList.remove('open')">Chiudi</button>
+    </div>
+  </div>
+</div>
+<!-- ══ SETTIMANA: verifica degli spettacoli della settimana passata e report delle spese da rifatturare ══ -->
+<div class="mover" id="settimana-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:680px;max-height:92vh;overflow-y:auto;">
+    <div class="mtitle">📅 Settimana · verifica e report</div>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+      <button class="iBtn" style="font-size:11px;padding:3px 9px;" onclick="_settOffset++;renderSettimana()">◀</button>
+      <div id="sett-titolo" style="flex:1;text-align:center;font-size:12px;font-weight:700;color:var(--gold);"></div>
+      <button class="iBtn" style="font-size:11px;padding:3px 9px;" onclick="if(_settOffset>0){_settOffset--;renderSettimana()}">▶</button>
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">Controlla prestazioni, importi, accordi e note (fatture fornitori) di ogni giornata. ✎ apre lo spettacolo in modifica e al salvataggio torni qui: le correzioni valgono ovunque. Poi genera il report.</div>
+    <div id="sett-box" style="font-size:12px;"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-p" style="flex:1;" onclick="reportSettimana()">🧾 Genera report spese</button>
+      <button class="btn btn-o" onclick="document.getElementById('settimana-ov').classList.remove('open')">Chiudi</button>
     </div>
   </div>
 </div>
@@ -2848,6 +2866,7 @@ function salva(){
   toast(wasEditing?'✓ Modificato!':'✓ Salvato!');
   if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true), 300);
   if(wasEditing) goTab('list');
+  _settDopoForm();
 }
 
 function editSpett(id){
@@ -2893,7 +2912,7 @@ function editSpett(id){
 }
 
 function annullaEdit(){
-  editingId=null;resetForm();
+  editingId=null;resetForm(); _settDopoForm();
   document.getElementById('saveBtn').textContent='✦ Salva Spettacolo';
   document.getElementById('cancelBtn').style.display='none';
   document.getElementById('edit-lbl').style.display='none';
@@ -4732,14 +4751,22 @@ function abbinaRigheFattura(righe, opt){
 // Applica la scelta dell'utente su una voce ambigua (select nella scheda)
 function scegliCandidato(idx, val){
   const v = fattVoci[idx]; if(!v) return;
-  if(val==='__gestione'){
-    v._match=null; v.spettacolo_id=null; v._gestione=true; v._stato='gestione';
+  if(val==='__nuovo'){
+    // tieni la voce come letta in fattura: nessun abbinamento, nascerà un evento nuovo con questi campi
+    if(v._match){ if(!v._lettura) v._lettura={}; }
+    const L=v._lettura||{};
+    v._match=null; v.spettacolo_id=null; v._gestione=false; v._stato='nessuno'; v._forzaNuovo=true;
+    if(L.spettacolo_nome!==undefined){ v.spettacolo_nome=L.spettacolo_nome; v.teatro=L.teatro; v.citta=L.citta; v.data=L.data; }
+    else if(/^Gestione: /.test(v.spettacolo_nome||'')) v.spettacolo_nome=_descBreve(v.descrizione);
+  } else if(val==='__gestione'){
+    v._match=null; v.spettacolo_id=null; v._gestione=true; v._stato='gestione'; v._forzaNuovo=false;
     v.spettacolo_nome='Gestione: '+_descBreve(v.descrizione);
     if(!v.citta && v._candidati && v._candidati[0]) v.citta=v._candidati[0].citta;
   } else {
     const s = data.find(s=>String(s.id)===val); if(!s) return;
+    if(!v._lettura) v._lettura={spettacolo_nome:v.spettacolo_nome||v.descrizione||'', teatro:v.teatro||'', citta:v.citta||'', data:v.data||''};
     v._match=s; v.spettacolo_id=s.id; v.spettacolo_nome=s.spett; v.data=s.data; v.citta=s.citta; v.teatro=s.teatro||'';
-    v._gestione=false; v._stato='spettacolo';
+    v._gestione=false; v._stato='spettacolo'; v._forzaNuovo=false;
   }
   v.nota_da_aggiungere = _buildNotaFattura({...v, fornitore:document.getElementById('prev-fornitore').value.trim()||v.fornitore, numero_fattura:document.getElementById('prev-numero').value.trim()||v.numero_fattura}, v.importo||0, v.spese_accessorie||0);
   v._notaDefault = v.nota_da_aggiungere;
@@ -4895,16 +4922,26 @@ function renderFatturaPreview(voci){
       matchInfo.textContent = (v.descrizione||'') + (v._motivo ? '  →  '+v._motivo : '');
       div.appendChild(matchInfo);
     }
-    if(v._v2 && (v._stato==='ambiguo' || v._stato==='nessuno' || (v._candidati&&v._candidati.length))){
+    {
+      // Evento in programma: per OGNI voce un menu con gli spettacoli vicini alla data (prima la stessa città,
+      // poi le altre), così si corregge spazio e titolo scegliendo un evento esistente; oppure si tiene la voce
+      // come letta in fattura e nasce un evento nuovo.
       const sel = document.createElement('select');
-      sel.style.cssText = 'font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid #f59e0b;background:var(--bg);color:var(--text1);width:100%;margin-bottom:6px;';
-      const cands = (v._candidati&&v._candidati.length) ? v._candidati
-        : data.filter(x=>(!v.citta || _cittaEq(x.citta,v.citta)) && Math.abs(new Date(x.data)-new Date(v.data||Date.now()))<45*86400000).sort((a,b)=>a.data.localeCompare(b.data)).slice(0,40);
-      const fd = d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}); }catch{ return d; } };
-      sel.innerHTML = '<option value="">— scegli dove mettere il costo —</option>' +
-        cands.map(x=>`<option value="${x.id}"${v._match&&String(v._match.id)===String(x.id)?' selected':''}>${fd(x.data)} ${x.citta} · ${x.spett}${x.teatro?' ('+x.teatro+')':''}</option>`).join('') +
+      const deciso = (s && !isNew) || v._gestione;
+      sel.style.cssText = 'font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid '+(deciso?'var(--border2)':'#f59e0b')+';background:var(--bg);color:var(--text1);width:100%;margin-bottom:6px;';
+      const rif = new Date((v.data||new Date().toISOString().slice(0,10))+'T12:00:00');
+      const vicini = data.filter(x=>Math.abs(new Date(x.data+'T12:00:00')-rif)<45*86400000 && x.manif!=='GESTIONE');
+      const stessa = vicini.filter(x=>v.citta && _cittaEq(x.citta,v.citta)).sort((a,b)=>a.data.localeCompare(b.data));
+      const altre  = vicini.filter(x=>!(v.citta && _cittaEq(x.citta,v.citta))).sort((a,b)=>Math.abs(new Date(a.data+'T12:00:00')-rif)-Math.abs(new Date(b.data+'T12:00:00')-rif)).slice(0,60);
+      if(v._candidati) v._candidati.forEach(c=>{ if(!stessa.includes(c) && !altre.includes(c)) stessa.unshift(c); });
+      if(s && !stessa.includes(s) && !altre.includes(s)) stessa.unshift(s);
+      const fd = d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit'}); }catch{ return d; } };
+      const opt = x=>`<option value="${x.id}"${s&&String(s.id)===String(x.id)?' selected':''}>${fd(x.data)} ${x.citta} · ${x.spett}${x.teatro?' ('+x.teatro+')':''}${x.premontaggio?' · premontaggio':x.replicaOf?' · replica':''}</option>`;
+      sel.innerHTML = `<option value="__nuovo"${(!s||isNew)&&!v._gestione?' selected':''}>✎ come letta in fattura → nuovo evento${v.spettacolo_nome||v.descrizione?': '+String(v.spettacolo_nome||v.descrizione).slice(0,40):''}</option>` +
+        (stessa.length?`<optgroup label="In programma a ${v.citta||'—'}">${stessa.map(opt).join('')}</optgroup>`:'') +
+        (altre.length?`<optgroup label="Altri eventi vicini alla data">${altre.map(opt).join('')}</optgroup>`:'') +
         `<option value="__gestione"${v._gestione?' selected':''}>🏛 Gestione ${v.citta||''} (nuova riga)</option>`;
-      sel.onchange = ()=>{ if(sel.value) scegliCandidato(globalIdx, sel.value); };
+      sel.onchange = ()=>{ scegliCandidato(globalIdx, sel.value); };
       div.appendChild(sel);
     }
     const inp = 'font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--bg);color:var(--text1);';
@@ -6037,7 +6074,7 @@ function applicaFattura(){
     const spettVal  = (spettEl  ? spettEl.value : v.spettacolo_nome||v.descrizione||'').trim();
     // Ri-cerca il match usando i valori CORRETTI dall'utente nel DOM (data+città editati)
     let spett = null;
-    if(dataVal && cittaVal){
+    if(dataVal && cittaVal && !v._forzaNuovo){
       const candidates = data.filter(s=>s.data===dataVal && s.citta.toUpperCase()===cittaVal);
       if(candidates.length === 1){
         spett = candidates[0];
@@ -6071,7 +6108,7 @@ function applicaFattura(){
       }
     }
     const userChangedMatch = v._match && (dataVal !== v._match.data || cittaVal !== v._match.citta.toUpperCase());
-    if(!spett && v._match && !userChangedMatch){
+    if(!spett && v._match && !userChangedMatch && !v._forzaNuovo){
       spett = data.find(s=>String(s.id)===String(v._match.id));
       if(!spett) spett = data.find(s=>s.data===v._match.data && s.citta===v._match.citta && s.spett===v._match.spett);
     }
@@ -6140,7 +6177,7 @@ function applicaFattura(){
       }
       data.push({
         id:Date.now()+Math.random(), data:dataVal, citta:cittaVal,
-        teatro:v.teatro||(teatriDB[cittaVal]||[''])[0]||'',
+        teatro:((el.querySelectorAll('input[type="text"]')[2]||{}).value||'').trim()||v.teatro||(teatriDB[cittaVal]||[''])[0]||'',
         spett:spettVal||'SPETTACOLO', manif:(v._gestione||/^GESTIONE/i.test(spettVal))?'GESTIONE':'',
         nm:0,tm:tariffe.m,sm:0,ne:0,te:tariffe.e,se:0,nf:0,tf:tariffe.f,sf:0,
         totale:0, note:notaNuova, fatturato:false, fromAI:true,
@@ -6325,7 +6362,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v134</span>
+    <span>Report generato da GammaFucker v135</span>
   </div>
   </body></html>`;
 
@@ -6431,7 +6468,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v134</span>
+    <span>Report generato da GammaFucker v135</span>
   </div>
   </body></html>`;
 
@@ -6453,9 +6490,18 @@ function _fatturazioneTesto(s){
 }
 function generaReportFiltri(){
   const f=_listaFiltrata();
-  const spett=f.lista.slice().sort((a,b)=>a.data.localeCompare(b.data));
-  if(!spett.length){ toast('Nessuno spettacolo con i filtri attuali', true); return; }
+  if(!f.lista.length){ toast('Nessuno spettacolo con i filtri attuali', true); return; }
+  _reportSpettacoli(f.lista, f.descrizione, {});
+}
+// Report stampabile di una lista di spettacoli (usato dai filtri della Lista e dal report settimanale).
+// opts.note=true aggiunge sotto "cosa fatturiamo" anche le righe di nota (fatture fornitori, rimborsi…),
+// escluse le righe tecniche (⚠ scheda, 👷 squadra).
+function _reportSpettacoli(lista, descrizione, opts){
+  opts=opts||{};
+  const spett=lista.slice().sort((a,b)=>a.data.localeCompare(b.data));
   const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const noteDi=x=>opts.note?(x.note||'').split('|').map(l=>l.trim()).filter(l=>l && !/^⚠/.test(l) && !/^👷 Squadra:/.test(l)):[];
+  const cellaFatt=x=>{ const n=noteDi(x); return (esc(_fatturazioneTesto(x))||(n.length?'':'<span style="color:#9ca3af;">—</span>'))+(n.length?`<div style="margin-top:3px;color:#6b7280;font-size:9px;">${n.map(esc).join('<br>')}</div>`:''); };
   const totale=spett.reduce((a,s)=>a+(+s.totale||0),0), fatturati=spett.filter(s=>s.fatturato).length, totFat=spett.filter(s=>s.fatturato).reduce((a,s)=>a+(+s.totale||0),0);
   const fmt=v=>v>0?'€ '+(+v).toLocaleString('it-IT',{minimumFractionDigits:2}):'—';
   const fmtD=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short',year:'2-digit'}); }catch{ return d||'—'; } };
@@ -6474,14 +6520,14 @@ function generaReportFiltri(){
           <div style="font-size:9px;color:#6b7280;">${esc(s.teatro||'')}${s.manif?' · <span style="color:#7c3aed;">'+esc(s.manif)+'</span>':''}</div>
           ${s.accordi?`<div style="margin-top:4px;padding:4px 8px;background:#eff6ff;border-left:3px solid #3b82f6;border-radius:3px;font-size:9.5px;color:#1e40af;">📋 ${esc(s.accordi)}</div>`:''}
         </td>
-        <td style="padding:6px 10px;font-size:9.5px;color:#374151;vertical-align:top;">${multi?'<span style="color:#9ca3af;">vedi giornate</span>':(esc(_fatturazioneTesto(s))||'<span style="color:#9ca3af;">—</span>')}</td>
+        <td style="padding:6px 10px;font-size:9.5px;color:#374151;vertical-align:top;">${multi?'<span style="color:#9ca3af;">vedi giornate</span>':cellaFatt(s)}</td>
         ${multi?`<td style="padding:6px 10px;font-size:10px;text-align:right;white-space:nowrap;vertical-align:top;font-weight:700;color:${g.giorni.every(x=>!x.totale||x.fatturato)?'#059669':'#1a1a2e'};">${fmt(totG)}<div style="font-size:8px;font-weight:600;color:#6b7280;">totale giornate</div></td>`:cellaImp(s)}
       </tr>`;
       if(multi) g.giorni.forEach(x=>{ const acc=(x!==s && x.accordi && x.accordi!==s.accordi)?x.accordi:'';
         h+=`<tr style="border-top:1px solid #eef2f7;background:#fbfbfd;">
           <td style="padding:4px 10px 4px 18px;font-size:9.5px;color:#6b7280;white-space:nowrap;vertical-align:top;">${fmtD(x.data)}</td>
           <td style="padding:4px 10px;vertical-align:top;font-size:9.5px;color:#4b5563;">${tipoDi(x)}${acc?`<div style="margin-top:3px;padding:3px 8px;background:#eff6ff;border-left:3px solid #3b82f6;border-radius:3px;font-size:9px;color:#1e40af;">📋 ${esc(acc)}</div>`:''}</td>
-          <td style="padding:4px 10px;font-size:9.5px;color:#374151;vertical-align:top;">${esc(_fatturazioneTesto(x))||'<span style="color:#9ca3af;">—</span>'}</td>
+          <td style="padding:4px 10px;font-size:9.5px;color:#374151;vertical-align:top;">${cellaFatt(x)}</td>
           ${cellaImp(x)}
         </tr>`; });
       return h; }).join('');
@@ -6493,7 +6539,7 @@ function generaReportFiltri(){
         <tr style="font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;"><th style="text-align:left;padding:4px 10px;">data</th><th style="text-align:left;padding:4px 10px;">spettacolo · accordi</th><th style="text-align:left;padding:4px 10px;">cosa fatturiamo</th><th style="text-align:right;padding:4px 10px;">importo</th></tr>
         ${righe}</table></div>`;
   }).join('');
-  const titolo='Report spettacoli — '+f.descrizione;
+  const titolo='Report spettacoli — '+descrizione;
   const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(titolo)}</title>
   <style>
     @media print { .no-print{display:none!important;} body{padding:0;} * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
@@ -6507,7 +6553,7 @@ function generaReportFiltri(){
     .footer{margin-top:18px;font-size:9px;color:#aaa;border-top:1px solid #e2e8f0;padding-top:8px;display:flex;justify-content:space-between;}
   </style></head><body>
   <div class="no-print" style="margin-bottom:14px;"><button class="btn-print" onclick="window.print()">🖨 Stampa / Salva PDF</button></div>
-  <div class="header"><div><div class="title">🎭 Report spettacoli</div><div style="font-size:11px;color:#666;margin-top:3px;">${esc(f.descrizione)} · AMAT Marche</div></div><div style="font-size:10px;color:#888;white-space:nowrap;">Generato il ${new Date().toLocaleDateString('it-IT')}</div></div>
+  <div class="header"><div><div class="title">🎭 Report spettacoli</div><div style="font-size:11px;color:#666;margin-top:3px;">${esc(descrizione)} · AMAT Marche</div></div><div style="font-size:10px;color:#888;white-space:nowrap;">Generato il ${new Date().toLocaleDateString('it-IT')}</div></div>
   <div class="summary">
     <div class="sum-item"><div class="sum-val">${spett.length}</div><div class="sum-lbl">Spettacoli</div></div>
     <div class="sum-item"><div class="sum-val">${Object.keys(perCitta).length}</div><div class="sum-lbl">Città</div></div>
@@ -6515,7 +6561,7 @@ function generaReportFiltri(){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v134</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v135</span></div>
   </body></html>`;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
 }
@@ -6587,7 +6633,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v134</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v135</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9092,6 +9138,53 @@ function apriSquadraRO(id){
       ${sq.length?sq.map(r=>`<div style="padding-left:10px;">👤 ${esc(r.nome)}${r.ruolo?' <span style="color:var(--text3);">('+esc(r.ruolo)+')</span>':''}${r.tel?' · <a href="tel:'+esc(String(r.tel).replace(/\s+/g,''))+'" style="color:#25d366;">'+esc(r.tel)+'</a>':''}</div>`).join(''):'<div style="padding-left:10px;color:var(--text3);">nessuno assegnato</div>'}</div>`; }).join('');
   document.getElementById('sqro-box').innerHTML=righe;
   document.getElementById('squadra-ro-ov').classList.add('open');
+}
+// ── Settimana: verifica degli spettacoli della settimana passata (lun–dom) e report delle spese da rifatturare ──
+// _settOffset = quante settimane indietro (1 = quella appena trascorsa). ✎ apre il form di modifica; al salvataggio
+// (o all'annulla) la finestra si riapre sulla stessa settimana, così le correzioni si vedono subito.
+let _settOffset=1, _settRiapri=false;
+function _settRange(){
+  const oggi=new Date(); oggi.setHours(12,0,0,0);
+  const dow=(oggi.getDay()+6)%7; // lun=0
+  const lun=new Date(oggi); lun.setDate(oggi.getDate()-dow-7*_settOffset);
+  const dom=new Date(lun); dom.setDate(lun.getDate()+6);
+  const iso=d=>d.toISOString().slice(0,10);
+  return {da:iso(lun), a:iso(dom)};
+}
+function _settLista(){ const r=_settRange(); return data.filter(s=>s.data>=r.da && s.data<=r.a).sort((a,b)=>a.data.localeCompare(b.data)||String(a.citta).localeCompare(String(b.citta))); }
+function apriSettimana(){ _settOffset=1; renderSettimana(); document.getElementById('settimana-ov').classList.add('open'); }
+function renderSettimana(){
+  const esc=v=>String(v||'').replace(/</g,'&lt;');
+  const r=_settRange(); const lista=_settLista();
+  const fmt=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short'}); }catch{ return d; } };
+  document.getElementById('sett-titolo').textContent=(_settOffset===1?'settimana scorsa · ':_settOffset===0?'questa settimana · ':'')+fmt(r.da)+' – '+fmt(r.a);
+  const box=document.getElementById('sett-box');
+  if(!lista.length){ box.innerHTML='<div style="padding:14px;text-align:center;color:var(--text3);">nessuno spettacolo in questa settimana</div>'; return; }
+  const tot=lista.reduce((a,s)=>a+(+s.totale||0),0);
+  box.innerHTML=`<div style="font-size:10px;color:var(--text2);margin-bottom:4px;">${lista.length} giornate · totale previsto € ${tot.toLocaleString('it-IT',{minimumFractionDigits:2})}</div>`+lista.map(s=>{
+    const tipo=s.residenza?'🏠':s.premontaggio?'🔧':s.replicaOf?'🔁':s.manif==='GESTIONE'?'🏛':'🎭';
+    const note=(s.note||'').split('|').map(l=>l.trim()).filter(l=>l && !/^⚠/.test(l) && !/^👷 Squadra:/.test(l));
+    const fatt=_fatturazioneTesto(s);
+    const manca=!fatt && !(+s.totale) && s.manif!=='GESTIONE' && !s.premontaggio;
+    return `<div style="padding:7px 0;border-top:1px solid var(--border);${manca?'background:rgba(239,68,68,.05);':''}">
+      <div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;">
+        <b style="color:var(--gold);">${tipo} ${fmt(s.data)}</b> <b>${esc(s.spett)}</b> <span style="color:var(--text2);">· ${esc(s.citta)}${s.teatro?' · '+esc(s.teatro):''}</span>${s.manif?' <span style="font-size:9px;color:var(--purple);">'+esc(s.manif)+'</span>':''}
+        <span style="flex:1;"></span>
+        ${+s.totale>0?`<b style="color:${s.fatturato?'var(--green)':'var(--text)'};">€ ${(+s.totale).toLocaleString('it-IT')}</b>`:''}
+        <button class="iBtn" style="font-size:10px;padding:2px 7px;${s.fatturato?'color:var(--green);border-color:rgba(16,185,129,.4);':'color:var(--text3);border-style:dashed;'}" onclick="toggleFatturato(${s.id});renderSettimana()" title="Segna fatturato / da fatturare">${s.fatturato?'✓ fatturato':'○ da fatturare'}</button>
+        <button class="iBtn" style="font-size:10px;padding:2px 7px;color:#f59e0b;border-color:rgba(245,158,11,.45);" onclick="_settModifica(${s.id})" title="Apri in modifica">✎ Modifica</button>
+      </div>
+      <div style="font-size:11px;color:var(--text2);padding-left:8px;margin-top:2px;">${fatt?'🔧 '+esc(fatt):(manca?'<span style="color:#ef4444;">nessuna prestazione né importo: da verificare</span>':'<span style="color:var(--text3);">nessuna prestazione tecnica</span>')}</div>
+      ${s.accordi?`<div style="font-size:10px;color:#60a5fa;padding-left:8px;">📋 ${esc(s.accordi)}</div>`:''}
+      ${note.length?`<div style="font-size:10px;color:var(--text3);padding-left:8px;">${note.map(esc).join('<br>')}</div>`:''}
+    </div>`; }).join('');
+}
+function _settModifica(id){ _settRiapri=true; document.getElementById('settimana-ov').classList.remove('open'); editSpett(id); }
+function _settDopoForm(){ if(!_settRiapri) return; _settRiapri=false; setTimeout(()=>{ goTab('list'); renderSettimana(); document.getElementById('settimana-ov').classList.add('open'); },50); }
+function reportSettimana(){
+  const lista=_settLista(); if(!lista.length){ toast('Nessuno spettacolo in questa settimana', true); return; }
+  const r=_settRange(); const f=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch{ return d; } };
+  _reportSpettacoli(lista, 'spese da rifatturare · settimana '+f(r.da)+' – '+f(r.a), {note:true});
 }
 // ── Da fare: i prossimi spettacoli a cui manca qualcosa (scheda ricevuta / info spazio / scheda al teatro / squadra) ──
 // Una riga per lavoro (le giornate del gruppo contano come uno), in ordine di calendario, dai primi 10 in su.
