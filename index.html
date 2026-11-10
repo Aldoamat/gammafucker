@@ -139,6 +139,9 @@ textarea{resize:none;height:68px;font-size:13px;}
 .spcard.premontaggio::before{background:linear-gradient(to bottom,#fb923c,#f97316)!important;}
 .spcard.residenza{border-color:rgba(45,212,191,.5)!important;background:rgba(45,212,191,.06)!important;}
 .spcard.residenza::before{background:linear-gradient(to bottom,#2dd4bf,#0d9488)!important;}
+.spcard.gestione{border-color:rgba(148,163,184,.55)!important;background:rgba(148,163,184,.07)!important;border-style:dashed!important;}
+.spcard.gestione::before{background:linear-gradient(to bottom,#94a3b8,#64748b)!important;}
+.tag.gest{border-color:rgba(148,163,184,.6);color:#cbd5e1;background:rgba(148,163,184,.15);font-weight:700;}
 .spcard.replica{border-color:rgba(99,102,241,.4)!important;background:rgba(99,102,241,.04)!important;margin-left:16px;}
 .spcard.replica::before{background:linear-gradient(to bottom,#6366f1,#818cf8)!important;}
 .repliche-toggle{background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;padding:2px 6px;border-radius:4px;}
@@ -243,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v143</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v144</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -335,7 +338,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
           <option>STAGIONE DI DANZA</option><option>STAGIONE DANZA</option>
           <option>STAGIONE RAGAZZI</option><option>TEATRO RAGAZZI</option>
           <option>TEATRO OLTRE</option><option>DANZA KID</option>
-          <option value="GESTIONE">GESTIONE (eventi interni / terzi)</option>
+          <option value="GESTIONE">GESTIONE - NO AMAT (eventi interni / terzi)</option>
         </select>
         <button type="button" onclick="aggiungiManif()" style="flex-shrink:0;width:34px;height:34px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--accent);font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
       </div>
@@ -2323,8 +2326,8 @@ async function importaCalendarioWord(files){
       <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap;">
         <input value="${esc(v.testo)}" oninput="_calVoci[${i}].titolo=this.value" onclick="event.preventDefault();this.focus()" style="flex:2;min-width:160px;font-size:11px;padding:3px 6px;box-sizing:border-box;" title="titolo con cui verrà inserito (modificabile)">
         <select onchange="_calVoci[${i}].manif=this.value" onclick="event.preventDefault();event.stopPropagation()" style="flex:1;min-width:120px;font-size:11px;padding:3px 6px;" title="manifestazione per questa voce">
-          <option value="">${v.tipo==='interno'?'GESTIONE':v.tipo==='terzi'?'(eventi terzi)':'— manifestazione —'}</option>
-          <option value="GESTIONE">GESTIONE</option>
+          <option value="">${v.tipo==='interno'?'GESTIONE - NO AMAT':v.tipo==='terzi'?'(eventi terzi)':'— manifestazione —'}</option>
+          <option value="GESTIONE">GESTIONE - NO AMAT</option>
           ${manifs.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')}
         </select>
       </div></div></label>`; }).join('');
@@ -3088,7 +3091,7 @@ function buildMesiFilter(){
     let lista=(typeof manifCustom!=='undefined'&&manifCustom&&manifCustom.length)?manifCustom.slice():[];
     data.forEach(s=>{ if(s.manif&&lista.indexOf(s.manif)<0) lista.push(s.manif); });
     lista.sort();
-    fm.innerHTML='<option value="">Tutti i tipi</option>'+lista.map(m=>`<option>${m}</option>`).join('');
+    fm.innerHTML='<option value="">Tutti i tipi</option>'+lista.map(m=>`<option value="${m}">${_manifLabel(m)}</option>`).join('');
     if(cur) fm.value=cur;
   }
 
@@ -3117,7 +3120,7 @@ function _buildCard(s, grp){
   const isFat=!!s.fatturato;
   const hasTot=s.totale>0;
   const isRep=!!s.replicaOf;
-  return `<div class="spcard${isFat?' fatturato':''}${s.id===editingId?' editing':''}${s.residenza?' residenza':s.premontaggio?' premontaggio':''}${isRep?' replica':''}">
+  return `<div class="spcard${isFat?' fatturato':''}${s.id===editingId?' editing':''}${s.residenza?' residenza':s.premontaggio?' premontaggio':''}${isRep?' replica':''}${s.manif==='GESTIONE'?' gestione':''}">
     <div class="sptop">
       <div class="spdate">${isRep?'↩ ':''} ${df}</div>
       ${grp&&grp.totGruppo>0&&grp.totGruppo!==(+s.totale||0)?`<div class="sptot${grp.fatturatoTutte?' fatturato-val':''}" title="totale delle ${grp.nGiorni} giornate"> € ${grp.totGruppo.toLocaleString('it-IT')}<div style="font-size:9px;font-weight:400;color:var(--text3);text-align:right;">${grp.nGiorni} giornate${hasTot?' · questa € '+s.totale.toLocaleString('it-IT'):''}</div></div>`:`<div class="sptot${!hasTot?' z':isFat?' fatturato-val':''}"> ${hasTot?'€ '+s.totale.toLocaleString('it-IT'):'—'}</div>`}
@@ -3138,7 +3141,7 @@ function _buildCard(s, grp){
     ${_inviiHtml(s)}
     ${(()=>{ if(!s.note) return ''; const righe=s.note.split('|').map(l=>l.trim()).filter(Boolean).filter(l=>!/^⚠/.test(l)); const fR=righe.filter(l=>l.toLowerCase().includes('fattura')); const gR=righe.filter(l=>!l.toLowerCase().includes('fattura')); let h=''; if(gR.length) h+='<div class="spnote">'+gR.join('<br>')+'</div>'; if(fR.length) h+='<div class="spnote-fatt">'+fR.join('<br><br>')+'</div>'; { const w=_discrepanzaCosti(s); if(w) h+=w; } if(fR.length) h+=`<button class="iBtn" style="font-size:10px;margin-top:3px;border-color:rgba(124,58,237,.4);color:var(--purple);" onclick="reportFattureNote(${s.id})">📋 Fatture in nota</button>`; return h; })()}
     <div class="sptags">
-      ${s.manif?`<span class="tag m">${s.manif}</span>`:''}
+      ${s.manif?`<span class="tag ${s.manif==='GESTIONE'?'gest':'m'}">${_manifLabel(s.manif)}</span>`:''}
       ${isFat?`<span class="tag fat">✓ fatturato</span>`:hasTot?`<span class="tag s">€ fatturabile</span>`:''}
     </div>
     ${hp?`<div class="spprest">
@@ -3168,6 +3171,9 @@ function _buildCard(s, grp){
 // ── Stagione calcolata dalla data: sett-dic = AAAA/AAAA+1, gen-ago = AAAA-1/AAAA ──
 // testo da mettere dentro onclick="fn('…')": apostrofi e backslash escapati per JS, virgolette e < per l'HTML
 function _js(v){ return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+// Etichetta della manifestazione: il valore interno resta "GESTIONE", ma ovunque si legge "GESTIONE - NO AMAT"
+function _manifLabel(m){ return m==='GESTIONE' ? 'GESTIONE - NO AMAT' : (m||''); }
+const _GEST_COL='#94a3b8';
 function _stagioneDa(dataISO){
   if(!dataISO || dataISO.length < 7) return '';
   const y = +dataISO.substring(0,4), m = +dataISO.substring(5,7);
@@ -3933,7 +3939,7 @@ function mostraAnteprimaAI(lista){
         <div class="cev-info" style="flex:1;min-width:0;">
           <div class="cev-title">${s.spett}</div>
           <div class="cev-sub">${df}${s.citta?' · '+s.citta:''}${s.teatro?' · '+s.teatro:''}</div>
-          ${s.manif?`<div class="cev-parsed">${s.manif}</div>`:''}
+          ${s.manif?`<div class="cev-parsed"${s.manif==='GESTIONE'?' style="color:'+_GEST_COL+';"':''}>${_manifLabel(s.manif)}</div>`:''}
           ${dup ? `
           <div style="margin-top:6px;">
             <div style="font-size:9px;color:var(--red);margin-bottom:5px;">⚠️ già presente — scegli cosa fare:</div>
@@ -4153,7 +4159,7 @@ async function analizzaFattura(){
       row += ` | ${s.spett}`;
       if(s.replicaOf) row += ` [REPLICA]`;
       if(s.premontaggio) row += ` [PREMONTAGGIO]`;
-      if(s.manif) row += ` [${s.manif}]`;
+      if(s.manif) row += ` [${_manifLabel(s.manif)}]`;
       if(s.note){
         const paroleChiave = s.note.split('|').map(n=>{
           const m = n.match(/Fattura[^€]+/);
@@ -4940,12 +4946,12 @@ function renderFatturaPreview(voci){
     div.id = 'fattev-'+globalIdx;
     if(isNew) div.style.borderColor = 'var(--purple)';
     const _bd = 'font-size:9px;padding:1px 6px;border-radius:10px;margin-left:6px;';
-    const badge = v._stato==='gestione' ? '<span style="'+_bd+'background:#2563eb;color:#fff;">GESTIONE</span>'
+    const badge = v._stato==='gestione' ? '<span style="'+_bd+'background:#64748b;color:#fff;">GESTIONE - NO AMAT</span>'
       : v._stato==='ambiguo' ? '<span style="'+_bd+'background:#f59e0b;color:#000;">DA DECIDERE</span>'
       : v._stato==='nessuno' ? '<span style="'+_bd+'background:#ef4444;color:#fff;">DA ASSEGNARE</span>'
       : isNew ? '<span style="'+_bd+'background:var(--purple);color:#fff;">NUOVO</span>'
       : '<span style="'+_bd+'background:var(--green);color:#000;">ABBINATO</span>';
-    if(v._stato==='gestione') div.style.borderColor='#2563eb';
+    if(v._stato==='gestione') div.style.borderColor='#94a3b8';
     else if(v._stato==='ambiguo') div.style.borderColor='#f59e0b';
     else if(v._stato==='nessuno') div.style.borderColor='#ef4444';
     const header = document.createElement('div');
@@ -6348,7 +6354,7 @@ function generaReportPDF(){
       <div style="background:#1a1a2e;color:#fff;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
         <div>
           <span style="font-weight:800;font-size:12px;">${s.spett||'—'}</span>
-          ${s.manif?`<span style="margin-left:8px;font-size:9px;background:rgba(124,58,237,.4);padding:1px 6px;border-radius:10px;">${s.manif}</span>`:''}
+          ${s.manif?`<span style="margin-left:8px;font-size:9px;background:${s.manif==='GESTIONE'?'rgba(148,163,184,.45)':'rgba(124,58,237,.4)'};padding:1px 6px;border-radius:10px;">${_manifLabel(s.manif)}</span>`:''}
         </div>
         <div style="text-align:right;font-size:10px;color:#a78bfa;">
           ${fmtD(s.data)}<br>
@@ -6410,7 +6416,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v143</span>
+    <span>Report generato da GammaFucker v144</span>
   </div>
   </body></html>`;
 
@@ -6461,7 +6467,7 @@ function generaReportCitta(){
       <div style="background:#0c4a6e;color:#fff;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
         <div>
           <span style="font-weight:800;font-size:12px;">${s.spett||'—'}</span>
-          ${s.manif?`<span style="margin-left:8px;font-size:9px;background:rgba(56,189,248,.3);padding:1px 6px;border-radius:10px;">${s.manif}</span>`:''}
+          ${s.manif?`<span style="margin-left:8px;font-size:9px;background:${s.manif==='GESTIONE'?'rgba(148,163,184,.45)':'rgba(56,189,248,.3)'};padding:1px 6px;border-radius:10px;">${_manifLabel(s.manif)}</span>`:''}
         </div>
         <div style="text-align:right;font-size:10px;color:#bae6fd;">
           ${fmtD(s.data)}<br>
@@ -6516,7 +6522,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v143</span>
+    <span>Report generato da GammaFucker v144</span>
   </div>
   </body></html>`;
 
@@ -6568,7 +6574,7 @@ function _reportSpettacoli(lista, descrizione, opts){
         <td style="padding:6px 10px;font-size:10px;color:#6b7280;white-space:nowrap;vertical-align:top;">${multi?fmtD(g.giorni[0].data)+'<br><span style="color:#9ca3af;">→ '+fmtD(g.giorni[g.giorni.length-1].data)+'</span>':fmtD(s.data)}</td>
         <td style="padding:6px 10px;vertical-align:top;">
           <div style="font-size:11px;font-weight:700;">${esc(s.spett)}${multi?' <span style="font-size:9px;font-weight:600;color:#7c3aed;">· '+g.giorni.length+' giornate</span>':''}</div>
-          <div style="font-size:9px;color:#6b7280;">${esc(s.teatro||'')}${s.manif?' · <span style="color:#7c3aed;">'+esc(s.manif)+'</span>':''}</div>
+          <div style="font-size:9px;color:#6b7280;">${esc(s.teatro||'')}${s.manif?' · <span style="color:'+(s.manif==='GESTIONE'?'#64748b':'#7c3aed')+';">'+esc(_manifLabel(s.manif))+'</span>':''}</div>
           ${s.accordi?`<div style="margin-top:4px;padding:4px 8px;background:#eff6ff;border-left:3px solid #3b82f6;border-radius:3px;font-size:9.5px;color:#1e40af;">📋 ${esc(s.accordi)}</div>`:''}
         </td>
         <td style="padding:6px 10px;font-size:9.5px;color:#374151;vertical-align:top;">${multi?'<span style="color:#9ca3af;">vedi giornate</span>':cellaFatt(s)}</td>
@@ -6612,7 +6618,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v143</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v144</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -6644,7 +6650,7 @@ function generaReportStagione(){
         <td style="padding:5px 10px;font-size:10px;color:#6b7280;white-space:nowrap;">${fmtD(s.data)}</td>
         <td style="padding:5px 10px;font-size:10px;font-weight:700;">${s.replicaOf?'\ud83d\udd01 ':''}${s.residenza?'🏠 ':s.premontaggio?'\ud83d\udd27 ':''}${s.spett||''}</td>
         <td style="padding:5px 10px;font-size:9px;color:#6b7280;">${s.teatro||''}</td>
-        <td style="padding:5px 10px;font-size:9px;color:#7c3aed;">${s.manif||''}</td>
+        <td style="padding:5px 10px;font-size:9px;color:${s.manif==='GESTIONE'?'#64748b':'#7c3aed'};">${_manifLabel(s.manif)}</td>
         ${IS_COLLAB?`<td style="padding:5px 10px;font-size:9px;color:#6b7280;">${(s.note||'').replace(/</g,'&lt;')}</td>`:''}
         <td style="padding:5px 10px;font-size:10px;text-align:right;font-weight:700;color:${!IS_COLLAB&&s.fatturato?'#059669':'#1a1a2e'};">${fmt(s.totale)}</td>
       </tr>`).join('');
@@ -6685,7 +6691,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v143</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v144</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -7583,7 +7589,7 @@ function renderAgenda(){
         <div style="font-size:12px;font-weight:700;color:var(--text1);">${s.replicaOf?'🔁 ':''}${s.residenza?'🏠 ':s.premontaggio?'🔧 ':''}${s.spett}</div>
         <div style="font-size:10px;color:${isConflitto?'var(--red)':'var(--text3)'};white-space:nowrap;">${fmtD(s.data)}</div>
       </div>
-      <div style="font-size:10px;color:var(--text3);">${s.teatro||''}${s.manif?' · '+s.manif:''}</div>
+      <div style="font-size:10px;color:var(--text3);">${s.teatro||''}${s.manif?' · '+_manifLabel(s.manif):''}</div>
       ${s.totale>0?`<div style="font-size:10px;color:var(--green);">€ ${s.totale.toLocaleString('it-IT')}</div>`:''}
       ${isConflitto?'<div style="font-size:9px;color:var(--red);margin-top:2px;">⚠️ Stesso giorno</div>':''}
     </div>`;
@@ -8555,7 +8561,7 @@ function cercaDoppioni(){
             <input type="radio" name="dup-g${gi}" value="${s.id}" ${si===0?'checked':''} style="margin-top:3px;width:15px;height:15px;cursor:pointer;">
             <div style="flex:1;min-width:0;">
               <div style="font-size:12px;font-weight:700;">${s.spett}${s.residenza?' 🏠':s.premontaggio?' 🔧':''}</div>
-              <div style="font-size:10px;color:var(--text3);">${s.teatro||'—'}${s.manif?' · '+s.manif:''}</div>
+              <div style="font-size:10px;color:var(--text3);">${s.teatro||'—'}${s.manif?' · '+_manifLabel(s.manif):''}</div>
               ${rischio?`<div style="font-size:10px;color:var(--red);margin-top:2px;">⚠
                 ${s.totale>0?'€'+s.totale.toLocaleString('it-IT')+' ':''}
                 ${nFatt?nFatt+' fatture in nota ':''}
@@ -9235,7 +9241,7 @@ function renderSettimana(){
     return `<div style="padding:7px 0;border-top:1px solid var(--border);${daVerificare?'background:rgba(239,68,68,.05);':''}">
       <div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;${multi?'cursor:pointer;':''}" ${multi?`onclick="_settToggle('${s.id}')"`:''}>
         ${multi?`<span style="font-size:10px;color:var(--gold);">${aperto?'▼':'▶'}</span>`:''}
-        <b style="color:var(--gold);">${multi?fmt(g.giorni[0].data)+' → '+fmt(g.giorni[g.giorni.length-1].data):tipo(s)+' '+fmt(s.data)}</b> <b>${esc(s.spett)}</b> <span style="color:var(--text2);">· ${esc(s.citta)}${s.teatro?' · '+esc(s.teatro):''}</span>${s.manif?' <span style="font-size:9px;color:var(--purple);">'+esc(s.manif)+'</span>':''}
+        <b style="color:var(--gold);">${multi?fmt(g.giorni[0].data)+' → '+fmt(g.giorni[g.giorni.length-1].data):tipo(s)+' '+fmt(s.data)}</b> <b>${esc(s.spett)}</b> <span style="color:var(--text2);">· ${esc(s.citta)}${s.teatro?' · '+esc(s.teatro):''}</span>${s.manif?' <span style="font-size:9px;color:'+(s.manif==='GESTIONE'?_GEST_COL:'var(--purple)')+';">'+esc(_manifLabel(s.manif))+'</span>':''}
         ${multi?`<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(124,58,237,.18);color:#c4b5fd;">${g.giorni.length} giornate</span>`:''}
         <span style="flex:1;"></span>
         ${totG>0?`<b style="color:${tuttiFat?'var(--green)':'var(--text)'};">${eur(totG)}</b>`:''}
