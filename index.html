@@ -243,7 +243,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v142</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v143</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -878,6 +878,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <div class="field" style="flex:1;min-width:110px;margin:0;"><label>Spettacolo ore</label><input type="text" id="sq-spet" placeholder="es. 21:00" oninput="_sqAggiorna()"></div>
       <div class="field" style="flex:1;min-width:110px;margin:0;"><label>Smontaggio (ultimo giorno)</label><input type="text" id="sq-smon" placeholder="es. a seguire" oninput="_sqAggiorna()"></div>
     </div>
+    <label style="display:flex;gap:6px;align-items:center;font-size:11px;margin-bottom:8px;cursor:pointer;"><input type="checkbox" id="sq-prest" checked style="width:14px;height:14px;"> Aggiorna anche le prestazioni e i costi di ogni giornata dalla squadra (macchinista, elettricista, fonico, sarta, facchino × tariffa)</label>
     <div class="field" style="margin-bottom:8px;"><label>Note per la squadra (opzionale)</label><input type="text" id="sq-note" placeholder="es. carico da via Roma, servono 2 macchinisti e 1 elettricista" oninput="_sqAggiorna()"></div>
     <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">Persone / ditte (dalla rubrica, dalle aziende di servizio o a mano)</div>
     <div id="sq-righe" style="display:flex;flex-direction:column;gap:4px;"></div>
@@ -6409,7 +6410,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v142</span>
+    <span>Report generato da GammaFucker v143</span>
   </div>
   </body></html>`;
 
@@ -6515,7 +6516,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v142</span>
+    <span>Report generato da GammaFucker v143</span>
   </div>
   </body></html>`;
 
@@ -6611,7 +6612,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v142</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v143</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -6684,7 +6685,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v142</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v143</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9551,6 +9552,23 @@ async function _sqCondividi(){
   if(navigator.share){ try{ await navigator.share({text:testo}); salvaSquadra(false, 'più contatti (condivisione)'); return; }catch(e){ if(e && e.name==='AbortError') return; } }
   try{ await navigator.clipboard.writeText(testo); toast('Testo copiato: incollalo in un gruppo WhatsApp (la condivisione diretta funziona dal telefono)'); salvaSquadra(false); }catch{ toast('Copia non riuscita', true); }
 }
+// Dalla squadra di una giornata alle prestazioni: conta i ruoli (macchinista, elettricista, fonico, sarta, facchino)
+// e scrive nm/ne/nfo/nsa/nf con le tariffe già presenti sulla giornata (o quelle di default), ricalcolando il totale.
+// Service, referenti, antincendio e ruoli non riconosciuti non contano. Se nessun ruolo è riconoscibile non tocca nulla.
+function _ruoloPrest(ruolo){ const r=_normTxt(ruolo||''); if(/MACCHIN/.test(r)) return 'm'; if(/ELETTR|LUCI|DATORE/.test(r)) return 'e'; if(/FONIC|AUDIO/.test(r)) return 'fo'; if(/SART/.test(r)) return 'sa'; if(/FACCHIN|CARICO|SCARICO/.test(r)) return 'f'; return ''; }
+function _squadraInPrestazioni(x, righe){
+  const n={m:0,e:0,fo:0,sa:0,f:0}; let trovati=0;
+  righe.forEach(r=>{ const k=_ruoloPrest(r.ruolo); if(k){ n[k]++; trovati++; } });
+  if(!trovati) return false;
+  const tar=(k,def)=>{ const v=+x[k]; return v>0?v:(+def||0); };
+  x.nm=n.m; x.tm=tar('tm',tariffe.m); x.sm=x.nm*x.tm;
+  x.ne=n.e; x.te=tar('te',tariffe.e); x.se=x.ne*x.te;
+  x.nfo=n.fo; x.tfo=tar('tfo',tariffe.fo); x.sfo=x.nfo*x.tfo;
+  x.nsa=n.sa; x.tsa=tar('tsa',tariffe.sa); x.ssa=x.nsa*x.tsa;
+  x.nf=n.f; x.tf=tar('tf',tariffe.f); x.sf=x.nf*x.tf;
+  x.totale=(x.sm||0)+(x.se||0)+(x.sfo||0)+(x.ssa||0)+(x.sf||0);
+  return true;
+}
 function _sqCopia(){ const t=document.getElementById('sq-testo').value; navigator.clipboard.writeText(t).then(()=>toast('✓ Testo copiato')).catch(()=>toast('Copia non riuscita', true)); salvaSquadra(false); }
 function salvaSquadra(chiudi, inviatoA){
   const s=data.find(x=>String(x.id)===String(_sqId)); if(!s) return; const p=_prodDi(s);
@@ -9560,8 +9578,10 @@ function salvaSquadra(chiudi, inviatoA){
   p.squadraNote=v('sq-note');
   const righe=_sqRighe.filter(r=>r.nome.trim()).map(r=>({nome:r.nome.trim(), tel:r.tel.trim(), ruolo:r.ruolo.trim(), giorni:r.giorni.slice().sort()}));
   // su ogni giornata del lavoro: solo chi ci lavora quel giorno (squadra nel piano + riga in nota)
+  const aggProd=!!(document.getElementById('sq-prest')||{}).checked; let giorniAgg=0;
   _gruppoDi(s).forEach(x=>{ const px=_prodDi(x); const mie=righe.filter(r=>r.giorni.includes(x.data)); px.squadra=mie;
     const serv=mie.find(r=>/service/i.test(r.ruolo)); if(serv && !px.service) px.service=serv.nome;
+    if(aggProd && _squadraInPrestazioni(x, mie)) giorniAgg++;
     const rn=(x.note||'').split('|').map(l=>l.trim()).filter(Boolean).filter(l=>!/^👷 Squadra:/.test(l));
     if(mie.length) rn.push('👷 Squadra: '+mie.map(r=>r.nome+(r.ruolo?' ('+r.ruolo+')':'')).join(', '));
     x.note=rn.join(' | '); });
@@ -9570,7 +9590,7 @@ function salvaSquadra(chiudi, inviatoA){
   righe.forEach(r=>{ if(/service/i.test(r.ruolo) && r.nome) salvaDittaDB(r.nome.toUpperCase()); });
   sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000; renderList(); _prodAutoSave();
   if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
-  if(chiudi){ document.getElementById('squadra-ov').classList.remove('open'); toast('✓ Squadra registrata su '+s.spett); }
+  if(chiudi){ document.getElementById('squadra-ov').classList.remove('open'); toast('✓ Squadra registrata su '+s.spett+(giorniAgg?' · prestazioni aggiornate su '+giorniAgg+' giornat'+(giorniAgg===1?'a':'e'):'')); }
 }
 // mail alla compagnia dal piano (parte dall'account Google dell'app, resta in Gmail)
 function apriMailCompagnia(id){
