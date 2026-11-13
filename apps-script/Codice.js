@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v162 ──
+// ── SPETTACOLI APP SCRIPT v163 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -1500,7 +1500,8 @@ function inboxLista() {
 }
 function inboxPrendi(id) {
   if (!id) return { error: 'id mancante' };
-  var x = DriveApp.getFileById(id); var blob = x.getBlob(); var mime = x.getMimeType();
+  var x; try { x = DriveApp.getFileById(id); } catch(e) { return { error: 'file non trovato su Drive (' + e.message + ')' }; }
+  var blob = x.getBlob(); var mime = x.getMimeType() || blob.getContentType() || 'application/octet-stream';
   // Google Docs/Sheets nativi: esportati in PDF / xlsx per l'analisi
   if (mime === 'application/vnd.google-apps.spreadsheet') { blob = x.getAs('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); mime = blob.getContentType(); }
   else if (mime.indexOf('application/vnd.google-apps.') === 0) { blob = x.getAs('application/pdf'); mime = 'application/pdf'; }

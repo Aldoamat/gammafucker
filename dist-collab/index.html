@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v151</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v152</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -4528,13 +4528,23 @@ async function _inboxAnalizza(id, nome){
   toast('⏳ scarico '+nome+'…');
   try{
     const j=await _inboxCall({action:'inboxPrendi', id});
-    const bin=atob(j.b64); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
-    const file=new File([arr], j.nome||nome, {type:j.mime||'application/octet-stream'});
-    _inboxCorrente={id, nome:file.name};
+    if(!j.b64) throw new Error('il backend non ha restituito il file (aggiorna Apps Script?)');
+    const nomeF=j.nome||nome, mime=j.mime||'application/octet-stream';
+    const isExcel=/sheet|excel|csv/i.test(mime) || /\.(xlsx?|csv)$/i.test(nomeF);
+    const isImg=/^image\//i.test(mime) || /\.(jpe?g|png|heic|webp)$/i.test(nomeF);
+    _inboxCorrente={id, nome:nomeF};
     document.getElementById('inbox-ov').classList.remove('open'); goTab('forn');
-    if(/sheet|excel|csv/i.test(file.type) || /\.(xlsx?|csv)$/i.test(file.name)) loadFatturaExcel({files:[file], value:''});
-    else loadFatturaPDF({files:[file], value:''});
-    toast('✓ '+file.name+' caricato: controlla fornitore e numero, poi Analizza');
+    if(isExcel){
+      const bin=atob(j.b64); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+      loadFatturaExcel({files:[new File([arr], nomeF, {type:mime})], value:''});
+    } else {
+      // PDF/immagine: il base64 c'è già, lo metto direttamente dove lo legge "Analizza Fattura"
+      const te=document.getElementById('fatt-testo');
+      te.value=(isImg?'[IMG_B64:':'[PDF_B64:')+nomeF+']';
+      te.dataset.pdfB64=isImg?'':j.b64; te.dataset.imgB64=isImg?j.b64:''; te.dataset.imgType=isImg?(mime.startsWith('image/')?mime:'image/jpeg'):''; te.dataset.pdfName=nomeF; te.dataset.excelB64=''; te.dataset.excelTesto='';
+      const lbl=document.getElementById('fatt-pdf-name'); lbl.textContent=(isImg?'🖼️ ':'📄 ')+nomeF+' (da Drive)'; lbl.style.display='block';
+    }
+    toast('✓ '+nomeF+' caricato: controlla fornitore e numero, poi Analizza Fattura');
   }catch(e){ toast('Errore: '+e.message, true); }
 }
 async function _inboxArchivia(id, nome, silenzioso){
@@ -6664,7 +6674,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v151</span>
+    <span>Report generato da GammaFucker v152</span>
   </div>
   </body></html>`;
 
@@ -6770,7 +6780,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v151</span>
+    <span>Report generato da GammaFucker v152</span>
   </div>
   </body></html>`;
 
@@ -6866,7 +6876,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v151</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v152</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -6939,7 +6949,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v151</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v152</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
