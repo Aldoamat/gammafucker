@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v148</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v149</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -448,6 +448,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <select id="fil-manif" onchange="renderList()"><option value="">Tutti i tipi</option></select>
     <select id="fil-stagione" onchange="renderList()"><option value="">Tutte le stagioni</option></select>
     <button class="btn btn-o btn-sm collab-only" style="display:none;white-space:nowrap;" id="btn-rep-stag" onclick="generaReportFiltri()" title="Report degli spettacoli con i filtri impostati qui sopra">🎭 Report</button>
+    <button class="btn btn-o btn-sm collab-only" style="display:none;white-space:nowrap;color:#fbbf24;border-color:rgba(251,191,36,.5);" onclick="window.open(new URL('../carica/?pin='+encodeURIComponent(ld('inboxPin','')||'12345'), location.href).href,'_blank')" title="Pagina per caricare le fatture a Aldo (senza account Google)">📤 Carica fatture</button>
     <button class="btn btn-o btn-sm admin-only" style="white-space:nowrap;color:#f59e0b;border-color:rgba(245,158,11,.45);" onclick="apriDaFare()" title="Prossimi spettacoli senza scheda tecnica o senza info inviate">📋 Da fare</button>
     <button class="btn btn-o btn-sm admin-only" style="white-space:nowrap;color:#34d399;border-color:rgba(52,211,153,.45);" onclick="apriSettimana()" title="Verifica e report della settimana appena trascorsa">📅 Settimana</button>
   </div>
@@ -4485,7 +4486,7 @@ function _inboxPaginaUrl(){ return new URL('carica/', location.href).href; }
 function apriInbox(){ document.getElementById('inbox-pagina').href=_inboxPaginaUrl(); document.getElementById('inbox-ov').classList.add('open'); caricaInbox(); }
 function _inboxCopiaPagina(){ const pin=ld('inboxPin',''); const testo='Per caricare le fatture a Aldo: '+_inboxPaginaUrl()+(pin?'\nPIN: '+pin:''); navigator.clipboard.writeText(testo).then(()=>toast('✓ Link copiato'+(pin?' (con il PIN)':''))).catch(()=>prompt('Copia:', testo)); }
 async function _inboxPin(){
-  const cur=ld('inboxPin',''); const pin=prompt('PIN che l\'amministrazione deve inserire nella pagina di caricamento (vuoto = nessun PIN):', cur); if(pin===null) return;
+  const cur=ld('inboxPin','')||'12345'; const pin=prompt('PIN che l\'amministrazione deve inserire nella pagina di caricamento (vuoto = nessun PIN):', cur); if(pin===null) return;
   try{ await _inboxCall({action:'setInboxPin', pin:pin.trim()}); sv('inboxPin', pin.trim()); toast(pin.trim()?'✓ PIN impostato: '+pin.trim():'✓ PIN tolto: la pagina accetta tutti'); }catch(e){ toast('Errore: '+e.message, true); }
 }
 async function caricaInbox(){
@@ -6621,7 +6622,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v148</span>
+    <span>Report generato da GammaFucker v149</span>
   </div>
   </body></html>`;
 
@@ -6727,7 +6728,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v148</span>
+    <span>Report generato da GammaFucker v149</span>
   </div>
   </body></html>`;
 
@@ -6823,7 +6824,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v148</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v149</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -6896,7 +6897,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v148</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v149</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');

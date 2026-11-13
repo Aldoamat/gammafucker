@@ -50,6 +50,8 @@ const URL_SCRIPT = 'https://script.google.com/macros/s/AKfycbxpVQXe7vwSD1MPVIBCi
 const CHUNK = 700*1024;
 let coda = [];
 try{ document.getElementById('chi').value = localStorage.getItem('chi')||''; document.getElementById('pin').value = localStorage.getItem('pin')||''; }catch(e){}
+// link con ?pin=…&chi=… (dall'app collaboratori): precompila, così chi carica non deve ricordare niente
+try{ const q=new URLSearchParams(location.search); if(q.get('pin')) document.getElementById('pin').value=q.get('pin'); if(q.get('chi')) document.getElementById('chi').value=q.get('chi'); }catch(e){}
 const drop=document.getElementById('drop');
 ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('on');}));
 ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('on');}));
