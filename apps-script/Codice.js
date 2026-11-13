@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v155 ──
+// ── SPETTACOLI APP SCRIPT v156 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -137,6 +137,11 @@ function doPost(e) {
       lock.releaseLock();
       var ru; try { ru = caricaDocumento(body.cartella, body.nome, body.mime, body.b64); } catch(errU) { ru = { error: errU.message }; }
       return ContentService.createTextOutput(JSON.stringify(ru)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (body.action === 'inboxCartella' || body.action === 'inboxLista' || body.action === 'inboxPrendi' || body.action === 'inboxArchivia') {
+      lock.releaseLock();
+      var ri; try { ri = body.action === 'inboxCartella' ? inboxCartella() : body.action === 'inboxLista' ? inboxLista() : body.action === 'inboxPrendi' ? inboxPrendi(body.id) : inboxArchivia(body.id); } catch(errI) { ri = { error: errI.message }; }
+      return ContentService.createTextOutput(JSON.stringify(ri)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'setModelloAI') {
       var mod = String(body.modello || '').trim();
@@ -1466,6 +1471,36 @@ function caricaChunk(cartella, nome, mime, b64, idx, total, fileId) {
   var done = idx >= total - 1;
   if (done) { try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {} }
   return { url: f.getUrl(), id: f.getId(), nome: f.getName(), cartella: sub, done: done, size: f.getSize(), cartellaUrl: done ? _cartellaCondivisa(f.getParents().next()) : '' };
+}
+
+// ════════════════════ FATTURE IN ARRIVO (cartella Drive condivisa con l'amministrazione) ════════════════════
+// L'amministrazione carica le fatture in "GammaFucker Documenti/Fatture in arrivo" (cartella da condividere
+// in modifica con i loro account Google); l'app le elenca, le scarica per l'analisi e dopo l'uso le sposta
+// nella sottocartella "Elaborate", così la cartella mostra solo quello che è ancora da fare.
+var INBOX_CARTELLA = 'Fatture in arrivo', INBOX_FATTE = 'Elaborate';
+function _inboxFolder() { return _cartellaDoc(INBOX_CARTELLA).folder; }
+function _inboxFatte(folder) { var it = folder.getFoldersByName(INBOX_FATTE); return it.hasNext() ? it.next() : folder.createFolder(INBOX_FATTE); }
+function inboxCartella() { var f = _inboxFolder(); _inboxFatte(f); return { url: f.getUrl(), id: f.getId() }; }
+function inboxLista() {
+  var f = _inboxFolder(); var out = []; var it = f.getFiles();
+  while (it.hasNext()) { var x = it.next(); out.push({ id: x.getId(), nome: x.getName(), mime: x.getMimeType(), size: x.getSize(), data: x.getDateCreated().toISOString(), url: x.getUrl() }); }
+  out.sort(function(a, b) { return a.data < b.data ? 1 : -1; });
+  return { url: f.getUrl(), files: out };
+}
+function inboxPrendi(id) {
+  if (!id) return { error: 'id mancante' };
+  var x = DriveApp.getFileById(id); var blob = x.getBlob(); var mime = x.getMimeType();
+  // Google Docs/Sheets nativi: esportati in PDF / xlsx per l'analisi
+  if (mime === 'application/vnd.google-apps.spreadsheet') { blob = x.getAs('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); mime = blob.getContentType(); }
+  else if (mime.indexOf('application/vnd.google-apps.') === 0) { blob = x.getAs('application/pdf'); mime = 'application/pdf'; }
+  if (blob.getBytes().length > 20 * 1024 * 1024) return { error: 'file troppo grande (max 20 MB)' };
+  return { nome: x.getName(), mime: mime, b64: Utilities.base64Encode(blob.getBytes()) };
+}
+function inboxArchivia(id) {
+  if (!id) return { error: 'id mancante' };
+  var x = DriveApp.getFileById(id); var f = _inboxFolder(); var dest = _inboxFatte(f);
+  x.moveTo(dest);
+  return { ok: true, nome: x.getName() };
 }
 
 // ════════════════════ ANAGRAFICA: verifica e unificazione ════════════════════

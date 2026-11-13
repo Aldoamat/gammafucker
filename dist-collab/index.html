@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v145</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v146</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -839,6 +839,34 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     </div>
   </div>
 </div>
+<!-- ══ FATTURE IN ARRIVO (cartella Drive condivisa con l'amministrazione) ══ -->
+<div class="mover" id="inbox-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:600px;max-height:92vh;overflow-y:auto;">
+    <div class="mtitle">📥 Fatture in arrivo (Drive)</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Cartella Drive <b>GammaFucker Documenti / Fatture in arrivo</b>: condividila in modifica con l'amministrazione, loro ci caricano le fatture e tu le analizzi da qui. Dopo l'inserimento il file passa in "Elaborate".</div>
+    <div id="inbox-link" style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;"></div>
+    <div id="inbox-box" style="font-size:12px;"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-o" style="flex:1;" onclick="caricaInbox()">🔄 Aggiorna</button>
+      <button class="btn btn-o" style="flex:1;" onclick="document.getElementById('inbox-ov').classList.remove('open')">Chiudi</button>
+    </div>
+  </div>
+</div>
+<!-- ══ RENDICONTO LAVORI (fornitore: una riga per risorsa/giorno) → tariffe per risorsa ══ -->
+<div class="mover" id="rend-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto;">
+    <div class="mtitle">🧾 Rendiconto lavori · tariffe</div>
+    <div id="rend-titolo" style="font-size:11px;color:var(--text2);margin-bottom:8px;"></div>
+    <div class="field"><label>Fornitore</label><input type="text" id="rend-forn" list="ditta-list" autocomplete="off"></div>
+    <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin:8px 0 4px;">Costo per giornata di ogni risorsa (0 = da decidere in anteprima; deseleziona per escludere)</div>
+    <div id="rend-righe" style="display:flex;flex-direction:column;gap:4px;"></div>
+    <div style="font-size:10px;color:var(--text3);margin-top:6px;">Le tariffe si ricordano per la volta dopo. In anteprima puoi correggere spettacolo e importi, scegliere quali voci inserire (tocca la riga per escluderla) e stampare il report.</div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-p" style="flex:1;" onclick="_rendContinua()">➡ Continua</button>
+      <button class="btn btn-o" onclick="document.getElementById('rend-ov').classList.remove('open')">Annulla</button>
+    </div>
+  </div>
+</div>
 <!-- ══ DA FARE: prossimi spettacoli senza scheda / senza info inviate ══ -->
 <div class="mover" id="dafare-ov" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" style="max-width:600px;max-height:92vh;overflow-y:auto;">
@@ -1080,7 +1108,9 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
         <label for="fatt-file-excel" style="flex:1;">
           <div class="btn btn-o" style="text-align:center;cursor:pointer;font-size:12px;border-color:var(--green);color:var(--green);width:100%;">📊 Excel / CSV</div>
         </label>
+        <div class="btn btn-o" style="flex:1;text-align:center;cursor:pointer;font-size:12px;border-color:#fbbf24;color:#fbbf24;" onclick="apriInbox()" title="Fatture caricate dall'amministrazione nella cartella Drive condivisa">📥 Da Drive</div>
       </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px;">Excel accettati anche i report presenze della ditta (turni per giorno) e i rendiconti lavori (una riga per risorsa/giorno, es. STCT): vengono letti direttamente, senza AI.</div>
       <input type="file" id="fatt-file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="loadFatturaPDF(this)">
       <input type="file" id="fatt-file-excel" accept=".xlsx,.xls,.csv" style="display:none" onchange="loadFatturaExcel(this)">
       <div id="fatt-pdf-name" style="font-size:10px;color:var(--purple);margin-top:4px;display:none;"></div>
@@ -4409,6 +4439,8 @@ function loadFatturaExcel(input){
         const fogli = wb.SheetNames.map(n=>({foglio:n, griglia:XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, raw:true, defval:''})})).filter(f=>f.griglia.some(r=>r.some(c=>/data presenza giorno/i.test(String(c)))));
         if(fogli.length){ input.value=''; _importaReportPresenze(fogli, file.name); return; }
         const griglia = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
+        // rendiconto lavori del fornitore (ID, Data inizio, Tipologia, Destinazione, Risorsa…): una riga per risorsa/giorno
+        if(griglia.some(r=>{ const h=r.map(c=>String(c).toLowerCase()); return h.includes('risorsa') && h.includes('destinazione') && h.some(c=>/^data/.test(c)); })){ input.value=''; _importaRendiconto(griglia, file.name); return; }
         csvText = XLSX.utils.sheet_to_csv(ws);
       }
       testo_el.dataset.excelTesto = csvText.substring(0, 8000); // max 8k chars
@@ -4431,6 +4463,95 @@ function loadFatturaExcel(input){
 // una riga per addetto (tipo appalto, orari, ore, importo nella colonna "Tot. ore"); luogo, km e trasferta
 // solo sulla prima riga del giorno. Produce per ogni giorno una voce servizio e una voce trasferta disgiunta,
 // poi passa all'abbinamento deterministico delle fatture come PREVISIONE (numero PREV-REP).
+// ── Fatture in arrivo: cartella Drive condivisa con l'amministrazione ──
+let _inboxCorrente=null, _inboxUrl='';
+async function _inboxCall(payload){
+  const url=ld('sheetsUrl',''); if(!url) throw new Error('Configura Sheets URL');
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)}); const j=await r.json(); if(j.error) throw new Error(j.error); return j;
+}
+function apriInbox(){ document.getElementById('inbox-ov').classList.add('open'); caricaInbox(); }
+async function caricaInbox(){
+  const box=document.getElementById('inbox-box'); box.innerHTML='<div style="padding:12px;text-align:center;color:var(--text3);">⏳ leggo la cartella…</div>';
+  try{
+    const j=await _inboxCall({action:'inboxLista'}); _inboxUrl=j.url||'';
+    const esc=v=>String(v||'').replace(/</g,'&lt;');
+    document.getElementById('inbox-link').innerHTML=_inboxUrl?`<a href="${esc(_inboxUrl)}" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;font-size:11px;padding:3px 9px;color:#60a5fa;border-color:rgba(96,165,250,.4);">📂 Apri cartella su Drive</a><button class="iBtn" style="font-size:11px;padding:3px 9px;" onclick="navigator.clipboard.writeText(_inboxUrl).then(()=>toast('✓ Link copiato: condividilo in modifica con l\'amministrazione'))">🔗 Copia link</button>`:'';
+    const files=j.files||[];
+    if(!files.length){ box.innerHTML='<div style="padding:12px;text-align:center;color:var(--green);">✓ Nessuna fattura in attesa</div>'; return; }
+    const fd=d=>{ try{ return new Date(d).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'2-digit'}); }catch{ return ''; } };
+    const ico=m=>/pdf/.test(m)?'📄':/image/.test(m)?'🖼️':/sheet|excel|csv/.test(m)?'📊':'📎';
+    box.innerHTML=files.map(f=>`<div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--border);">
+      <span>${ico(f.mime)}</span><div style="flex:1;min-width:0;"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(f.nome)}</div><div style="font-size:10px;color:var(--text3);">${fd(f.data)} · ${Math.round((f.size||0)/1024)} KB</div></div>
+      <button class="btn btn-p" style="font-size:11px;padding:5px 10px;" onclick="_inboxAnalizza('${_js(f.id)}','${_js(f.nome)}')">🔍 Analizza</button>
+      <button class="iBtn" style="font-size:10px;padding:3px 7px;color:var(--text3);" title="Sposta in Elaborate senza analizzare" onclick="_inboxArchivia('${_js(f.id)}','${_js(f.nome)}')">✓</button></div>`).join('');
+  }catch(e){ box.innerHTML='<div style="padding:12px;color:var(--red);">Errore: '+String(e.message).replace(/</g,'&lt;')+'</div>'; }
+}
+async function _inboxAnalizza(id, nome){
+  toast('⏳ scarico '+nome+'…');
+  try{
+    const j=await _inboxCall({action:'inboxPrendi', id});
+    const bin=atob(j.b64); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+    const file=new File([arr], j.nome||nome, {type:j.mime||'application/octet-stream'});
+    _inboxCorrente={id, nome:file.name};
+    document.getElementById('inbox-ov').classList.remove('open'); goTab('forn');
+    if(/sheet|excel|csv/i.test(file.type) || /\.(xlsx?|csv)$/i.test(file.name)) loadFatturaExcel({files:[file], value:''});
+    else loadFatturaPDF({files:[file], value:''});
+    toast('✓ '+file.name+' caricato: controlla fornitore e numero, poi Analizza');
+  }catch(e){ toast('Errore: '+e.message, true); }
+}
+async function _inboxArchivia(id, nome, silenzioso){
+  try{ await _inboxCall({action:'inboxArchivia', id}); toast('✓ '+nome+' spostata in Elaborate'); if(!silenzioso) caricaInbox(); }
+  catch(e){ toast('Archiviazione non riuscita: '+e.message, true); }
+}
+
+// ── Rendiconto lavori del fornitore (es. STCT): una riga per risorsa/giorno, senza prezzi ──
+// Lettura diretta → finestra tariffe per risorsa → anteprima fattura (match per data+teatro, correzioni,
+// scelta delle voci da inserire come previsione, report). Numero: PREV-REND<mese>.
+let _rendDati=null;
+function _importaRendiconto(griglia, nomeFile){
+  const hIdx=griglia.findIndex(r=>{ const h=r.map(c=>String(c).toLowerCase()); return h.includes('risorsa') && h.includes('destinazione'); });
+  const H=griglia[hIdx].map(c=>String(c).trim().toLowerCase()); const col=re=>H.findIndex(h=>re.test(h));
+  const cId=col(/^id$/), cData=col(/^data/), cTipo=col(/tipolog/), cDest=col(/destinazione/), cRis=col(/risorsa/), cOra=col(/^ora/), cStato=col(/stato/);
+  const dataDi=v=>{ if(v instanceof Date && !isNaN(v)) return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
+    if(typeof v==='number' && v>20000 && v<80000){ const d=new Date(Math.round((v-25569)*86400000)); return d.toISOString().slice(0,10); }
+    const m=String(v||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'):''; };
+  const righe=[];
+  for(let i=hIdx+1;i<griglia.length;i++){ const r=griglia[i]; const d=dataDi(r[cData]); const ris=String(r[cRis]||'').trim(); if(!d||!ris) continue;
+    const dest=String(r[cDest]||'').trim(); const parti=dest.split(/\s+-\s+/); let teatro=parti[0]||'', citta=parti.length>1?parti[parti.length-1]:'';
+    citta=_risolviCitta(citta, teatro)||citta;
+    righe.push({id:String(r[cId]||''), data:d, tipo:String(r[cTipo]||'').trim(), dest, teatro, citta, risorsa:ris.toUpperCase(), ora:cOra>=0?String(r[cOra]||''):'', stato:cStato>=0?String(r[cStato]||''):''}); }
+  if(!righe.length){ toast('Rendiconto: nessuna riga riconosciuta', true); return; }
+  righe.sort((a,b)=>a.data.localeCompare(b.data)||a.risorsa.localeCompare(b.risorsa));
+  _rendDati={righe, nomeFile};
+  const risorse=[...new Set(righe.map(r=>r.risorsa))]; const tar=ld('rendTariffe',{});
+  const forn=(document.getElementById('prev-fornitore').value.trim()||document.getElementById('fatt-fornitore').value.trim()||tar._ultimoForn||'').toUpperCase();
+  document.getElementById('rend-forn').value=forn;
+  const mesi=[...new Set(righe.map(r=>r.data.slice(0,7)))].join(', ');
+  document.getElementById('rend-titolo').textContent=nomeFile+' · '+righe.length+' righe · '+risorse.length+' risorse · '+mesi;
+  const esc=v=>String(v||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  document.getElementById('rend-righe').innerHTML=risorse.map((r,i)=>{ const n=righe.filter(x=>x.risorsa===r).length; const tipi=[...new Set(righe.filter(x=>x.risorsa===r).map(x=>x.tipo).filter(Boolean))].join('/'); const v=(tar[forn]&&tar[forn][r])||'';
+    return `<div style="display:flex;gap:6px;align-items:center;"><input type="checkbox" class="rend-on" data-r="${esc(r)}" checked style="width:14px;height:14px;"><div style="flex:1;font-size:12px;"><b>${esc(r)}</b> <span style="color:var(--text3);font-size:10px;">${n} giornat${n===1?'a':'e'}${tipi?' · '+esc(tipi):''}</span></div><input type="number" step="0.01" class="rend-tar" data-r="${esc(r)}" value="${v}" placeholder="€/giorno" style="width:90px;"></div>`; }).join('');
+  buildDittaDatalist();
+  document.getElementById('rend-ov').classList.add('open');
+}
+function _rendContinua(){
+  if(!_rendDati) return;
+  const forn=document.getElementById('rend-forn').value.trim().toUpperCase(); if(!forn){ toast('Indica il fornitore', true); return; }
+  const on=new Set([...document.querySelectorAll('.rend-on:checked')].map(c=>c.dataset.r)); const tar={}; document.querySelectorAll('.rend-tar').forEach(i=>{ tar[i.dataset.r]=+i.value||0; });
+  const mem=ld('rendTariffe',{}); mem[forn]=Object.assign(mem[forn]||{}, tar); mem._ultimoForn=forn; sv('rendTariffe', mem);
+  const sel=_rendDati.righe.filter(r=>on.has(r.risorsa)); if(!sel.length){ toast('Nessuna risorsa selezionata', true); return; }
+  document.getElementById('prev-fornitore').value=forn;
+  const mese=sel[0].data.slice(0,7).split('-').reverse().join('.'); const numEl=document.getElementById('prev-numero'); if(!numEl.value.trim()) numEl.value='PREV-REND'+mese;
+  let tot=0; const righe=sel.map(r=>{ const imp=tar[r.risorsa]||0; tot+=imp;
+    return {descrizione:(r.tipo?r.tipo.toLowerCase()+' · ':'')+r.risorsa+(r.ora?' h '+r.ora:'')+' (rendiconto)', importo:+imp.toFixed(2), date:[r.data], citta:r.citta, teatro:r.teatro, tipo:'servizio'}; });
+  const totEl=document.getElementById('fatt-totale-fatt'); if(totEl) totEl.value=tot?tot.toFixed(2):'';
+  const voci=abbinaRigheFattura(righe, {fornitore:forn, numero_fattura:numEl.value.trim(), data_fattura:sel[sel.length-1].data});
+  if(!voci.length){ toast('Rendiconto: nessuna voce', true); return; }
+  document.getElementById('fatt-testo').value='[RENDICONTO: '+_rendDati.nomeFile+' — '+sel.length+' righe, € '+tot.toFixed(2)+']';
+  document.getElementById('rend-ov').classList.remove('open');
+  _presentaVociFattura(voci);
+  toast('🧾 Rendiconto letto: '+sel.length+' voci · € '+tot.toFixed(2)+' — controlla abbinamenti e importi, togli le voci che non vuoi inserire, poi applica');
+}
 function _importaReportPresenze(fogli, nomeFile){
   if(!Array.isArray(fogli) || !fogli.length || !fogli[0].griglia) fogli=[{foglio:'', griglia:fogli}];
   const dataDi = v=>{ if(v instanceof Date && !isNaN(v)) return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0'); const m=String(v||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'):''; };
@@ -6286,6 +6407,7 @@ function applicaFattura(){
   }
   toast(msg);
   goTab('list');
+  if(_inboxCorrente){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true); }
 }
 
 
@@ -6416,7 +6538,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v145</span>
+    <span>Report generato da GammaFucker v146</span>
   </div>
   </body></html>`;
 
@@ -6522,7 +6644,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v145</span>
+    <span>Report generato da GammaFucker v146</span>
   </div>
   </body></html>`;
 
@@ -6618,7 +6740,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v145</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v146</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -6691,7 +6813,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v145</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v146</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
