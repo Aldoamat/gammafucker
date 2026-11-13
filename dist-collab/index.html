@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v150</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v151</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -877,6 +877,24 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <button class="btn btn-o" style="flex:1;" onclick="rendReport()">📋 Report</button>
       <button class="btn btn-p" style="flex:2;" onclick="rendApplica()">✓ Inserisci le giornate selezionate come previsione</button>
       <button class="btn btn-o" onclick="document.getElementById('rend-ov').classList.remove('open')">Chiudi</button>
+    </div>
+  </div>
+</div>
+<!-- ══ RENDICONTO: nuovo evento per una giornata senza spettacolo in archivio ══ -->
+<div class="mover" id="rend-nuovo-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:460px;">
+    <div class="mtitle">➕ Nuovo evento</div>
+    <div id="rn-titolo" style="font-size:11px;color:var(--text2);margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div class="field" style="flex:1;min-width:130px;margin:0;"><label>Data</label><input type="date" id="rn-data"></div>
+      <div class="field" style="flex:1;min-width:130px;margin:0;"><label>Città</label><input type="text" id="rn-citta" list="rn-citta-dl" autocomplete="off" oninput="_rnTeatri()"><datalist id="rn-citta-dl"></datalist></div>
+    </div>
+    <div class="field" style="margin-top:8px;"><label>Teatro / spazio</label><input type="text" id="rn-teatro" list="rn-teatro-dl" autocomplete="off"><datalist id="rn-teatro-dl"></datalist></div>
+    <div class="field"><label>Titolo</label><input type="text" id="rn-spett" placeholder="es. DANZA STCT, PROVE, MANUTENZIONE…"></div>
+    <div class="field"><label>Manifestazione</label><select id="rn-manif"></select></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-p" style="flex:1;" onclick="_rnSalva()">✓ Ok</button>
+      <button class="btn btn-o" onclick="document.getElementById('rend-nuovo-ov').classList.remove('open')">Annulla</button>
     </div>
   </div>
 </div>
@@ -4565,7 +4583,8 @@ function _rendOpzioni(v){
   const tutti=data.filter(s=>s.data.slice(0,7)===mese).sort((a,b)=>a.data.localeCompare(b.data)||String(a.citta).localeCompare(String(b.citta)));
   const giorno=tutti.filter(s=>s.data===v.data && _cittaEq(s.citta,v.citta)), altri=tutti.filter(s=>!giorno.includes(s));
   const opt=s=>`<option value="${s.id}"${String(v.spettId)===String(s.id)&&!v.nuovo?' selected':''}>${fd(s.data)} ${esc(s.citta)} · ${esc(s.spett)}${s.teatro?' ('+esc(s.teatro)+')':''}${s.premontaggio?' · premontaggio':s.replicaOf?' · replica':''}</option>`;
-  return `<option value="__nuovo"${v.nuovo||!v.spettId?' selected':''}>➕ nuovo evento GESTIONE - NO AMAT: ${esc(v.teatro)} ${fd(v.data)}</option>`+
+  const nd=v.nuovoDati; const labNuovo=nd?`➕ nuovo: ${esc(nd.spett)} · ${esc(nd.citta)} · ${esc(nd.teatro)} (${esc(_manifLabel(nd.manif)||'—')}) ${fd(nd.data)}`:`➕ nuovo evento… (scegli data, città, teatro, titolo)`;
+  return `<option value="__nuovo"${v.nuovo||!v.spettId?' selected':''}>${labNuovo}</option>`+
     (giorno.length?`<optgroup label="Stesso giorno a ${esc(v.citta)}">${giorno.map(opt).join('')}</optgroup>`:'')+
     (altri.length?`<optgroup label="Tutto il mese">${altri.map(opt).join('')}</optgroup>`:'');
 }
@@ -4582,13 +4601,34 @@ function _rendRender(){
         <input type="checkbox" ${v.on?'checked':''} onchange="_rendDati.voci[${i}].on=this.checked;_rendRender()" style="width:15px;height:15px;">
         <span style="color:var(--gold);font-weight:700;white-space:nowrap;">${fd(v.data)}</span> <b>${esc(v.citta)} · ${esc(v.teatro)}</b>${v.tipo?' <span style="font-size:9px;padding:1px 6px;border-radius:10px;border:1px solid var(--purple);color:#c4b5fd;">'+esc(v.tipo)+'</span>':''}
         <span style="flex:1;"></span><b style="color:var(--green);">€ ${t.toLocaleString('it-IT',{minimumFractionDigits:2})}</b></div>
-      <div style="margin:3px 0 0 23px;font-size:10px;color:${conf?'#ef4444':'var(--green)'};">${sp&&!v.nuovo?'✓ '+esc(sp.spett)+(v.stato==='citta'?' <span style="color:var(--text3);">(stesso giorno, spazio diverso: '+esc(sp.teatro||'—')+')</span>':''):'⚠ nessuno spettacolo in archivio quel giorno in questo spazio: scegli dal menu o lascia "nuovo evento"'}</div>
+      <div style="margin:3px 0 0 23px;font-size:10px;color:${conf&&!v.nuovoDati?'#ef4444':'var(--green)'};">${sp&&!v.nuovo?'✓ '+esc(sp.spett)+(v.stato==='citta'?' <span style="color:var(--text3);">(stesso giorno, spazio diverso: '+esc(sp.teatro||'—')+')</span>':''):v.nuovoDati?'➕ verrà creato: <b>'+esc(v.nuovoDati.spett)+'</b> · '+esc(v.nuovoDati.citta)+' · '+esc(v.nuovoDati.teatro)+' <span style="color:var(--text3);">'+esc(_manifLabel(v.nuovoDati.manif))+'</span> <button class="iBtn" style="font-size:9px;padding:1px 6px;" onclick="_rendNuovo('+i+')">✎</button>':'⚠ nessuno spettacolo in archivio quel giorno in questo spazio: scegli dal menu, oppure <button class="iBtn" style="font-size:9px;padding:1px 6px;color:#f59e0b;border-color:rgba(245,158,11,.5);" onclick="_rendNuovo('+i+')">➕ crea nuovo evento</button>'}</div>
       <select onchange="_rendScegli(${i},this.value)" style="width:100%;margin:3px 0 0 23px;max-width:calc(100% - 23px);font-size:11px;padding:3px 6px;box-sizing:border-box;">${_rendOpzioni(v)}</select>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 0 23px;">${v.risorse.map((x,k)=>`<label style="display:flex;gap:4px;align-items:center;font-size:10px;border:1px solid var(--border);border-radius:14px;padding:2px 4px 2px 8px;">${esc(x.nome)} €<input type="number" step="0.01" value="${x.imp||''}" placeholder="0" oninput="_rendDati.voci[${i}].risorse[${k}].imp=+this.value||0;_rendTotali()" style="width:64px;font-size:10px;padding:2px 4px;border:none;background:transparent;color:var(--text);"></label>`).join('')}</div>
     </div>`; }).join('');
 }
 function _rendTotali(){ const {voci}=_rendDati; let tot=0, totSel=0; voci.forEach(v=>{ const t=v.risorse.reduce((a,x)=>a+(+x.imp||0),0); tot+=t; if(v.on) totSel+=t; }); const el=document.getElementById('rv-titolo'); el.textContent=el.textContent.replace(/selezionate € .*$/, 'selezionate € '+totSel.toLocaleString('it-IT',{minimumFractionDigits:2})+' su € '+tot.toLocaleString('it-IT',{minimumFractionDigits:2})); }
-function _rendScegli(i, val){ const v=_rendDati.voci[i]; if(val==='__nuovo'){ v.nuovo=true; v.spettId=null; } else { v.nuovo=false; v.spettId=val; const s=data.find(x=>String(x.id)===String(val)); v.stato=s&&_teatroEq(s.teatro||'',v.teatro)?'spazio':'citta'; } _rendRender(); }
+// Nuovo evento per una giornata: finestra con data, città, teatro, titolo e manifestazione (precompilata dal rendiconto)
+let _rnIdx=null;
+function _rendNuovo(i){
+  const v=_rendDati.voci[i]; _rnIdx=i; const d=v.nuovoDati||{};
+  const forn=document.getElementById('rv-forn').value.trim().toUpperCase();
+  document.getElementById('rn-titolo').textContent=(v.tipo?v.tipo+' · ':'')+v.risorse.map(x=>x.nome).join(', ');
+  document.getElementById('rn-citta-dl').innerHTML=Object.keys(teatriDB||{}).sort().map(c=>`<option value="${c}">`).join('');
+  document.getElementById('rn-data').value=d.data||v.data; document.getElementById('rn-citta').value=d.citta||v.citta||''; _rnTeatri(); document.getElementById('rn-teatro').value=d.teatro||v.teatro||'';
+  document.getElementById('rn-spett').value=d.spett||((v.tipo||'LAVORI')+(forn?' '+forn:''));
+  const manifs=[...new Set([...[...document.querySelectorAll('#f-manif option')].map(o=>o.value), ...data.map(x=>(x.manif||'').trim())].filter(m=>m&&m!=='GESTIONE'))].sort();
+  const sel=document.getElementById('rn-manif'); sel.innerHTML='<option value="GESTIONE">GESTIONE - NO AMAT</option><option value="">— nessuna —</option>'+manifs.map(m=>`<option value="${m.replace(/"/g,'&quot;')}">${m.replace(/</g,'&lt;')}</option>`).join(''); sel.value=d.manif!==undefined?d.manif:'GESTIONE';
+  document.getElementById('rend-nuovo-ov').classList.add('open');
+}
+function _rnTeatri(){ const c=document.getElementById('rn-citta').value.trim().toUpperCase(); const k=Object.keys(teatriDB||{}).find(x=>_cittaEq(x,c)); document.getElementById('rn-teatro-dl').innerHTML=((k&&teatriDB[k])||[]).map(t=>`<option value="${t}">`).join(''); }
+function _rnSalva(){
+  const v=_rendDati.voci[_rnIdx]; if(!v) return;
+  const data_=document.getElementById('rn-data').value, citta=document.getElementById('rn-citta').value.trim().toUpperCase(), teatro=document.getElementById('rn-teatro').value.trim().toUpperCase(), spett=document.getElementById('rn-spett').value.trim().toUpperCase(), manif=document.getElementById('rn-manif').value;
+  if(!data_||!citta||!spett){ toast('Data, città e titolo obbligatori', true); return; }
+  v.nuovo=true; v.spettId=null; v.nuovoDati={data:data_, citta, teatro, spett, manif};
+  document.getElementById('rend-nuovo-ov').classList.remove('open'); _rendRender();
+}
+function _rendScegli(i, val){ const v=_rendDati.voci[i]; if(val==='__nuovo'){ v.nuovo=true; v.spettId=null; if(!v.nuovoDati) _rendNuovo(i); } else { v.nuovo=false; v.spettId=val; const s=data.find(x=>String(x.id)===String(val)); v.stato=s&&_teatroEq(s.teatro||'',v.teatro)?'spazio':'citta'; } _rendRender(); }
 function _rendApplicaTariffa(){
   // stessa tariffa per una risorsa su tutte le giornate (comodo: la scrivi una volta sola)
   const nomi=[...new Set(_rendDati.voci.flatMap(v=>v.risorse.map(x=>x.nome)))];
@@ -4622,8 +4662,9 @@ function rendApplica(){
   const prima=_undoSnapshot(); const mkNote=_rendNote(forn, num); let mod=0, creati=0;
   sel.forEach(v=>{ const note=mkNote(v); if(!note.length) return;
     let s=v.spettId&&!v.nuovo?data.find(x=>String(x.id)===String(v.spettId)):null;
-    if(!s){ if(!teatriDB[v.citta]) teatriDB[v.citta]=[]; if(v.teatro && !teatriDB[v.citta].some(t=>_teatroEq(t,v.teatro))) teatriDB[v.citta].push(v.teatro);
-      s={id:Date.now()+Math.random(), data:v.data, citta:v.citta, teatro:v.teatro, spett:(v.tipo||'LAVORI')+' '+forn, manif:'GESTIONE', nm:0,tm:tariffe.m,sm:0,ne:0,te:tariffe.e,se:0,nf:0,tf:tariffe.f,sf:0,totale:0, note:'', fatturato:false, fromAI:true, ts:new Date().toISOString()}; data.push(s); creati++; }
+    if(!s){ const nd=v.nuovoDati||{data:v.data, citta:v.citta, teatro:v.teatro, spett:(v.tipo||'LAVORI')+' '+forn, manif:'GESTIONE'};
+      const ck=Object.keys(teatriDB).find(x=>_cittaEq(x,nd.citta))||nd.citta; if(!teatriDB[ck]) teatriDB[ck]=[]; if(nd.teatro && !teatriDB[ck].some(t=>_teatroEq(t,nd.teatro))) teatriDB[ck].push(nd.teatro);
+      s={id:Date.now()+Math.random(), data:nd.data, citta:ck, teatro:nd.teatro, spett:nd.spett, manif:nd.manif||'', nm:0,tm:tariffe.m,sm:0,ne:0,te:tariffe.e,se:0,nf:0,tf:tariffe.f,sf:0,totale:0, note:'', fatturato:false, fromAI:true, ts:new Date().toISOString()}; data.push(s); creati++; }
     const righe=(s.note||'').split('|').map(l=>l.trim()).filter(Boolean).filter(l=>!(l.startsWith('Fattura n.'+num+' '+forn)));   // ricarico dello stesso rendiconto: sostituisce
     s.note=[...righe, ...note].join(' | '); mod++; });
   if(!mod){ toast('Niente da inserire', true); return; }
@@ -6623,7 +6664,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v150</span>
+    <span>Report generato da GammaFucker v151</span>
   </div>
   </body></html>`;
 
@@ -6729,7 +6770,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v150</span>
+    <span>Report generato da GammaFucker v151</span>
   </div>
   </body></html>`;
 
@@ -6825,7 +6866,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v150</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v151</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -6898,7 +6939,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v150</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v151</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
