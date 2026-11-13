@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v153</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v154</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1142,7 +1142,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
         <div class="btn btn-o" style="flex:1;text-align:center;cursor:pointer;font-size:12px;border-color:#fbbf24;color:#fbbf24;" onclick="apriInbox()" title="Fatture caricate dall'amministrazione nella cartella Drive condivisa">📥 Da Drive</div>
       </div>
       <div style="font-size:10px;color:var(--text3);margin-top:4px;">Excel accettati anche i report presenze della ditta (turni per giorno) e i rendiconti lavori (una riga per risorsa/giorno, es. STCT): vengono letti direttamente, senza AI.</div>
-      <input type="file" id="fatt-file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="loadFatturaPDF(this)">
+      <input type="file" id="fatt-file" accept=".pdf,.jpg,.jpeg,.png,.html,.htm,.mht,.mhtml,.xml" style="display:none" onchange="loadFatturaPDF(this)">
       <input type="file" id="fatt-file-excel" accept=".xlsx,.xls,.csv" style="display:none" onchange="loadFatturaExcel(this)">
       <div id="fatt-pdf-name" style="font-size:10px;color:var(--purple);margin-top:4px;display:none;"></div>
     </div>
@@ -4130,8 +4130,40 @@ function aiImporta(){
 // ══════════════════════════════ ANALISI FATTURA ══════════════════════════════
 let fattVoci = []; // voci estratte dalla fattura con match spettacolo
 
+// Fatture HTML (pagine salvate da portali/mail) e XML FatturaPA: non sono PDF, vanno lette come testo.
+// HTML → testo visibile con righe di tabella separate da " | "; XML → tag foglia "Nome: valore" (allegati base64 esclusi).
+function _isFatturaTesto(file){ return /^text\/(html|xml|plain)|application\/(xhtml\+xml|xml)/i.test(file.type||'') || /\.(html?|xhtml|mht|xml|txt)$/i.test(file.name||''); }
+function _fatturaDaTesto(raw, nome){
+  const isXml=/\.xml$/i.test(nome) || (/^\s*<\?xml/i.test(raw) && !/<html/i.test(raw));
+  if(isXml){
+    try{ const doc=new DOMParser().parseFromString(raw,'application/xml'); if(!doc.querySelector('parsererror')){
+      const out=[]; (function giro(el, liv){ for(const c of el.children){ const n=c.localName;
+        if(/^Attachment$|^Allegati$/i.test(n)) continue;
+        if(!c.children.length){ const t=(c.textContent||'').trim(); if(t) out.push('  '.repeat(liv)+n+': '+t); }
+        else { out.push('  '.repeat(liv)+'['+n+']'); giro(c, liv+1); } } })(doc.documentElement, 0);
+      return out.join('\n'); } }catch(e){}
+  }
+  // MHT/MHTML: prendo la parte HTML (quoted-printable)
+  if(/^MIME-Version:/im.test(raw) && /text\/html/i.test(raw)){ const m=raw.match(/Content-Type:\s*text\/html[\s\S]*?\r?\n\r?\n([\s\S]*?)(\r?\n--|$)/i); if(m) raw=m[1].replace(/=\r?\n/g,'').replace(/=([0-9A-F]{2})/gi,(_,h)=>String.fromCharCode(parseInt(h,16))); }
+  const doc=new DOMParser().parseFromString(raw,'text/html');
+  doc.querySelectorAll('script,style,noscript,head').forEach(e=>e.remove());
+  doc.querySelectorAll('tr').forEach(tr=>{ const celle=[...tr.children].map(td=>td.textContent.replace(/\s+/g,' ').trim()).filter(Boolean); tr.replaceWith(doc.createTextNode('\n'+celle.join(' | ')+'\n')); });
+  doc.querySelectorAll('br').forEach(b=>b.replaceWith('\n'));
+  doc.querySelectorAll('p,div,li,h1,h2,h3,h4,h5,h6,table,section').forEach(b=>b.append('\n'));
+  return (doc.body?doc.body.textContent:raw).split('\n').map(l=>l.replace(/[ \t ]+/g,' ').trim()).filter(Boolean).join('\n');
+}
+
 function loadFatturaPDF(input){
   const file = input.files[0]; if(!file) return;
+  if(_isFatturaTesto(file)){
+    const r=new FileReader();
+    r.onload=()=>{ let txt=''; try{ txt=_fatturaDaTesto(String(r.result||''), file.name); }catch(ex){ txt=''; }
+      if(!txt){ toast('File '+file.name+' vuoto o illeggibile', true); return; }
+      const el=document.getElementById('fatt-testo'); el.value=txt.slice(0,60000); el.dataset.pdfB64=''; el.dataset.imgB64=''; el.dataset.pdfName=file.name;
+      const nm=document.getElementById('fatt-pdf-name'); nm.textContent='🌐 '+file.name+' (letto come testo)'; nm.style.display='block';
+      toast('🌐 '+file.name+' convertito in testo — controlla e premi Analizza Fattura'); };
+    r.readAsText(file); input.value=''; return;
+  }
   const isImage = file.type.startsWith('image/');
   const isPDF   = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   const icon    = isImage ? '🖼️' : '📄';
@@ -4517,7 +4549,7 @@ async function caricaInbox(){
     const files=j.files||[];
     if(!files.length){ box.innerHTML='<div style="padding:12px;text-align:center;color:var(--green);">✓ Nessuna fattura in attesa</div>'; return; }
     const fd=d=>{ try{ return new Date(d).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'2-digit'}); }catch{ return ''; } };
-    const ico=m=>/pdf/.test(m)?'📄':/image/.test(m)?'🖼️':/sheet|excel|csv/.test(m)?'📊':'📎';
+    const ico=m=>/html|xml/.test(m)?'🌐':/pdf/.test(m)?'📄':/image/.test(m)?'🖼️':/sheet|excel|csv/.test(m)?'📊':'📎';
     box.innerHTML=files.map(f=>`<div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--border);">
       <span>${ico(f.mime)}</span><div style="flex:1;min-width:0;"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(f.nome)}</div><div style="font-size:10px;color:var(--text3);">${fd(f.data)} · ${Math.round((f.size||0)/1024)} KB</div></div>
       <button class="btn btn-p" style="font-size:11px;padding:5px 10px;" onclick="_inboxAnalizza('${_js(f.id)}','${_js(f.nome)}')">🔍 Analizza</button>
@@ -4534,7 +4566,12 @@ async function _inboxAnalizza(id, nome){
     const isImg=/^image\//i.test(mime) || /\.(jpe?g|png|heic|webp)$/i.test(nomeF);
     _inboxCorrente={id, nome:nomeF};
     document.getElementById('inbox-ov').classList.remove('open'); goTab('forn');
-    if(isExcel){
+    const isTxt=/html|xml|text\//i.test(mime) || /\.(html?|xhtml|mht|xml|txt)$/i.test(nomeF);
+    if(isTxt){
+      // fattura salvata come pagina web / XML FatturaPA: la leggo come testo
+      const bin=atob(j.b64); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+      loadFatturaPDF({files:[new File([arr], nomeF, {type:/xml/i.test(mime)||/\.xml$/i.test(nomeF)?'application/xml':'text/html'})], value:''});
+    } else if(isExcel){
       const bin=atob(j.b64); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
       loadFatturaExcel({files:[new File([arr], nomeF, {type:mime})], value:''});
     } else {
@@ -6676,7 +6713,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v153</span>
+    <span>Report generato da GammaFucker v154</span>
   </div>
   </body></html>`;
 
@@ -6782,7 +6819,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v153</span>
+    <span>Report generato da GammaFucker v154</span>
   </div>
   </body></html>`;
 
@@ -6878,7 +6915,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v153</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v154</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -6951,7 +6988,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v153</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v154</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');

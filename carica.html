@@ -37,7 +37,7 @@
   <input type="password" id="pin" placeholder="PIN condiviso" inputmode="numeric" autocomplete="off">
   <label>Fatture (PDF, foto, Excel)</label>
   <div class="drop" id="drop" onclick="document.getElementById('f').click()">📎 Tocca per scegliere i file<br><span style="font-size:12px;">oppure trascinali qui · puoi sceglierne più di uno</span></div>
-  <input type="file" id="f" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.xlsx,.xls,.csv,image/*,application/pdf" style="display:none" onchange="scegli(this.files)">
+  <input type="file" id="f" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.xlsx,.xls,.csv,.html,.htm,.mht,.mhtml,.xml,image/*,application/pdf" style="display:none" onchange="scegli(this.files)">
   <div id="lista"></div>
   <button class="btn" id="btn" onclick="carica()" disabled>📤 Carica</button>
 </div>
