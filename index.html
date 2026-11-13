@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v154</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v155</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -4616,7 +4616,9 @@ function _importaRendiconto(griglia, nomeFile){
     const giorno=data.filter(s=>s.data===v.data && _cittaEq(s.citta,v.citta));
     const spazio=giorno.filter(s=>_teatroEq(s.teatro||'', v.teatro));
     const m=(spazio.length?spazio:giorno).filter(s=>!s.premontaggio)[0]||(spazio.length?spazio:giorno)[0];
-    v.spettId=m?m.id:null; v.stato=m?(spazio.length?'spazio':'citta'):'nessuno'; });
+    v.spettId=m?m.id:null; v.stato=m?(spazio.length?'spazio':'citta'):'nessuno';
+    // abbinato a uno spettacolo in un altro spazio: la riga prende lo spazio dello spettacolo (il file resta in "dal file")
+    if(m && !spazio.length){ v.destOrig=v.dest||(v.teatro+(v.citta?' - '+v.citta:'')); v.teatro=(m.teatro||'').toUpperCase(); v.citta=(m.citta||v.citta||'').toUpperCase(); v.stato='spazio'; } });
   _rendDati={voci, nomeFile, forn};
   const mese=voci[0].data.slice(0,7).split('-').reverse().join('.');
   document.getElementById('rv-forn').value=forn; document.getElementById('rv-num').value='PREV-REND'+mese;
@@ -4646,12 +4648,21 @@ function _rendRender(){
     return `<div style="padding:6px 8px;border:1px solid ${conf?'rgba(239,68,68,.5)':'var(--border)'};border-radius:6px;margin-bottom:4px;font-size:11px;background:${conf?'rgba(239,68,68,.07)':'var(--bg)'};${v.on?'':'opacity:.55;'}">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <input type="checkbox" ${v.on?'checked':''} onchange="_rendDati.voci[${i}].on=this.checked;_rendRender()" style="width:15px;height:15px;">
-        <span style="color:var(--gold);font-weight:700;white-space:nowrap;">${fd(v.data)}</span> <b>${esc(v.citta)} · ${esc(v.teatro)}</b>${v.destOrig&&v.destOrig!==v.dest?'':''}${v.destOrig?' <span style="font-size:9px;color:var(--text3);" title="luogo scritto nel rendiconto">(dal file: '+esc(v.destOrig)+')</span>':''}${v.tipo?' <span style="font-size:9px;padding:1px 6px;border-radius:10px;border:1px solid var(--purple);color:#c4b5fd;">'+esc(v.tipo)+'</span>':''}
+        <span style="color:var(--gold);font-weight:700;white-space:nowrap;">${fd(v.data)}</span> <b>${esc(v.citta)} · ${esc(v.teatro)}</b> <button class="iBtn" style="font-size:9px;padding:0 5px;" title="Correggi lo spazio di questa giornata" onclick="_rendSpazio(${i})">✎</button>${v.destOrig&&v.destOrig!==v.dest?'':''}${v.destOrig?' <span style="font-size:9px;color:var(--text3);" title="luogo scritto nel rendiconto">(dal file: '+esc(v.destOrig)+')</span>':''}${v.tipo?' <span style="font-size:9px;padding:1px 6px;border-radius:10px;border:1px solid var(--purple);color:#c4b5fd;">'+esc(v.tipo)+'</span>':''}
         <span style="flex:1;"></span><b style="color:var(--green);">€ ${t.toLocaleString('it-IT',{minimumFractionDigits:2})}</b></div>
       <div style="margin:3px 0 0 23px;font-size:10px;color:${conf&&!v.nuovoDati?'#ef4444':'var(--green)'};">${sp&&!v.nuovo?'✓ '+esc(sp.spett)+(v.stato==='citta'?' <span style="color:var(--text3);">(stesso giorno, spazio diverso: '+esc(sp.teatro||'—')+')</span>':''):v.nuovoDati?'➕ verrà creato: <b>'+esc(v.nuovoDati.spett)+'</b> · '+esc(v.nuovoDati.citta)+' · '+esc(v.nuovoDati.teatro)+' <span style="color:var(--text3);">'+esc(_manifLabel(v.nuovoDati.manif))+'</span> <button class="iBtn" style="font-size:9px;padding:1px 6px;" onclick="_rendNuovo('+i+')">✎</button>':'⚠ nessuno spettacolo in archivio quel giorno in questo spazio: scegli dal menu, oppure <button class="iBtn" style="font-size:9px;padding:1px 6px;color:#f59e0b;border-color:rgba(245,158,11,.5);" onclick="_rendNuovo('+i+')">➕ crea nuovo evento</button>'}</div>
       <select onchange="_rendScegli(${i},this.value)" style="width:100%;margin:3px 0 0 23px;max-width:calc(100% - 23px);font-size:11px;padding:3px 6px;box-sizing:border-box;">${_rendOpzioni(v)}</select>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 0 23px;">${v.risorse.map((x,k)=>`<label style="display:flex;gap:4px;align-items:center;font-size:10px;border:1px solid var(--border);border-radius:14px;padding:2px 4px 2px 8px;">${esc(x.nome)} €<input type="number" step="0.01" value="${x.imp||''}" placeholder="0" oninput="_rendDati.voci[${i}].risorse[${k}].imp=+this.value||0;_rendTotali()" style="width:64px;font-size:10px;padding:2px 4px;border:none;background:transparent;color:var(--text);"></label>`).join('')}</div>
     </div>`; }).join('');
+}
+function _rendSpazio(i){
+  const v=_rendDati.voci[i]; const ck=Object.keys(teatriDB||{}).find(x=>_cittaEq(x,v.citta)); const lista=((ck&&teatriDB[ck])||[]);
+  const t=prompt('Spazio per '+v.citta+' il '+v.data+(lista.length?'\n(es. '+lista.join(', ')+')':''), v.teatro||''); if(t===null) return;
+  const nuovo=t.trim().toUpperCase(); if(!nuovo || nuovo===v.teatro) return;
+  const trovato=lista.find(x=>_teatroEq(x,nuovo)); if(!v.destOrig) v.destOrig=v.dest||(v.teatro+(v.citta?' - '+v.citta:''));
+  v.teatro=(trovato||nuovo).toUpperCase(); if(v.nuovoDati) v.nuovoDati.teatro=v.teatro;
+  const sp=v.spettId&&!v.nuovo?data.find(s=>String(s.id)===String(v.spettId)):null; v.stato=sp?(_teatroEq(sp.teatro||'',v.teatro)?'spazio':'citta'):v.stato;
+  _rendRender();
 }
 function _rendTotali(){ const {voci}=_rendDati; let tot=0, totSel=0; voci.forEach(v=>{ const t=v.risorse.reduce((a,x)=>a+(+x.imp||0),0); tot+=t; if(v.on) totSel+=t; }); const el=document.getElementById('rv-titolo'); el.textContent=el.textContent.replace(/selezionate € .*$/, 'selezionate € '+totSel.toLocaleString('it-IT',{minimumFractionDigits:2})+' su € '+tot.toLocaleString('it-IT',{minimumFractionDigits:2})); }
 // Nuovo evento per una giornata: finestra con data, città, teatro, titolo e manifestazione (precompilata dal rendiconto)
@@ -6713,7 +6724,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v154</span>
+    <span>Report generato da GammaFucker v155</span>
   </div>
   </body></html>`;
 
@@ -6819,7 +6830,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v154</span>
+    <span>Report generato da GammaFucker v155</span>
   </div>
   </body></html>`;
 
@@ -6915,7 +6926,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v154</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v155</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -6988,7 +6999,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v154</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v155</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
