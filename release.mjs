@@ -107,7 +107,14 @@ function build(target) {
   write(path.join(P.distCollab, 'manifest.json'), JSON.stringify(man, null, 2));
   for (const f of ['icon-192.png', 'icon-512.png']) fs.copyFileSync(path.join(ROOT, f), path.join(P.distCollab, f));
 
-  console.log(`✓ index.html, sw.js, Codice.js aggiornati; dist/ e dist-collab/ pronte`);
+  // Pagina pubblica di caricamento fatture (amministrazione senza account Google): dist/carica/index.html
+  // con l'URL dello script integrato (lo stesso dell'app).
+  const urlMatch = idx.match(/const COLLAB_SHEETS_URL = '([^']+)'/);
+  if (!urlMatch) throw new Error('COLLAB_SHEETS_URL non trovato in index.html');
+  fs.mkdirSync(path.join(P.dist, 'carica'), { recursive: true });
+  write(path.join(P.dist, 'carica', 'index.html'), read(path.join(ROOT, 'carica.html')).replace('__SHEETS_URL__', urlMatch[1]));
+
+  console.log(`✓ index.html, sw.js, Codice.js aggiornati; dist/ (+carica/) e dist-collab/ pronte`);
   console.log('  Controlla il diff, poi: node release.mjs deploy');
 }
 

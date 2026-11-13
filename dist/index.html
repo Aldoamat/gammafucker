@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v146</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v148</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -843,7 +843,12 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <div class="mover" id="inbox-ov" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" style="max-width:600px;max-height:92vh;overflow-y:auto;">
     <div class="mtitle">📥 Fatture in arrivo (Drive)</div>
-    <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Cartella Drive <b>GammaFucker Documenti / Fatture in arrivo</b>: condividila in modifica con l'amministrazione, loro ci caricano le fatture e tu le analizzi da qui. Dopo l'inserimento il file passa in "Elaborate".</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">L'amministrazione carica le fatture dalla <b>pagina di caricamento</b> (senza account Google, basta il PIN) oppure direttamente nella cartella Drive <b>GammaFucker Documenti / Fatture in arrivo</b>. Tu le analizzi da qui; dopo l'inserimento il file passa in "Elaborate".</div>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;">
+      <a id="inbox-pagina" href="#" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;font-size:11px;padding:3px 9px;color:#fbbf24;border-color:rgba(251,191,36,.5);">📤 Pagina di caricamento</a>
+      <button class="iBtn" style="font-size:11px;padding:3px 9px;" onclick="_inboxCopiaPagina()">🔗 Copia link per l'amministrazione</button>
+      <button class="iBtn" style="font-size:11px;padding:3px 9px;" onclick="_inboxPin()">🔑 PIN</button>
+    </div>
     <div id="inbox-link" style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;"></div>
     <div id="inbox-box" style="font-size:12px;"></div>
     <div style="display:flex;gap:8px;margin-top:12px;">
@@ -852,18 +857,25 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     </div>
   </div>
 </div>
-<!-- ══ RENDICONTO LAVORI (fornitore: una riga per risorsa/giorno) → tariffe per risorsa ══ -->
+<!-- ══ RENDICONTO LAVORI (fornitore: una riga per risorsa/giorno) → verifica come i calendari ══ -->
 <div class="mover" id="rend-ov" onclick="if(event.target===this)this.classList.remove('open')">
-  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto;">
-    <div class="mtitle">🧾 Rendiconto lavori · tariffe</div>
-    <div id="rend-titolo" style="font-size:11px;color:var(--text2);margin-bottom:8px;"></div>
-    <div class="field"><label>Fornitore</label><input type="text" id="rend-forn" list="ditta-list" autocomplete="off"></div>
-    <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin:8px 0 4px;">Costo per giornata di ogni risorsa (0 = da decidere in anteprima; deseleziona per escludere)</div>
-    <div id="rend-righe" style="display:flex;flex-direction:column;gap:4px;"></div>
-    <div style="font-size:10px;color:var(--text3);margin-top:6px;">Le tariffe si ricordano per la volta dopo. In anteprima puoi correggere spettacolo e importi, scegliere quali voci inserire (tocca la riga per escluderla) e stampare il report.</div>
-    <div style="display:flex;gap:8px;margin-top:12px;">
-      <button class="btn btn-p" style="flex:1;" onclick="_rendContinua()">➡ Continua</button>
-      <button class="btn btn-o" onclick="document.getElementById('rend-ov').classList.remove('open')">Annulla</button>
+  <div class="modal" style="max-width:720px;max-height:94vh;overflow-y:auto;">
+    <div class="mtitle">🧾 Rendiconto lavori · verifica</div>
+    <div id="rv-titolo" style="font-size:11px;color:var(--text2);margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <div class="field" style="flex:2;min-width:160px;margin:0;"><label>Fornitore</label><input type="text" id="rv-forn" list="ditta-list" autocomplete="off"></div>
+      <div class="field" style="flex:1;min-width:120px;margin:0;"><label>N° previsione</label><input type="text" id="rv-num"></div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:11px;margin-bottom:6px;">
+      <label style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" checked onchange="_rendDati.voci.forEach(v=>v.on=this.checked);_rendRender()" style="width:14px;height:14px;"> tutte</label>
+      <button class="iBtn" style="font-size:10px;padding:3px 8px;" onclick="_rendApplicaTariffa()" title="Scrivi una volta il costo di una risorsa e vale su tutte le sue giornate">€ tariffa per risorsa</button>
+      <span style="color:var(--text3);font-size:10px;">Le tariffe usate vengono ricordate per il prossimo rendiconto dello stesso fornitore.</span>
+    </div>
+    <div id="rv-box"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+      <button class="btn btn-o" style="flex:1;" onclick="rendReport()">📋 Report</button>
+      <button class="btn btn-p" style="flex:2;" onclick="rendApplica()">✓ Inserisci le giornate selezionate come previsione</button>
+      <button class="btn btn-o" onclick="document.getElementById('rend-ov').classList.remove('open')">Chiudi</button>
     </div>
   </div>
 </div>
@@ -4469,7 +4481,13 @@ async function _inboxCall(payload){
   const url=ld('sheetsUrl',''); if(!url) throw new Error('Configura Sheets URL');
   const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)}); const j=await r.json(); if(j.error) throw new Error(j.error); return j;
 }
-function apriInbox(){ document.getElementById('inbox-ov').classList.add('open'); caricaInbox(); }
+function _inboxPaginaUrl(){ return new URL('carica/', location.href).href; }
+function apriInbox(){ document.getElementById('inbox-pagina').href=_inboxPaginaUrl(); document.getElementById('inbox-ov').classList.add('open'); caricaInbox(); }
+function _inboxCopiaPagina(){ const pin=ld('inboxPin',''); const testo='Per caricare le fatture a Aldo: '+_inboxPaginaUrl()+(pin?'\nPIN: '+pin:''); navigator.clipboard.writeText(testo).then(()=>toast('✓ Link copiato'+(pin?' (con il PIN)':''))).catch(()=>prompt('Copia:', testo)); }
+async function _inboxPin(){
+  const cur=ld('inboxPin',''); const pin=prompt('PIN che l\'amministrazione deve inserire nella pagina di caricamento (vuoto = nessun PIN):', cur); if(pin===null) return;
+  try{ await _inboxCall({action:'setInboxPin', pin:pin.trim()}); sv('inboxPin', pin.trim()); toast(pin.trim()?'✓ PIN impostato: '+pin.trim():'✓ PIN tolto: la pagina accetta tutti'); }catch(e){ toast('Errore: '+e.message, true); }
+}
 async function caricaInbox(){
   const box=document.getElementById('inbox-box'); box.innerHTML='<div style="padding:12px;text-align:center;color:var(--text3);">⏳ leggo la cartella…</div>';
   try{
@@ -4505,13 +4523,14 @@ async function _inboxArchivia(id, nome, silenzioso){
 }
 
 // ── Rendiconto lavori del fornitore (es. STCT): una riga per risorsa/giorno, senza prezzi ──
-// Lettura diretta → finestra tariffe per risorsa → anteprima fattura (match per data+teatro, correzioni,
-// scelta delle voci da inserire come previsione, report). Numero: PREV-REND<mese>.
+// Verifica come per i calendari: una riga per giornata/spazio con stato (✓ spettacolo trovato / ⚠ nessuno),
+// menu per scegliere o correggere lo spettacolo, costo per risorsa, spunta per decidere cosa inserire.
+// Alla fine: report stampabile e inserimento nelle note come previsione (PREV-REND<mese>).
 let _rendDati=null;
 function _importaRendiconto(griglia, nomeFile){
   const hIdx=griglia.findIndex(r=>{ const h=r.map(c=>String(c).toLowerCase()); return h.includes('risorsa') && h.includes('destinazione'); });
   const H=griglia[hIdx].map(c=>String(c).trim().toLowerCase()); const col=re=>H.findIndex(h=>re.test(h));
-  const cId=col(/^id$/), cData=col(/^data/), cTipo=col(/tipolog/), cDest=col(/destinazione/), cRis=col(/risorsa/), cOra=col(/^ora/), cStato=col(/stato/);
+  const cId=col(/^id$/), cData=col(/^data/), cTipo=col(/tipolog/), cDest=col(/destinazione/), cRis=col(/risorsa/), cOra=col(/^ora/);
   const dataDi=v=>{ if(v instanceof Date && !isNaN(v)) return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
     if(typeof v==='number' && v>20000 && v<80000){ const d=new Date(Math.round((v-25569)*86400000)); return d.toISOString().slice(0,10); }
     const m=String(v||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'):''; };
@@ -4519,38 +4538,102 @@ function _importaRendiconto(griglia, nomeFile){
   for(let i=hIdx+1;i<griglia.length;i++){ const r=griglia[i]; const d=dataDi(r[cData]); const ris=String(r[cRis]||'').trim(); if(!d||!ris) continue;
     const dest=String(r[cDest]||'').trim(); const parti=dest.split(/\s+-\s+/); let teatro=parti[0]||'', citta=parti.length>1?parti[parti.length-1]:'';
     citta=_risolviCitta(citta, teatro)||citta;
-    righe.push({id:String(r[cId]||''), data:d, tipo:String(r[cTipo]||'').trim(), dest, teatro, citta, risorsa:ris.toUpperCase(), ora:cOra>=0?String(r[cOra]||''):'', stato:cStato>=0?String(r[cStato]||''):''}); }
+    righe.push({id:String(r[cId]||''), data:d, tipo:String(r[cTipo]||'').trim(), dest, teatro:teatro.toUpperCase(), citta:(citta||'').toUpperCase(), risorsa:ris.toUpperCase(), ora:cOra>=0?String(r[cOra]||''):''}); }
   if(!righe.length){ toast('Rendiconto: nessuna riga riconosciuta', true); return; }
-  righe.sort((a,b)=>a.data.localeCompare(b.data)||a.risorsa.localeCompare(b.risorsa));
-  _rendDati={righe, nomeFile};
-  const risorse=[...new Set(righe.map(r=>r.risorsa))]; const tar=ld('rendTariffe',{});
-  const forn=(document.getElementById('prev-fornitore').value.trim()||document.getElementById('fatt-fornitore').value.trim()||tar._ultimoForn||'').toUpperCase();
-  document.getElementById('rend-forn').value=forn;
-  const mesi=[...new Set(righe.map(r=>r.data.slice(0,7)))].join(', ');
-  document.getElementById('rend-titolo').textContent=nomeFile+' · '+righe.length+' righe · '+risorse.length+' risorse · '+mesi;
-  const esc=v=>String(v||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-  document.getElementById('rend-righe').innerHTML=risorse.map((r,i)=>{ const n=righe.filter(x=>x.risorsa===r).length; const tipi=[...new Set(righe.filter(x=>x.risorsa===r).map(x=>x.tipo).filter(Boolean))].join('/'); const v=(tar[forn]&&tar[forn][r])||'';
-    return `<div style="display:flex;gap:6px;align-items:center;"><input type="checkbox" class="rend-on" data-r="${esc(r)}" checked style="width:14px;height:14px;"><div style="flex:1;font-size:12px;"><b>${esc(r)}</b> <span style="color:var(--text3);font-size:10px;">${n} giornat${n===1?'a':'e'}${tipi?' · '+esc(tipi):''}</span></div><input type="number" step="0.01" class="rend-tar" data-r="${esc(r)}" value="${v}" placeholder="€/giorno" style="width:90px;"></div>`; }).join('');
-  buildDittaDatalist();
+  // una voce per giornata + spazio, con le risorse di quel giorno
+  const perG={}; righe.forEach(r=>{ const k=r.data+'||'+r.citta+'||'+r.teatro; (perG[k]=perG[k]||{data:r.data, citta:r.citta, teatro:r.teatro, dest:r.dest, tipo:r.tipo, ora:r.ora, risorse:[], on:true, spettId:null, nuovo:false}); const g=perG[k]; if(!g.risorse.some(x=>x.nome===r.risorsa)) g.risorse.push({nome:r.risorsa, imp:0}); if(r.tipo && !g.tipo.includes(r.tipo)) g.tipo+=(g.tipo?'/':'')+r.tipo; });
+  const voci=Object.values(perG).sort((a,b)=>a.data.localeCompare(b.data)||a.teatro.localeCompare(b.teatro));
+  const tar=ld('rendTariffe',{}); const forn=(document.getElementById('fatt-fornitore').value.trim()||tar._ultimoForn||'').toUpperCase();
+  voci.forEach(v=>{ v.risorse.forEach(x=>{ x.imp=+((tar[forn]||{})[x.nome]||0); });
+    // abbinamento: stesso giorno e città, prima chi sta nello stesso spazio
+    const giorno=data.filter(s=>s.data===v.data && _cittaEq(s.citta,v.citta));
+    const spazio=giorno.filter(s=>_teatroEq(s.teatro||'', v.teatro));
+    const m=(spazio.length?spazio:giorno).filter(s=>!s.premontaggio)[0]||(spazio.length?spazio:giorno)[0];
+    v.spettId=m?m.id:null; v.stato=m?(spazio.length?'spazio':'citta'):'nessuno'; });
+  _rendDati={voci, nomeFile, forn};
+  const mese=voci[0].data.slice(0,7).split('-').reverse().join('.');
+  document.getElementById('rv-forn').value=forn; document.getElementById('rv-num').value='PREV-REND'+mese;
+  _rendRender();
   document.getElementById('rend-ov').classList.add('open');
 }
-function _rendContinua(){
-  if(!_rendDati) return;
-  const forn=document.getElementById('rend-forn').value.trim().toUpperCase(); if(!forn){ toast('Indica il fornitore', true); return; }
-  const on=new Set([...document.querySelectorAll('.rend-on:checked')].map(c=>c.dataset.r)); const tar={}; document.querySelectorAll('.rend-tar').forEach(i=>{ tar[i.dataset.r]=+i.value||0; });
-  const mem=ld('rendTariffe',{}); mem[forn]=Object.assign(mem[forn]||{}, tar); mem._ultimoForn=forn; sv('rendTariffe', mem);
-  const sel=_rendDati.righe.filter(r=>on.has(r.risorsa)); if(!sel.length){ toast('Nessuna risorsa selezionata', true); return; }
-  document.getElementById('prev-fornitore').value=forn;
-  const mese=sel[0].data.slice(0,7).split('-').reverse().join('.'); const numEl=document.getElementById('prev-numero'); if(!numEl.value.trim()) numEl.value='PREV-REND'+mese;
-  let tot=0; const righe=sel.map(r=>{ const imp=tar[r.risorsa]||0; tot+=imp;
-    return {descrizione:(r.tipo?r.tipo.toLowerCase()+' · ':'')+r.risorsa+(r.ora?' h '+r.ora:'')+' (rendiconto)', importo:+imp.toFixed(2), date:[r.data], citta:r.citta, teatro:r.teatro, tipo:'servizio'}; });
-  const totEl=document.getElementById('fatt-totale-fatt'); if(totEl) totEl.value=tot?tot.toFixed(2):'';
-  const voci=abbinaRigheFattura(righe, {fornitore:forn, numero_fattura:numEl.value.trim(), data_fattura:sel[sel.length-1].data});
-  if(!voci.length){ toast('Rendiconto: nessuna voce', true); return; }
-  document.getElementById('fatt-testo').value='[RENDICONTO: '+_rendDati.nomeFile+' — '+sel.length+' righe, € '+tot.toFixed(2)+']';
-  document.getElementById('rend-ov').classList.remove('open');
-  _presentaVociFattura(voci);
-  toast('🧾 Rendiconto letto: '+sel.length+' voci · € '+tot.toFixed(2)+' — controlla abbinamenti e importi, togli le voci che non vuoi inserire, poi applica');
+function _rendOpzioni(v){
+  // spettacoli del mese della voce: prima lo stesso giorno (stessa città), poi il resto del mese
+  const mese=v.data.slice(0,7); const fd=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit'}); }catch{ return d; } };
+  const esc=x=>String(x||'').replace(/</g,'&lt;');
+  const tutti=data.filter(s=>s.data.slice(0,7)===mese).sort((a,b)=>a.data.localeCompare(b.data)||String(a.citta).localeCompare(String(b.citta)));
+  const giorno=tutti.filter(s=>s.data===v.data && _cittaEq(s.citta,v.citta)), altri=tutti.filter(s=>!giorno.includes(s));
+  const opt=s=>`<option value="${s.id}"${String(v.spettId)===String(s.id)&&!v.nuovo?' selected':''}>${fd(s.data)} ${esc(s.citta)} · ${esc(s.spett)}${s.teatro?' ('+esc(s.teatro)+')':''}${s.premontaggio?' · premontaggio':s.replicaOf?' · replica':''}</option>`;
+  return `<option value="__nuovo"${v.nuovo||!v.spettId?' selected':''}>➕ nuovo evento GESTIONE - NO AMAT: ${esc(v.teatro)} ${fd(v.data)}</option>`+
+    (giorno.length?`<optgroup label="Stesso giorno a ${esc(v.citta)}">${giorno.map(opt).join('')}</optgroup>`:'')+
+    (altri.length?`<optgroup label="Tutto il mese">${altri.map(opt).join('')}</optgroup>`:'');
+}
+function _rendRender(){
+  if(!_rendDati) return; const {voci, nomeFile}=_rendDati;
+  const esc=x=>String(x||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const fd=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit'}); }catch{ return d; } };
+  const nOk=voci.filter(v=>v.spettId&&!v.nuovo).length, nNo=voci.length-nOk; let tot=0, totSel=0;
+  voci.forEach(v=>{ const t=v.risorse.reduce((a,x)=>a+(+x.imp||0),0); tot+=t; if(v.on) totSel+=t; });
+  document.getElementById('rv-titolo').textContent=nomeFile+' · '+voci.length+' giornate · '+nOk+' abbinate'+(nNo?' · ⚠ '+nNo+' senza spettacolo':'')+' · selezionate € '+totSel.toLocaleString('it-IT',{minimumFractionDigits:2})+' su € '+tot.toLocaleString('it-IT',{minimumFractionDigits:2});
+  document.getElementById('rv-box').innerHTML=voci.map((v,i)=>{ const conf=!v.spettId||v.nuovo; const sp=v.spettId?data.find(s=>String(s.id)===String(v.spettId)):null; const t=v.risorse.reduce((a,x)=>a+(+x.imp||0),0);
+    return `<div style="padding:6px 8px;border:1px solid ${conf?'rgba(239,68,68,.5)':'var(--border)'};border-radius:6px;margin-bottom:4px;font-size:11px;background:${conf?'rgba(239,68,68,.07)':'var(--bg)'};${v.on?'':'opacity:.55;'}">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input type="checkbox" ${v.on?'checked':''} onchange="_rendDati.voci[${i}].on=this.checked;_rendRender()" style="width:15px;height:15px;">
+        <span style="color:var(--gold);font-weight:700;white-space:nowrap;">${fd(v.data)}</span> <b>${esc(v.citta)} · ${esc(v.teatro)}</b>${v.tipo?' <span style="font-size:9px;padding:1px 6px;border-radius:10px;border:1px solid var(--purple);color:#c4b5fd;">'+esc(v.tipo)+'</span>':''}
+        <span style="flex:1;"></span><b style="color:var(--green);">€ ${t.toLocaleString('it-IT',{minimumFractionDigits:2})}</b></div>
+      <div style="margin:3px 0 0 23px;font-size:10px;color:${conf?'#ef4444':'var(--green)'};">${sp&&!v.nuovo?'✓ '+esc(sp.spett)+(v.stato==='citta'?' <span style="color:var(--text3);">(stesso giorno, spazio diverso: '+esc(sp.teatro||'—')+')</span>':''):'⚠ nessuno spettacolo in archivio quel giorno in questo spazio: scegli dal menu o lascia "nuovo evento"'}</div>
+      <select onchange="_rendScegli(${i},this.value)" style="width:100%;margin:3px 0 0 23px;max-width:calc(100% - 23px);font-size:11px;padding:3px 6px;box-sizing:border-box;">${_rendOpzioni(v)}</select>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 0 23px;">${v.risorse.map((x,k)=>`<label style="display:flex;gap:4px;align-items:center;font-size:10px;border:1px solid var(--border);border-radius:14px;padding:2px 4px 2px 8px;">${esc(x.nome)} €<input type="number" step="0.01" value="${x.imp||''}" placeholder="0" oninput="_rendDati.voci[${i}].risorse[${k}].imp=+this.value||0;_rendTotali()" style="width:64px;font-size:10px;padding:2px 4px;border:none;background:transparent;color:var(--text);"></label>`).join('')}</div>
+    </div>`; }).join('');
+}
+function _rendTotali(){ const {voci}=_rendDati; let tot=0, totSel=0; voci.forEach(v=>{ const t=v.risorse.reduce((a,x)=>a+(+x.imp||0),0); tot+=t; if(v.on) totSel+=t; }); const el=document.getElementById('rv-titolo'); el.textContent=el.textContent.replace(/selezionate € .*$/, 'selezionate € '+totSel.toLocaleString('it-IT',{minimumFractionDigits:2})+' su € '+tot.toLocaleString('it-IT',{minimumFractionDigits:2})); }
+function _rendScegli(i, val){ const v=_rendDati.voci[i]; if(val==='__nuovo'){ v.nuovo=true; v.spettId=null; } else { v.nuovo=false; v.spettId=val; const s=data.find(x=>String(x.id)===String(val)); v.stato=s&&_teatroEq(s.teatro||'',v.teatro)?'spazio':'citta'; } _rendRender(); }
+function _rendApplicaTariffa(){
+  // stessa tariffa per una risorsa su tutte le giornate (comodo: la scrivi una volta sola)
+  const nomi=[...new Set(_rendDati.voci.flatMap(v=>v.risorse.map(x=>x.nome)))];
+  const r=prompt('Risorsa (una di: '+nomi.join(', ')+')', nomi[0]||''); if(!r) return; const n=_normTxt(r); const ris=nomi.find(x=>_normTxt(x)===n); if(!ris){ toast('Risorsa non trovata', true); return; }
+  const imp=+prompt('Costo per giornata di '+ris+' (€)', ''); if(!(imp>=0)) return;
+  _rendDati.voci.forEach(v=>v.risorse.forEach(x=>{ if(x.nome===ris) x.imp=imp; })); _rendRender();
+}
+function _rendSalvaTariffe(forn){ const mem=ld('rendTariffe',{}); mem[forn]=mem[forn]||{}; _rendDati.voci.forEach(v=>v.risorse.forEach(x=>{ if(x.imp>0) mem[forn][x.nome]=x.imp; })); mem._ultimoForn=forn; sv('rendTariffe', mem); }
+function _rendNote(forn, num){
+  // una riga di nota per risorsa (così in futuro si può togliere una persona senza toccare le altre)
+  return v=>v.risorse.filter(x=>x.imp>0).map(x=>'Fattura n.'+num+' '+forn+' - '+(v.tipo?v.tipo.toLowerCase()+' · ':'')+x.nome+' (rendiconto) €'+(+x.imp).toFixed(2));
+}
+function rendReport(){
+  if(!_rendDati) return; const forn=document.getElementById('rv-forn').value.trim().toUpperCase()||'FORNITORE', num=document.getElementById('rv-num').value.trim();
+  const sel=_rendDati.voci.filter(v=>v.on); if(!sel.length){ toast('Nessuna giornata selezionata', true); return; }
+  const esc=x=>String(x||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); const fd=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'}); }catch{ return d; } };
+  const eur=v=>'€ '+(+v).toLocaleString('it-IT',{minimumFractionDigits:2}); let tot=0;
+  const righe=sel.map(v=>{ const sp=v.spettId&&!v.nuovo?data.find(s=>String(s.id)===String(v.spettId)):null; const t=v.risorse.reduce((a,x)=>a+(+x.imp||0),0); tot+=t;
+    return `<tr><td>${fd(v.data)}</td><td>${esc(v.citta)}<br><span style="color:#6b7280;">${esc(v.teatro)}</span></td><td>${sp?esc(sp.spett):'<span style="color:#dc2626;">nuovo evento</span>'}${v.tipo?'<br><span style="color:#7c3aed;font-size:9px;">'+esc(v.tipo)+'</span>':''}</td><td>${v.risorse.map(x=>esc(x.nome)+(x.imp?' <span style="color:#6b7280;">'+eur(x.imp)+'</span>':'')).join('<br>')}</td><td style="text-align:right;font-weight:700;">${eur(t)}</td></tr>`; }).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rendiconto ${esc(forn)} ${esc(num)}</title><style>body{font-family:Arial,sans-serif;font-size:11px;color:#1a1a2e;padding:20px;max-width:860px;margin:0 auto}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #e2e8f0;padding:5px 8px;text-align:left;vertical-align:top;font-size:10px}th{background:#f1f5f9;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#6b7280}.tot td{font-weight:800;font-size:12px;background:#f8fafc}@media print{.np{display:none}}</style></head><body>
+    <div class="np" style="margin-bottom:12px;"><button onclick="window.print()" style="padding:8px 20px;background:#059669;color:#fff;border:none;border-radius:6px;cursor:pointer;">🖨 Stampa / Salva PDF</button></div>
+    <div style="display:flex;align-items:center;border-bottom:3px solid #059669;padding-bottom:10px;margin-bottom:12px;">${_LOGO_IMG}<div><div style="font-size:18px;font-weight:800;color:#059669;">Rendiconto lavori — ${esc(forn)}</div><div style="color:#666;">${esc(num)} · ${sel.length} giornate · AMAT Marche · generato il ${new Date().toLocaleDateString('it-IT')}</div></div></div>
+    <table><tr><th>Data</th><th>Luogo</th><th>Spettacolo</th><th>Risorse</th><th style="text-align:right;">Importo</th></tr>${righe}<tr class="tot"><td colspan="4">TOTALE</td><td style="text-align:right;">${eur(tot)}</td></tr></table></body></html>`;
+  const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
+}
+function rendApplica(){
+  if(!_rendDati) return; const forn=document.getElementById('rv-forn').value.trim().toUpperCase(); const num=document.getElementById('rv-num').value.trim();
+  if(!forn){ toast('Indica il fornitore', true); return; }
+  const sel=_rendDati.voci.filter(v=>v.on); if(!sel.length){ toast('Nessuna giornata selezionata', true); return; }
+  const senza=sel.filter(v=>!v.risorse.some(x=>x.imp>0)); if(senza.length && !confirm(senza.length+' giornate selezionate non hanno importi e verranno saltate. Continuo?')) return;
+  const prima=_undoSnapshot(); const mkNote=_rendNote(forn, num); let mod=0, creati=0;
+  sel.forEach(v=>{ const note=mkNote(v); if(!note.length) return;
+    let s=v.spettId&&!v.nuovo?data.find(x=>String(x.id)===String(v.spettId)):null;
+    if(!s){ if(!teatriDB[v.citta]) teatriDB[v.citta]=[]; if(v.teatro && !teatriDB[v.citta].some(t=>_teatroEq(t,v.teatro))) teatriDB[v.citta].push(v.teatro);
+      s={id:Date.now()+Math.random(), data:v.data, citta:v.citta, teatro:v.teatro, spett:(v.tipo||'LAVORI')+' '+forn, manif:'GESTIONE', nm:0,tm:tariffe.m,sm:0,ne:0,te:tariffe.e,se:0,nf:0,tf:tariffe.f,sf:0,totale:0, note:'', fatturato:false, fromAI:true, ts:new Date().toISOString()}; data.push(s); creati++; }
+    const righe=(s.note||'').split('|').map(l=>l.trim()).filter(Boolean).filter(l=>!(l.startsWith('Fattura n.'+num+' '+forn)));   // ricarico dello stesso rendiconto: sostituisce
+    s.note=[...righe, ...note].join(' | '); mod++; });
+  if(!mod){ toast('Niente da inserire', true); return; }
+  _rendSalvaTariffe(forn); salvaDittaDB(forn);
+  sv('teatriDB',teatriDB); data.sort((a,b)=>a.data.localeCompare(b.data)); sv('spettacoli',data); window._pullBlockUntil=Date.now()+30000;
+  _undoRegistra(prima, 'rendiconto '+num+' '+forn); _logModifica('fattura', 'Inserito rendiconto '+num+' — '+forn+' ('+mod+' giornate)');
+  buildCityList(); buildCittaSel('f-citta'); buildCittaSel('fil-citta'); updateDatalist(); buildMesiFilter(); renderList();
+  if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
+  document.getElementById('rend-ov').classList.remove('open'); _rendDati=null;
+  toast('✓ Rendiconto inserito come previsione su '+mod+' giornate'+(creati?' · '+creati+' eventi creati':''));
+  if(_inboxCorrente){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true); }
+  goTab('list');
 }
 function _importaReportPresenze(fogli, nomeFile){
   if(!Array.isArray(fogli) || !fogli.length || !fogli[0].griglia) fogli=[{foglio:'', griglia:fogli}];
@@ -6538,7 +6621,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v146</span>
+    <span>Report generato da GammaFucker v148</span>
   </div>
   </body></html>`;
 
@@ -6644,7 +6727,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v146</span>
+    <span>Report generato da GammaFucker v148</span>
   </div>
   </body></html>`;
 
@@ -6740,7 +6823,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v146</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v148</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -6813,7 +6896,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v146</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v148</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');

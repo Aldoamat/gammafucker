@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v156 ──
+// ── SPETTACOLI APP SCRIPT v159 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -137,6 +137,17 @@ function doPost(e) {
       lock.releaseLock();
       var ru; try { ru = caricaDocumento(body.cartella, body.nome, body.mime, body.b64); } catch(errU) { ru = { error: errU.message }; }
       return ContentService.createTextOutput(JSON.stringify(ru)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (body.action === 'inboxUpload') {
+      // pagina pubblica di caricamento (amministrazione senza account Google): PIN condiviso + upload a pezzi
+      lock.releaseLock();
+      var ru2; try { ru2 = inboxUpload(body); } catch(errU2) { ru2 = { error: errU2.message }; }
+      return ContentService.createTextOutput(JSON.stringify(ru2)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (body.action === 'setInboxPin') {
+      props.setProperty('inboxPin', String(body.pin || '').trim());
+      lock.releaseLock();
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, impostato: !!String(body.pin || '').trim() })).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'inboxCartella' || body.action === 'inboxLista' || body.action === 'inboxPrendi' || body.action === 'inboxArchivia') {
       lock.releaseLock();
@@ -1495,6 +1506,18 @@ function inboxPrendi(id) {
   else if (mime.indexOf('application/vnd.google-apps.') === 0) { blob = x.getAs('application/pdf'); mime = 'application/pdf'; }
   if (blob.getBytes().length > 20 * 1024 * 1024) return { error: 'file troppo grande (max 20 MB)' };
   return { nome: x.getName(), mime: mime, b64: Utilities.base64Encode(blob.getBytes()) };
+}
+// Upload dalla pagina pubblica "carica": nome file = data · chi · nome originale, a pezzi come caricaChunk.
+// Il PIN (proprietà inboxPin, impostato dall'app) è l'unica barriera: senza PIN impostato la pagina accetta tutto.
+function inboxUpload(body) {
+  var pin = PropertiesService.getScriptProperties().getProperty('inboxPin') || '';
+  if (pin && String(body.pin || '').trim() !== pin) return { error: 'PIN errato' };
+  if (!body.nome || !body.b64) return { error: 'file mancante' };
+  var chi = String(body.chi || '').replace(/[\\/:*?"<>|]/g, ' ').trim().substring(0, 40);
+  var nome = (+body.idx === 0 || !body.fileId) ? (Utilities.formatDate(new Date(), 'Europe/Rome', 'yyyy-MM-dd') + (chi ? ' · ' + chi : '') + ' · ' + String(body.nome).substring(0, 120)) : body.nome;
+  var r = caricaChunk(INBOX_CARTELLA, nome, body.mime, body.b64, +body.idx || 0, +body.total || 1, body.fileId);
+  if (r && r.done) { try { DriveApp.getFileById(r.id).setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW); } catch(e) {} }
+  return r;
 }
 function inboxArchivia(id) {
   if (!id) return { error: 'id mancante' };

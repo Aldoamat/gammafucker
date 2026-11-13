@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0f1a">
+<title>Carica fatture · AMAT coordinamento tecnico</title>
+<link rel="icon" href="../icon-192.png">
+<style>
+  :root{--bg:#0b0f1a;--card:#121829;--border:#232c44;--text:#e6e9f2;--text2:#9aa3bd;--text3:#6b7490;--gold:#f5c842;--green:#10b981;--red:#ef4444;--purple:#7c3aed;}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.45;padding:18px 16px 40px;max-width:560px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 2px;display:flex;align-items:center;gap:10px} h1 img{width:40px;height:40px;border-radius:50%}
+  .sub{color:var(--text2);font-size:13px;margin-bottom:18px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
+  label{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin:6px 0 4px}
+  input[type=text],input[type=password]{width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:16px}
+  .drop{border:2px dashed var(--border);border-radius:12px;padding:26px 14px;text-align:center;color:var(--text2);cursor:pointer;margin-top:8px}
+  .drop.on{border-color:var(--gold);color:var(--gold)}
+  .btn{display:block;width:100%;padding:14px;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;margin-top:12px;background:linear-gradient(135deg,#059669,#34d399);color:#fff}
+  .btn:disabled{opacity:.5;cursor:default}
+  .file{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--border);font-size:13px}
+  .file .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .file .s{font-size:12px;color:var(--text3);white-space:nowrap}
+  .ok{color:var(--green)} .err{color:var(--red)}
+  .bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:4px} .bar i{display:block;height:100%;background:var(--green);width:0;transition:width .3s}
+  .foot{font-size:11px;color:var(--text3);text-align:center;margin-top:18px}
+</style>
+</head>
+<body>
+<h1><img src="../icon-192.png" alt=""> Carica fatture</h1>
+<div class="sub">AMAT Marche · coordinamento tecnico. Le fatture caricate qui arrivano direttamente nella cartella di lavoro di Aldo: niente mail, niente WhatsApp.</div>
+
+<div class="card">
+  <label>Chi carica</label>
+  <input type="text" id="chi" placeholder="es. Barbara" autocomplete="name">
+  <label>PIN</label>
+  <input type="password" id="pin" placeholder="PIN condiviso" inputmode="numeric" autocomplete="off">
+  <label>Fatture (PDF, foto, Excel)</label>
+  <div class="drop" id="drop" onclick="document.getElementById('f').click()">📎 Tocca per scegliere i file<br><span style="font-size:12px;">oppure trascinali qui · puoi sceglierne più di uno</span></div>
+  <input type="file" id="f" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.xlsx,.xls,.csv,image/*,application/pdf" style="display:none" onchange="scegli(this.files)">
+  <div id="lista"></div>
+  <button class="btn" id="btn" onclick="carica()" disabled>📤 Carica</button>
+</div>
+
+<div class="card" id="fatte" style="display:none"><label>Caricate in questa sessione</label><div id="fatte-lista"></div></div>
+<div class="foot">GammaFucker · pagina di caricamento · i file restano privati nella cartella di lavoro</div>
+
+<script>
+const URL_SCRIPT = '__SHEETS_URL__';
+const CHUNK = 700*1024;
+let coda = [];
+try{ document.getElementById('chi').value = localStorage.getItem('chi')||''; document.getElementById('pin').value = localStorage.getItem('pin')||''; }catch(e){}
+const drop=document.getElementById('drop');
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('on');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('on');}));
+drop.addEventListener('drop',e=>scegli(e.dataTransfer.files));
+function scegli(files){ [...files].forEach(f=>{ if(!coda.some(x=>x.file.name===f.name&&x.file.size===f.size)) coda.push({file:f, stato:'', pct:0}); }); render(); }
+function fmt(n){ return n>1024*1024?(n/1024/1024).toFixed(1)+' MB':Math.round(n/1024)+' KB'; }
+function render(){
+  const esc=v=>String(v||'').replace(/</g,'&lt;');
+  document.getElementById('lista').innerHTML=coda.map((x,i)=>`<div class="file"><div class="n">${esc(x.file.name)}<div class="bar"><i style="width:${x.pct}%"></i></div></div><div class="s">${fmt(x.file.size)}</div>${x.stato==='ok'?'<div class="ok">✓</div>':`${x.stato==='err'?'<div class="err" title="'+String(x.errore||'').replace(/"/g,'')+'">✗</div>':''}<div style="cursor:pointer;color:var(--text3)" onclick="coda.splice(${i},1);render()">✕</div>`}</div>`).join('');
+  document.getElementById('btn').disabled=!coda.some(x=>x.stato!=='ok');
+}
+function leggi(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); }); }
+async function post(payload, tentativi=3){
+  for(let t=1;;t++){
+    try{ const r=await fetch(URL_SCRIPT,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)}); const j=await r.json(); if(j.error) throw new Error(j.error); if(j.result==='locked') throw new Error('occupato, riprovo'); return j; }
+    catch(e){ if(t>=tentativi || /PIN/.test(e.message)) throw e; await new Promise(r=>setTimeout(r,1200*t)); }
+  }
+}
+async function carica(){
+  const chi=document.getElementById('chi').value.trim(), pin=document.getElementById('pin').value.trim();
+  if(!chi){ alert('Scrivi chi sta caricando'); return; }
+  try{ localStorage.setItem('chi',chi); localStorage.setItem('pin',pin); }catch(e){}
+  const btn=document.getElementById('btn'); btn.disabled=true; btn.textContent='⏳ Caricamento…';
+  for(const x of coda){ if(x.stato==='ok') continue; x.stato=''; x.pct=0;
+    try{
+      const b64=await leggi(x.file); const total=Math.max(1,Math.ceil(b64.length/ (CHUNK*4/3)));
+      const passo=Math.ceil(b64.length/total); let fileId='', nome=x.file.name;
+      for(let i=0;i<total;i++){
+        const j=await post({action:'inboxUpload', chi, pin, nome, mime:x.file.type||'application/octet-stream', b64:b64.slice(i*passo,(i+1)*passo), idx:i, total, fileId});
+        fileId=j.id; nome=j.nome||nome; x.pct=Math.round((i+1)/total*100); render();
+      }
+      x.stato='ok'; x.nomeFinale=nome;
+    }catch(e){ x.stato='err'; x.errore=e.message; alert('Errore su '+x.file.name+': '+e.message); if(/PIN/.test(e.message)) break; }
+    render();
+  }
+  const ok=coda.filter(x=>x.stato==='ok');
+  if(ok.length){ const box=document.getElementById('fatte'); box.style.display='block'; document.getElementById('fatte-lista').innerHTML+=ok.map(x=>`<div class="file"><div class="n ok">✓ ${String(x.nomeFinale||x.file.name).replace(/</g,'&lt;')}</div></div>`).join(''); coda=coda.filter(x=>x.stato!=='ok'); render(); }
+  btn.textContent=coda.some(x=>x.stato==='err')?'🔁 Riprova':'📤 Carica'; btn.disabled=!coda.some(x=>x.stato!=='ok');
+}
+</script>
+</body>
+</html>
