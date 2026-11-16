@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v156</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v157</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -4726,7 +4726,8 @@ async function _ricConferma(){
 }
 // elenco fatture collegate (per i link nel report della fattura)
 let _fattureCollegate=null;
-async function _fcLista(){ if(_fattureCollegate) return _fattureCollegate; try{ const j=await _inboxCall({action:'fattureCollegate'}); _fattureCollegate=j.fatture||[]; }catch(e){ _fattureCollegate=[]; } return _fattureCollegate; }
+let _fcTs=0;
+async function _fcLista(){ if(_fattureCollegate && Date.now()-_fcTs<5*60000) return _fattureCollegate; try{ const j=await _inboxCall({action:'fattureCollegate'}); _fattureCollegate=j.fatture||[]; _fcTs=Date.now(); }catch(e){ _fattureCollegate=_fattureCollegate||[]; } return _fattureCollegate; }
 
 // ── Rendiconto lavori del fornitore (es. STCT): una riga per risorsa/giorno, senza prezzi ──
 // Verifica come per i calendari: una riga per giornata/spazio con stato (✓ spettacolo trovato / ⚠ nessuno),
@@ -5953,6 +5954,7 @@ function mostraFattureFornitore(){
         <div style="cursor:pointer;flex:1;" onclick="apriReportFornitore(${i})">
           <div style="font-size:13px;font-weight:700;color:var(--text1);">Fattura n. ${f.num}</div>
           <div style="font-size:11px;color:var(--text3);margin-top:2px;">${f.righe.length} voci · ${f.fornitore}</div>
+          <div id="fc-links-${i}" style="display:none;gap:6px;flex-wrap:wrap;margin-top:6px;" onclick="event.stopPropagation()"></div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <div style="font-size:15px;font-weight:700;color:var(--purple);">€ ${f.totale.toLocaleString('it-IT',{minimumFractionDigits:2})}</div>
@@ -5962,6 +5964,11 @@ function mostraFattureFornitore(){
       </div>
     </div>`;
   }).join('');
+  // fatture collegate al preconsuntivo: link a fattura, preconsuntivo e cartella Drive (anche nell'app collaboratori)
+  _fcLista().then(lista=>{ if(!lista.length) return;
+    (window._fornFatture||[]).forEach((f,i)=>{ const x=lista.find(c=>String(c.num).trim().toLowerCase()===String(f.num).trim().toLowerCase() && _ricFornEq(c.forn, f.fornitore||forn)); const el=document.getElementById('fc-links-'+i); if(!x||!el) return;
+      const b=(u,t)=>u?`<a href="${u}" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;font-size:10px;padding:2px 8px;color:#60a5fa;border-color:rgba(96,165,250,.4);">${t}</a>`:'';
+      el.innerHTML=`<span style="font-size:10px;color:var(--green);align-self:center;">🔗 ${String(x.prev||'preconsuntivo').replace(/</g,'&lt;')}</span>`+b(x.fattura,'📄 Fattura')+b(x.preconsuntivo,'📋 Preconsuntivo')+b(x.cartella,'📂 Cartella'); el.style.display='flex'; }); });
 }
 
 function debugFattura(idx){
@@ -6871,7 +6878,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v156</span>
+    <span>Report generato da GammaFucker v157</span>
   </div>
   </body></html>`;
 
@@ -6977,7 +6984,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v156</span>
+    <span>Report generato da GammaFucker v157</span>
   </div>
   </body></html>`;
 
@@ -7073,7 +7080,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v156</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v157</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7146,7 +7153,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v156</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v157</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
