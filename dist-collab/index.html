@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v160</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v161</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -4620,110 +4620,150 @@ async function _inboxArchivia(id, nome, silenzioso, nota){
 // fattura + preconsuntivo in PDF vanno nella cartella Drive della fattura.
 let _ric=null;
 const _ricEur=v=>'€ '+(+v||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});
+const _ricC=v=>Math.round((+v||0)*100);
 function _ricFornEq(a,b){
-  const tok=x=>_normTxt(String(x||'')).split(/[^A-Z0-9]+/).filter(t=>t.length>=4 && !/^(SOCIETA|COOPERATIVA|GROUP|GRUPPO|SERVIZI|SERVICE|SNC|SRL|SPA|SRLS)$/.test(t));
+  const tok=x=>_normTxt(String(x||'')).split(/[^A-Z0-9]+/).filter(t=>t.length>=4 && !/^(SOCIETA|COOPERATIVA|GROUP|GRUPPO|SERVIZI|SERVICE|TECNICI|TEATRALI|CINEMATOGRAFICI|SNC|SRL|SPA|SRLS)$/.test(t));
   const A=tok(a), B=tok(b); if(!A.length||!B.length) return false; return A.some(t=>B.includes(t));
 }
 function _ricMesi(parsed){
   const m=new Set(); (parsed.righe||[]).forEach(r=>{ if(r.mese) m.add(String(r.mese).slice(0,7)); (r.date||[]).forEach(d=>{ const n=normalizeDate(d); if(n) m.add(n.slice(0,7)); }); if(r.periodo&&r.periodo.da){ const n=normalizeDate(r.periodo.da); if(n) m.add(n.slice(0,7)); } });
-  if(!m.size){ const d=normalizeDate(parsed.data_fattura||''); if(d){ m.add(d.slice(0,7)); const x=new Date(d+'T12:00:00'); x.setMonth(x.getMonth()-1); m.add(x.toISOString().slice(0,7)); } }
+  const d=normalizeDate(parsed.data_fattura||''); if(d){ m.add(d.slice(0,7)); const x=new Date(d+'T12:00:00'); x.setMonth(x.getMonth()-1); m.add(x.toISOString().slice(0,7)); }
   return m;
 }
+// righe PREV aperte del fornitore nei mesi della fattura (+ quelle già passate su fatture vere, per lo stato del preconsuntivo)
 function _ricTrova(forn, parsed){
   const fornCampo=document.getElementById('fatt-fornitore').value.trim(); const mesi=_ricMesi(parsed); const out=[];
+  const fornOk=fl=>_ricFornEq(fl, forn) || (fornCampo && _ricFornEq(fl, fornCampo));
   data.forEach(s=>{ if(!s.note || !mesi.has(String(s.data).slice(0,7))) return;
     s.note.split('|').map(l=>l.trim()).filter(Boolean).forEach(l=>{ const m=l.match(/^Fattura\s+n\.?\s*(PREV\S*)\s+/i); if(!m) return;
       const p=_parsaNota(l); const fl=(p&&p.forn&&p.forn!=='—')?p.forn:l.slice(m[0].length).split(' - ')[0];
-      if(!_ricFornEq(fl, forn) && !(fornCampo && _ricFornEq(fl, fornCampo))) return;
-      out.push({s, riga:l, prev:m[1], forn:fl, imp:+(p&&p.costo)||0}); }); });
+      if(!fornOk(fl)) return; out.push({id:out.length, s, riga:l, prev:m[1], forn:fl, imp:+(p&&p.costo)||0}); }); });
+  return out;
+}
+function _ricGiaFatturate(prevNums){
+  const out=[]; const set=new Set(prevNums.map(x=>x.toUpperCase()));
+  data.forEach(s=>{ if(!s.note) return; s.note.split('|').map(l=>l.trim()).forEach(l=>{ const m=l.match(/\(preconsuntivo ([^)]+)\)/i); if(!m || !set.has(m[1].toUpperCase())) return; const p=_parsaNota(l); out.push({prev:m[1], num:p.numFatt, imp:+p.costo||0}); }); });
   return out;
 }
 function _ricCore(t){ return _normTxt(String(t||'')).replace(/^TEATRO\s+(COMUNALE\s+)?/,'').replace(/\s+DI\s+.*$/,'').trim(); }
+const _ricKey=s=>String(s.citta).toUpperCase()+'||'+String(s.teatro||'').toUpperCase();
+// sottoinsieme di righe che somma esattamente l'importo (al centesimo); null se non c'è
+function _ricSomma(cand, imp){
+  const T=_ricC(imp); const c=cand.slice(0,20); if(!c.length) return null;
+  const tot=c.reduce((a,x)=>a+_ricC(x.imp),0); if(tot===T) return c; if(tot<T) return null;
+  let best=null; const giro=(i,acc,scelte)=>{ if(best) return; if(acc===T){ best=scelte.slice(); return; } if(i>=c.length||acc>T) return;
+    scelte.push(c[i]); giro(i+1,acc+_ricC(c[i].imp),scelte); scelte.pop(); giro(i+1,acc,scelte); };
+  giro(0,0,[]); return best;
+}
 function _ricApri(parsed, raw, forn, num, righePrev){
   const prevNums=[...new Set(righePrev.map(r=>r.prev))];
-  const spazi={}; righePrev.forEach(r=>{ const k=String(r.s.citta).toUpperCase()+'||'+String(r.s.teatro||'').toUpperCase(); (spazi[k]=spazi[k]||{citta:String(r.s.citta).toUpperCase(), teatro:String(r.s.teatro||'').toUpperCase()}); });
+  const spazi={}; righePrev.forEach(r=>{ const k=_ricKey(r.s); spazi[k]=spazi[k]||{citta:String(r.s.citta).toUpperCase(), teatro:String(r.s.teatro||'').toUpperCase()}; });
   const chiavi=Object.keys(spazi);
   const fatt=(parsed.righe||[]).filter(r=>+r.importo).map(r=>{
     const testo=_normTxt([r.teatro, r.citta, r.descrizione].join(' ')); const citta=_risolviCitta(r.citta||'', r.teatro||'')||r.citta||'';
     let k=chiavi.find(k=>{ const sp=spazi[k]; const c=_ricCore(sp.teatro); return c && (testo.includes(c) || _teatroEq(sp.teatro, r.teatro||'')) && (!citta || _cittaEq(sp.citta, citta) || testo.includes(_normTxt(sp.citta))); });
     if(!k && citta){ const kk=chiavi.filter(k=>_cittaEq(spazi[k].citta, citta)); if(kk.length===1) k=kk[0]; }
-    return {r, imp:+r.importo, spazio:k||'', on:!!k}; });
-  _ric={parsed, raw, forn, num:num||parsed.numero_fattura||'', righePrev, prevNums, prevOn:Object.fromEntries(prevNums.map(n=>[n,true])), spazi, fatt};
+    return {r, imp:+r.importo, spazio:k||'', date:(r.date||[]).map(d=>normalizeDate(d)).filter(Boolean), righe:new Set(), on:false}; });
+  // abbinamento automatico alle giornate: prima le righe con data, poi le altre; ogni giornata va a una sola riga
+  const usate=new Set();
+  const peso=f=>(f.spazio?2:0)+(f.date.length?1:0); const ordine=fatt.map((f,i)=>i).sort((a,b)=>peso(fatt[b])-peso(fatt[a]));   // prima le righe più precise
+  ordine.forEach(i=>{ const f=fatt[i];
+    let cand=righePrev.filter(x=>!usate.has(x.id) && (!f.spazio || _ricKey(x.s)===f.spazio));
+    if(f.date.length){ const cd=cand.filter(x=>f.date.includes(x.s.data)); if(cd.length) cand=cd;
+      else if(!f.spazio){ cand=righePrev.filter(x=>!usate.has(x.id) && f.date.includes(x.s.data)); } }
+    if(!f.spazio && !f.date.length) cand=[];
+    const sc=_ricSomma(cand, f.imp) || (f.spazio && f.date.length && cand.length && cand.every(x=>f.date.includes(x.s.data)) ? cand : null);   // senza spazio serve l'importo esatto
+    if(sc && sc.length){ sc.forEach(x=>{ f.righe.add(x.id); usate.add(x.id); }); f.on=true; if(!f.spazio) f.spazio=_ricKey(sc[0].s); }
+    else if(f.spazio) f.on=true; });
+  _ric={parsed, raw, forn, num:num||parsed.numero_fattura||'', righePrev, prevNums, spazi, fatt, gia:_ricGiaFatturate(prevNums), aperta:null};
   _ricRender(); document.getElementById('ric-ov').classList.add('open');
 }
 function _ricCalcola(){
-  const {righePrev, prevOn, fatt, spazi}=_ric; const per={};
-  const k0=k=>(per[k]=per[k]||{prev:0, fatt:0, giornate:0});
-  righePrev.filter(r=>prevOn[r.prev]).forEach(r=>{ const k=String(r.s.citta).toUpperCase()+'||'+String(r.s.teatro||'').toUpperCase(); k0(k).prev+=r.imp; per[k].giornate++; });
-  fatt.filter(f=>f.on&&f.spazio).forEach(f=>{ k0(f.spazio).fatt+=f.imp; });
-  const totPrev=Object.values(per).reduce((a,x)=>a+x.prev,0), totFatt=Object.values(per).reduce((a,x)=>a+x.fatt,0);
-  return {per, totPrev:+totPrev.toFixed(2), totFatt:+totFatt.toFixed(2), ok:Math.abs(totPrev-totFatt)<0.01 && totFatt>0};
+  const {righePrev, fatt}=_ric; const byId=Object.fromEntries(righePrev.map(x=>[x.id,x]));
+  const attive=fatt.filter(f=>f.on);
+  const coperte=attive.reduce((a,f)=>a+[...f.righe].reduce((b,id)=>b+_ricC(byId[id].imp),0),0);
+  const fatturato=attive.reduce((a,f)=>a+_ricC(f.imp),0);
+  const vuote=attive.filter(f=>!f.righe.size).length;
+  return {coperte:coperte/100, fatturato:fatturato/100, ok:fatturato>0 && fatturato===coperte && !vuote, vuote, byId};
 }
 function _ricRender(){
   const esc=x=>String(x||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-  const {parsed, forn, num, righePrev, prevNums, prevOn, spazi, fatt}=_ric; const c=_ricCalcola();
+  const {parsed, forn, num, righePrev, prevNums, spazi, fatt, gia}=_ric; const c=_ricCalcola(); const byId=c.byId;
+  const usateDa={}; fatt.forEach((f,i)=>{ if(f.on) f.righe.forEach(id=>usateDa[id]=i); });
   const imponibile=+parsed.totale_imponibile||0, totRighe=fatt.reduce((a,f)=>a+f.imp,0);
+  const gg=d=>d.slice(8,10)+'/'+d.slice(5,7);
+  const etSp=k=>k&&spazi[k]?esc(spazi[k].citta+' · '+(spazi[k].teatro||'—')):'—';
   document.getElementById('ric-testa').innerHTML=`<b>${esc(forn)}</b> · fattura <input type="text" value="${esc(num)}" oninput="_ric.num=this.value.trim()" style="width:130px;font-size:11px;padding:2px 6px;"> del ${esc(parsed.data_fattura||'—')} · imponibile ${_ricEur(imponibile||totRighe)}`+
     (imponibile && Math.abs(imponibile-totRighe)>=0.01?` <span style="color:#f59e0b;">(le righe lette sommano ${_ricEur(totRighe)})</span>`:'');
-  const nPrev=n=>righePrev.filter(r=>r.prev===n), totN=n=>nPrev(n).reduce((a,r)=>a+r.imp,0);
-  const etSp=k=>k?esc(spazi[k].citta+' · '+(spazi[k].teatro||'—')):'—';
-  let h=`<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin:4px 0;">Preconsuntivi aperti</div>`+
-    prevNums.map(n=>`<label style="display:flex;gap:8px;align-items:center;font-size:12px;padding:3px 0;"><input type="checkbox" ${prevOn[n]?'checked':''} onchange="_ric.prevOn['${_js(n)}']=this.checked;_ricRender()" style="width:15px;height:15px;"><b>${esc(n)}</b> · ${nPrev(n).length} righe · ${_ricEur(totN(n))}</label>`).join('');
-  h+=`<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin:10px 0 4px;">Righe della fattura</div>`+
-    fatt.map((f,i)=>`<div style="display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-top:1px solid var(--border);font-size:11px;${f.on?'':'opacity:.6;'}">
-      <input type="checkbox" ${f.on?'checked':''} onchange="_ric.fatt[${i}].on=this.checked;_ricRender()" style="width:15px;height:15px;margin-top:2px;" title="Togli la spunta per gestirla come fattura normale">
-      <div style="flex:1;min-width:0;"><div style="color:var(--text2);">${esc(String(f.r.descrizione||'').slice(0,140))}</div>
-      <select onchange="_ric.fatt[${i}].spazio=this.value;_ric.fatt[${i}].on=!!this.value;_ricRender()" style="margin-top:3px;font-size:11px;padding:2px 6px;max-width:100%;"><option value="">— nessun preconsuntivo (fattura normale) —</option>${Object.keys(spazi).map(k=>`<option value="${esc(k)}"${k===f.spazio?' selected':''}>${etSp(k)}</option>`).join('')}</select></div>
-      <b style="white-space:nowrap;">${_ricEur(f.imp)}</b></div>`).join('');
-  h+=`<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin:12px 0 4px;">Confronto per spazio</div>
-    <table style="width:100%;border-collapse:collapse;font-size:11px;"><tr style="color:var(--text3);text-align:right;"><th style="text-align:left;">Spazio</th><th>Preconsuntivo</th><th>Fattura</th><th>Differenza</th></tr>`+
-    Object.keys(c.per).sort().map(k=>{ const x=c.per[k], d=+(x.fatt-x.prev).toFixed(2); return `<tr style="border-top:1px solid var(--border);text-align:right;"><td style="text-align:left;padding:3px 0;">${etSp(k)} <span style="color:var(--text3);">(${x.giornate} righe)</span></td><td>${_ricEur(x.prev)}</td><td>${_ricEur(x.fatt)}</td><td style="color:${Math.abs(d)<0.01?'var(--green)':'#f59e0b'};">${Math.abs(d)<0.01?'✓':(d>0?'+':'')+_ricEur(d)}</td></tr>`; }).join('')+
-    `<tr style="border-top:2px solid var(--border2);text-align:right;font-weight:700;"><td style="text-align:left;padding:4px 0;">Totale</td><td>${_ricEur(c.totPrev)}</td><td>${_ricEur(c.totFatt)}</td><td style="color:${c.ok?'var(--green)':'#ef4444'};">${c.ok?'✓':_ricEur(c.totFatt-c.totPrev)}</td></tr></table>`;
+  // stato dei preconsuntivi
+  let h=`<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin:4px 0;">Preconsuntivi</div>`+
+    prevNums.map(n=>{ const aperte=righePrev.filter(x=>x.prev===n); const totAp=aperte.reduce((a,x)=>a+x.imp,0); const g=gia.filter(x=>x.prev.toUpperCase()===n.toUpperCase()); const totG=g.reduce((a,x)=>a+x.imp,0);
+      const questa=aperte.filter(x=>usateDa[x.id]!==undefined).reduce((a,x)=>a+x.imp,0); const resta=totAp-questa; const nums=[...new Set(g.map(x=>x.num))];
+      return `<div style="font-size:12px;padding:4px 0;border-top:1px solid var(--border);"><b>${esc(n)}</b> · totale ${_ricEur(totAp+totG)}
+        ${nums.length?`<div style="color:var(--text2);font-size:11px;">già fatturato ${_ricEur(totG)} (fattura ${nums.map(esc).join(', ')})</div>`:''}
+        <div style="font-size:11px;">questa fattura <b>${_ricEur(questa)}</b> · ${resta<0.005?`<span style="color:var(--green);">✓ dopo questa il preconsuntivo è chiuso e i conti tornano</span>`:`resta da fatturare <b style="color:#f59e0b;">${_ricEur(resta)}</b> (${aperte.length-aperte.filter(x=>usateDa[x.id]!==undefined).length} giornate)`}</div></div>`; }).join('');
+  // righe della fattura con le loro giornate
+  h+=`<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin:12px 0 4px;">Righe della fattura → giornate del preconsuntivo</div>`+
+    fatt.map((f,i)=>{ const cop=[...f.righe].reduce((a,id)=>a+byId[id].imp,0); const d=f.imp-cop;
+      const cand=righePrev.filter(x=>(f.spazio && _ricKey(x.s)===f.spazio) || f.righe.has(x.id)).sort((a,b)=>a.s.data.localeCompare(b.s.data));
+      const altre=righePrev.filter(x=>!cand.includes(x) && usateDa[x.id]===undefined).sort((a,b)=>a.s.data.localeCompare(b.s.data));
+      const riga=x=>{ const altrove=usateDa[x.id]!==undefined && usateDa[x.id]!==i; return `<label style="display:flex;gap:6px;align-items:center;font-size:11px;padding:1px 0;${altrove?'opacity:.4;':''}"><input type="checkbox" ${f.righe.has(x.id)?'checked':''} ${altrove?'disabled':''} onchange="_ricTogli(${i},${x.id},this.checked)" style="width:13px;height:13px;">${gg(x.s.data)} · ${esc(String(x.s.spett||'').slice(0,40))}${_ricKey(x.s)!==f.spazio?' <span style="color:var(--text3);">('+esc(x.s.teatro||x.s.citta)+')</span>':''} <b style="margin-left:auto;">${_ricEur(x.imp)}</b>${altrove?' <span style="color:var(--text3);">riga '+(usateDa[x.id]+1)+'</span>':''}</label>`; };
+      return `<div style="padding:6px 0;border-top:1px solid var(--border);font-size:11px;${f.on?'':'opacity:.6;'}">
+      <div style="display:flex;gap:8px;align-items:flex-start;"><input type="checkbox" ${f.on?'checked':''} onchange="_ric.fatt[${i}].on=this.checked;_ricRender()" style="width:15px;height:15px;margin-top:2px;" title="Togli la spunta per gestirla come fattura normale">
+        <div style="flex:1;min-width:0;color:var(--text2);">${i+1}. ${esc(String(f.r.descrizione||'').slice(0,140))}${f.date.length?' <span style="color:var(--text3);">('+f.date.map(gg).join(', ')+')</span>':''}</div><b style="white-space:nowrap;">${_ricEur(f.imp)}</b></div>
+      ${f.on?`<div style="margin:4px 0 0 23px;">
+        <select onchange="_ric.fatt[${i}].spazio=this.value;_ricRender()" style="font-size:11px;padding:2px 6px;max-width:100%;margin-bottom:3px;"><option value="">— spazio —</option>${Object.keys(spazi).map(k=>`<option value="${esc(k)}"${k===f.spazio?' selected':''}>${etSp(k)}</option>`).join('')}</select>
+        ${cand.map(riga).join('')||'<div style="color:var(--text3);">nessuna giornata in questo spazio</div>'}
+        ${altre.length?`<select onchange="if(this.value!=='')_ricTogli(${i},+this.value,true)" style="font-size:10px;padding:1px 6px;margin-top:3px;max-width:100%;"><option value="">+ giornata di un altro spazio…</option>${altre.map(x=>`<option value="${x.id}">${gg(x.s.data)} · ${esc((x.s.teatro||x.s.citta)+' · '+String(x.s.spett||'').slice(0,30))} · ${_ricEur(x.imp)}</option>`).join('')}</select>`:''}
+        <div style="margin-top:3px;color:${!f.righe.size?'#ef4444':Math.abs(d)<0.005?'var(--green)':'#f59e0b'};">${!f.righe.size?'✗ nessuna giornata abbinata':Math.abs(d)<0.005?'✓ giornate '+_ricEur(cop):'giornate '+_ricEur(cop)+' · differenza '+(d>0?'+':'')+_ricEur(d)}</div>
+      </div>`:''}</div>`; }).join('');
   document.getElementById('ric-box').innerHTML=h;
-  const fuori=fatt.filter(f=>!f.on||!f.spazio);
-  const avvisi=Object.keys(c.per).filter(k=>Math.abs(c.per[k].fatt-c.per[k].prev)>=0.01);
+  const fuori=fatt.filter(f=>!f.on);
   let e='';
-  if(!c.totFatt) e=`<span style="color:#ef4444;">Nessuna riga della fattura abbinata a uno spazio del preconsuntivo.</span>`;
-  else if(c.ok) e=`<span style="color:var(--green);">✓ Il totale torna.</span>`+(avvisi.length?` <span style="color:#f59e0b;">Per spazio ci sono differenze che si compensano: sono giornate che il fornitore ha attribuito a un altro spazio. Gli importi sulle giornate restano quelli del preconsuntivo.</span>`:'');
-  else e=`<span style="color:#ef4444;">✗ Il totale non torna: preconsuntivo ${_ricEur(c.totPrev)}, fattura ${_ricEur(c.totFatt)} (${c.totFatt>c.totPrev?'in fattura ci sono':'in fattura mancano'} ${_ricEur(Math.abs(c.totFatt-c.totPrev))}). Controlla i preconsuntivi spuntati e le righe abbinate, o correggi le giornate prima di confermare.</span>`;
-  if(fuori.length) e+=`<div style="margin-top:4px;color:var(--text2);">${fuori.length} riga/e senza preconsuntivo (${_ricEur(fuori.reduce((a,f)=>a+f.imp,0))}): dopo la conferma le analizzo come fattura normale.</div>`;
+  if(!c.fatturato) e=`<span style="color:#ef4444;">Nessuna riga della fattura abbinata al preconsuntivo.</span>`;
+  else if(c.ok) e=`<span style="color:var(--green);">✓ Le righe spuntate (${_ricEur(c.fatturato)}) corrispondono alle giornate abbinate.</span>`+(fatt.some(f=>f.on && Math.abs(f.imp-[...f.righe].reduce((a,id)=>a+byId[id].imp,0))>=0.005)?` <span style="color:#f59e0b;">Alcune righe hanno differenze che si compensano: gli importi sulle giornate restano quelli del preconsuntivo.</span>`:'');
+  else e=`<span style="color:#ef4444;">✗ Non torna: righe di fattura ${_ricEur(c.fatturato)}, giornate abbinate ${_ricEur(c.coperte)}${c.vuote?' · '+c.vuote+' riga/e senza giornate':''}. Spunta le giornate giuste, o togli la spunta alle righe che non c'entrano col preconsuntivo.</span>`;
+  if(fuori.length) e+=`<div style="margin-top:4px;color:var(--text2);">${fuori.length} riga/e fuori dal preconsuntivo (${_ricEur(fuori.reduce((a,f)=>a+f.imp,0))}): dopo la conferma le analizzo come fattura normale.</div>`;
   document.getElementById('ric-esito').innerHTML=e;
   const b=document.getElementById('ric-ok'); b.disabled=!c.ok; b.style.opacity=c.ok?'1':'.45';
 }
+function _ricTogli(i,id,on){ const f=_ric.fatt[i]; if(on){ _ric.fatt.forEach(g=>g.righe.delete(id)); f.righe.add(id); } else f.righe.delete(id); _ricRender(); }
 function _ricSenza(){ if(!_ric) return; document.getElementById('ric-ov').classList.remove('open'); window._ricRiprendi=_ric.raw; _ric=null; analizzaFattura(); }
 async function _ricConferma(){
-  if(!_ric) return; const c=_ricCalcola(); if(!c.ok){ toast('Il totale non torna: non posso confermare', true); return; }
-  const {forn, righePrev, prevOn, parsed, fatt}=_ric; const num=String(_ric.num||'').trim();
+  if(!_ric) return; const c=_ricCalcola(); if(!c.ok){ toast('Righe e giornate non tornano: non posso confermare', true); return; }
+  const {forn, righePrev, parsed, fatt}=_ric; const num=String(_ric.num||'').trim();
   if(!num){ toast('Manca il numero della fattura', true); return; }
-  const scelti=righePrev.filter(r=>prevOn[r.prev]); const prevNums=[...new Set(scelti.map(r=>r.prev))];
-  // report del preconsuntivo PRIMA di rinumerare (per il PDF dell'amministrazione)
-  const srvSp={}; fatt.filter(f=>f.on&&f.spazio).forEach(f=>{ if(!srvSp[f.spazio]) srvSp[f.spazio]=_servDaRigaFattura(f.r.descrizione); });
-  const righeRep=_righeReport(scelti.map(r=>({s:r.s, riga:r.riga, prev:r.prev, forn:r.forn, srv:srvSp[String(r.s.citta).toUpperCase()+'||'+String(r.s.teatro||'').toUpperCase()]})));
-  const htmlPrev='<html><head><meta charset="utf-8"></head><body>'+_buildReportHTML(righeRep, scelti[0].forn, prevNums.join(' + ')+' → fattura '+num, c.totPrev)+'</body></html>';
-  // rinumera le righe di previsione
+  const ids=new Set(); fatt.filter(f=>f.on).forEach(f=>f.righe.forEach(id=>ids.add(id)));
+  const scelti=righePrev.filter(r=>ids.has(r.id)); const prevNums=[...new Set(scelti.map(r=>r.prev))];
+  const parz=prevNums.map(n=>{ const tutte=righePrev.filter(x=>x.prev===n).length, qui=scelti.filter(x=>x.prev===n).length; return qui<tutte?n+' (parziale: '+qui+' di '+tutte+' giornate aperte)':n; });
+  // servizio con le parole della fattura per ogni giornata
+  const srvId={}; fatt.filter(f=>f.on).forEach(f=>{ const sv=_servDaRigaFattura(f.r.descrizione); f.righe.forEach(id=>srvId[id]=sv); });
+  const righeRep=_righeReport(scelti.map(r=>({s:r.s, riga:r.riga, prev:r.prev, forn:r.forn, srv:srvId[r.id]})));
+  const htmlPrev='<html><head><meta charset="utf-8"></head><body>'+_buildReportHTML(righeRep, scelti[0].forn, parz.join(' + ')+' → fattura '+num, c.coperte)+'</body></html>';
+  // rinumera solo le giornate abbinate: le altre restano PREV (preconsuntivo ancora aperto)
   const prima=_undoSnapshot(); let mod=0;
   const perSp={}; scelti.forEach(r=>{ (perSp[r.s.id]=perSp[r.s.id]||{s:r.s, righe:[]}).righe.push(r); });
   Object.values(perSp).forEach(({s, righe})=>{
-    const set=new Set(righe.map(r=>r.riga));
-    s.note=s.note.split('|').map(l=>l.trim()).filter(Boolean).map(l=>{ if(!set.has(l)) return l; mod++;
+    const daFare=righe.map(r=>r.riga);
+    s.note=s.note.split('|').map(l=>l.trim()).filter(Boolean).map(l=>{ const k=daFare.indexOf(l); if(k<0) return l; daFare.splice(k,1); mod++;
       const m=l.match(/^Fattura\s+n\.?\s*(PREV\S*)\s+/i); return 'Fattura n.'+num+' '+l.slice(m[0].length)+' (preconsuntivo '+m[1]+')'; }).join(' | ');
     s.ts=new Date().toISOString(); });
   data.sort((a,b)=>a.data.localeCompare(b.data)); sv('spettacoli',data); window._pullBlockUntil=Date.now()+30000;
-  _undoRegistra(prima, 'fattura '+num+' su preconsuntivo '+prevNums.join('+')); _logModifica('fattura', 'Fattura '+num+' '+forn+' collegata al preconsuntivo '+prevNums.join(' + ')+' ('+mod+' righe, '+_ricEur(c.totFatt)+')');
+  const restano=righePrev.filter(r=>!ids.has(r.id) && prevNums.includes(r.prev)); const totResta=restano.reduce((a,x)=>a+x.imp,0);
+  _undoRegistra(prima, 'fattura '+num+' su preconsuntivo '+prevNums.join('+')); _logModifica('fattura', 'Fattura '+num+' '+forn+' collegata al preconsuntivo '+parz.join(' + ')+' ('+mod+' giornate, '+_ricEur(c.coperte)+')');
   renderList(); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
   document.getElementById('ric-ov').classList.remove('open');
-  toast('✓ '+mod+' righe ora sulla fattura '+num+' — salvo fattura e preconsuntivo su Drive…');
-  // collegamento su Drive
+  toast('✓ '+mod+' giornate sulla fattura '+num+(restano.length?' · restano '+_ricEur(totResta)+' da fatturare ('+restano.length+' giornate)':' · preconsuntivo chiuso, i conti tornano'));
   const te=document.getElementById('fatt-testo'); const nomeCorr=te.dataset.pdfName||'';
-  const payload={action:'collegaFattura', forn:scelti[0].forn, num, data:normalizeDate(parsed.data_fattura||'')||'', totale:c.totFatt, prevNums:prevNums.join(' + '), html:htmlPrev};
+  const payload={action:'collegaFattura', forn:scelti[0].forn, num, data:normalizeDate(parsed.data_fattura||'')||'', totale:c.coperte, prevNums:parz.join(' + '), html:htmlPrev};
   if(_inboxCorrente && _inboxCorrente.id && _inboxCorrente.nome===nomeCorr) payload.fileId=_inboxCorrente.id;
   else if(_fattFile && _fattFile.nome===nomeCorr && _fattFile.b64){ payload.b64=_fattFile.b64; payload.nome=_fattFile.nome; payload.mime=_fattFile.mime; }
-  const resto=fatt.filter(f=>!f.on||!f.spazio).map(f=>f.r); const raw=resto.length?JSON.stringify({...parsed, righe:resto}):null;
+  const resto=fatt.filter(f=>!f.on).map(f=>f.r); const raw=resto.length?JSON.stringify({...parsed, righe:resto}):null;
   _ric=null;
   try{ const j=await _inboxCall(payload); _fattureCollegate=null;
     toast('✓ Fattura '+num+' collegata: cartella Drive pronta per l\'amministrazione');
-    if(payload.fileId && !raw && _inboxCorrente){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true, 'Fattura n.'+num+' — '+scelti[0].forn+' (collegata al preconsuntivo '+prevNums.join(' + ')+')'); }
-    if(j.cartella){ try{ await navigator.clipboard.writeText('Fattura '+scelti[0].forn+' n.'+num+' con preconsuntivo: '+j.cartella); toast('✓ Link della cartella copiato'); }catch(e){} }
+    if(payload.fileId && !raw && _inboxCorrente){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true, 'Fattura n.'+num+' — '+scelti[0].forn+' (preconsuntivo '+parz.join(' + ')+')'); }
+    if(j.cartella){ try{ await navigator.clipboard.writeText('Fattura '+scelti[0].forn+' n.'+num+' con preconsuntivo: '+j.cartella); }catch(e){} }
   }catch(e){ toast('Note aggiornate, ma il salvataggio su Drive non è riuscito: '+e.message, true); }
   if(raw){ window._ricRiprendi=raw; analizzaFattura(); }
 }
@@ -6909,7 +6949,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v160</span>
+    <span>Report generato da GammaFucker v161</span>
   </div>
   </body></html>`;
 
@@ -7015,7 +7055,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v160</span>
+    <span>Report generato da GammaFucker v161</span>
   </div>
   </body></html>`;
 
@@ -7111,7 +7151,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v160</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v161</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7184,7 +7224,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v160</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v161</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
