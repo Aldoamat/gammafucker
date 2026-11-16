@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v157</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v158</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -4695,7 +4695,8 @@ async function _ricConferma(){
   if(!num){ toast('Manca il numero della fattura', true); return; }
   const scelti=righePrev.filter(r=>prevOn[r.prev]); const prevNums=[...new Set(scelti.map(r=>r.prev))];
   // report del preconsuntivo PRIMA di rinumerare (per il PDF dell'amministrazione)
-  const righeRep=scelti.map(r=>{ const p=_parsaNota(r.riga); return {spettacolo_nome:r.s.spett, data:r.s.data, citta:r.s.citta, teatro:r.s.teatro||'', costo_fattura:p.costo, importo:p.serv, spese_accessorie:p.spese, descrizione:r.riga}; }).sort((a,b)=>a.data.localeCompare(b.data));
+  const srvSp={}; fatt.filter(f=>f.on&&f.spazio).forEach(f=>{ if(!srvSp[f.spazio]) srvSp[f.spazio]=_servDaRigaFattura(f.r.descrizione); });
+  const righeRep=_righeReport(scelti.map(r=>({s:r.s, riga:r.riga, prev:r.prev, forn:r.forn, srv:srvSp[String(r.s.citta).toUpperCase()+'||'+String(r.s.teatro||'').toUpperCase()]})));
   const htmlPrev='<html><head><meta charset="utf-8"></head><body>'+_buildReportHTML(righeRep, scelti[0].forn, prevNums.join(' + ')+' → fattura '+num, c.totPrev)+'</body></html>';
   // rinumera le righe di previsione
   const prima=_undoSnapshot(); let mod=0;
@@ -4723,6 +4724,27 @@ async function _ricConferma(){
     if(j.cartella){ try{ await navigator.clipboard.writeText('Fattura '+scelti[0].forn+' n.'+num+' con preconsuntivo: '+j.cartella); toast('✓ Link della cartella copiato'); }catch(e){} }
   }catch(e){ toast('Note aggiornate, ma il salvataggio su Drive non è riuscito: '+e.message, true); }
   if(raw){ window._ricRiprendi=raw; analizzaFattura(); }
+}
+// "SERVIZIO DI CONTROLLO ACCESSI E PREVENZIONE ANTINCENDIO SVOLTO PER VS. CONTO…" → "Controllo accessi e prevenzione antincendio"
+function _servDaRigaFattura(t){ const m=String(t||'').match(/SERVIZI?O?\s+DI\s+(.+?)\s+(SVOLT|PER\s+VS|PRESSO|NEL\s+MESE)/i); const x=(m?m[1]:String(t||'').split(/\s+PRESSO\s+/i)[0]).trim().toLowerCase(); return x?x.charAt(0).toUpperCase()+x.slice(1,60):''; }
+// righe per il PDF del preconsuntivo (da righe di nota)
+function _righeReport(lista){
+  return lista.map(r=>{ const p=_parsaNota(r.riga); const base={spettacolo_nome:r.s.spett, data:r.s.data, citta:r.s.citta, teatro:r.s.teatro||'', costo_fattura:p.costo, importo:p.serv, spese_accessorie:p.spese, descrizione:r.riga, nota_originale:r.riga, fornitore:r.forn||p.forn, numero_fattura:r.prev||p.numFatt};
+    if(r.srv && !/\[SRV:/.test(r.riga)) base.nota_originale=r.riga+' [SRV:'+r.srv+']';   // il servizio con le parole della fattura
+    return base; }).sort((a,b)=>a.data.localeCompare(b.data));
+}
+// Rifà il PDF del preconsuntivo di una fattura già collegata (dalle righe "… (preconsuntivo PREV-…)")
+async function _fcRigenera(i){
+  const f=(window._fornFatture||[])[i]; if(!f) return; const lista=await _fcLista(); const x=lista.find(c=>String(c.num).trim().toLowerCase()===String(f.num).trim().toLowerCase() && _ricFornEq(c.forn, f.fornitore));
+  if(!x){ toast('Fattura non collegata a un preconsuntivo', true); return; }
+  const righe=[]; data.forEach(s=>{ if(!s.note) return; s.note.split('|').map(l=>l.trim()).forEach(l=>{ const m=l.match(/\(preconsuntivo ([^)]+)\)/i); if(!m) return; const p=_parsaNota(l); if(String(p.numFatt).trim().toLowerCase()!==String(f.num).trim().toLowerCase()) return;
+    const orig='Fattura n.'+m[1]+' '+l.replace(/^Fattura\s+n\.?\s*\S+\s+/i,'').replace(/\s*\(preconsuntivo [^)]*\)/i,''); righe.push({s, riga:orig, prev:m[1], forn:p.forn}); }); });
+  if(!righe.length){ toast('Nessuna riga con riferimento al preconsuntivo', true); return; }
+  const rep=_righeReport(righe); const tot=rep.reduce((a,r)=>a+(+r.costo_fattura||0),0); const prevNums=[...new Set(righe.map(r=>r.prev))].join(' + ');
+  const html='<html><head><meta charset="utf-8"></head><body>'+_buildReportHTML(rep, righe[0].forn, prevNums+' → fattura '+f.num, tot)+'</body></html>';
+  toast('⏳ rifaccio il PDF del preconsuntivo…');
+  try{ await _inboxCall({action:'collegaFattura', forn:x.forn, num:x.num, data:x.data, totale:x.totale, prevNums, html}); _fattureCollegate=null; toast('✓ PDF del preconsuntivo rifatto'); mostraFattureFornitore(); }
+  catch(e){ toast('Errore: '+e.message, true); }
 }
 // elenco fatture collegate (per i link nel report della fattura)
 let _fattureCollegate=null;
@@ -5968,7 +5990,7 @@ function mostraFattureFornitore(){
   _fcLista().then(lista=>{ if(!lista.length) return;
     (window._fornFatture||[]).forEach((f,i)=>{ const x=lista.find(c=>String(c.num).trim().toLowerCase()===String(f.num).trim().toLowerCase() && _ricFornEq(c.forn, f.fornitore||forn)); const el=document.getElementById('fc-links-'+i); if(!x||!el) return;
       const b=(u,t)=>u?`<a href="${u}" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;font-size:10px;padding:2px 8px;color:#60a5fa;border-color:rgba(96,165,250,.4);">${t}</a>`:'';
-      el.innerHTML=`<span style="font-size:10px;color:var(--green);align-self:center;">🔗 ${String(x.prev||'preconsuntivo').replace(/</g,'&lt;')}</span>`+b(x.fattura,'📄 Fattura')+b(x.preconsuntivo,'📋 Preconsuntivo')+b(x.cartella,'📂 Cartella'); el.style.display='flex'; }); });
+      el.innerHTML=`<span style="font-size:10px;color:var(--green);align-self:center;">🔗 ${String(x.prev||'preconsuntivo').replace(/</g,'&lt;')}</span>`+b(x.fattura,'📄 Fattura')+b(x.preconsuntivo,'📋 Preconsuntivo')+b(x.cartella,'📂 Cartella')+(IS_COLLAB?'':`<button class="iBtn" style="font-size:10px;padding:2px 8px;" title="Rifai il PDF del preconsuntivo" onclick="_fcRigenera(${i})">♻️</button>`); el.style.display='flex'; }); });
 }
 
 function debugFattura(idx){
@@ -6048,6 +6070,9 @@ function _estraiServizio(r){
   if(tagMatch) return tagMatch[1];
   // Cerca nella descrizione o nella nota originale
   const testo = ((r.descrizione||'') + ' ' + (r.nota_originale||'')).toLowerCase();
+  if(testo.match(/antincendio|controllo\s+accessi|vigilanza|vigili\s+del\s+fuoco|addett\w*\s+(alla\s+)?sicurezza/)) return testo.match(/controllo\s+accessi/)?'Controllo accessi / antincendio':'Antincendio';
+  if(testo.match(/pulizi/)) return 'Pulizie';
+  if(testo.match(/maschera|accoglienza|guardaroba|portineria|custode|custodia/)) return 'Accoglienza / custodia';
   if(testo.match(/facchina|facchinaggio|movimentazione/)) return 'Facchinaggio';
   if(testo.match(/macchin|macc/)) return 'Macchinista';
   if(testo.match(/elettric|elettr|aiuto el/)) return 'Elettricista';
@@ -6061,8 +6086,12 @@ function _estraiServizio(r){
   if(testo.match(/straordinari|straordinario/)) return 'Straordinari';
   if(testo.match(/montaggio|smontaggio/)) return 'Montaggio/Smontaggio';
   // Prova a estrarre dalla descrizione: prima parola significativa
-  const desc = (r.descrizione||'').trim();
-  if(desc) return desc.split(' ').slice(0,3).join(' ');
+  // niente parola chiave: la parte descrittiva della nota, senza "Fattura n.X FORNITORE - " e senza importi
+  let desc = (r.descrizione||'').replace(/\s*\[(SID|SRV):[^\]]*\]/g,'').replace(/\s*\(preconsuntivo [^)]*\)/i,'').trim();
+  const mF = desc.match(/^Fattura\s+n\.?\s*\S+.*?\s+-\s+(.*)$/i); if(mF) desc=mF[1];
+  else if(/^Fattura\s+n/i.test(desc)) desc='';
+  desc = desc.replace(/\s*€[\d.,]+.*$/,'').trim();
+  if(desc) return desc.split(' ').slice(0,5).join(' ');
   return '—';
 }
 
@@ -6878,7 +6907,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v157</span>
+    <span>Report generato da GammaFucker v158</span>
   </div>
   </body></html>`;
 
@@ -6984,7 +7013,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v157</span>
+    <span>Report generato da GammaFucker v158</span>
   </div>
   </body></html>`;
 
@@ -7080,7 +7109,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v157</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v158</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7153,7 +7182,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v157</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v158</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');

@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v168 ──
+// ── SPETTACOLI APP SCRIPT v169 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -1577,6 +1577,7 @@ function collegaFattura(body) {
   // registro: una riga per fornitore+numero (aggiornata se si ricollega)
   var sh = _fcFoglio(); var val = sh.getDataRange().getValues(); var riga = [new Date(), forn, num, body.data || '', +body.totale || 0, body.prevNums || '', urlCart, urlFatt, urlPrev];
   var trovata = -1; for (var i = 1; i < val.length; i++) { if (String(val[i][1]).toUpperCase() === forn.toUpperCase() && String(val[i][2]) === num) { trovata = i + 1; break; } }
+  if (trovata > 0) { if (!urlFatt) riga[7] = val[trovata - 1][7]; if (!urlPrev) riga[8] = val[trovata - 1][8]; if (!body.data) riga[3] = val[trovata - 1][3]; }   // rigenerare solo il preconsuntivo non perde il link alla fattura
   if (trovata > 0) sh.getRange(trovata, 1, 1, riga.length).setValues([riga]); else sh.appendRow(riga);
   return { ok: true, cartella: urlCart, fattura: urlFatt, preconsuntivo: urlPrev };
 }
