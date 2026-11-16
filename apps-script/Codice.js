@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v166 ──
+// ── SPETTACOLI APP SCRIPT v167 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -143,6 +143,12 @@ function doPost(e) {
       lock.releaseLock();
       var ru2; try { ru2 = inboxUpload(body); } catch(errU2) { ru2 = { error: errU2.message }; }
       return ContentService.createTextOutput(JSON.stringify(ru2)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (body.action === 'collegaFattura' || body.action === 'fattureCollegate') {
+      // fattura vera + preconsuntivo: cartella Drive per fattura e registro nel foglio "Fatture collegate"
+      lock.releaseLock();
+      var rcf; try { rcf = body.action === 'collegaFattura' ? collegaFattura(body) : fattureCollegate(); } catch(errCF) { rcf = { error: errCF.message }; }
+      return ContentService.createTextOutput(JSON.stringify(rcf)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'setInboxPin') {
       props.setProperty('inboxPin', String(body.pin || '').trim());
@@ -1525,6 +1531,60 @@ function inboxArchivia(id) {
   var x = DriveApp.getFileById(id); var f = _inboxFolder(); var dest = _inboxFatte(f);
   x.moveTo(dest);
   return { ok: true, nome: x.getName() };
+}
+
+// ════════════════════ FATTURE COLLEGATE AL PRECONSUNTIVO ════════════════════
+// "GammaFucker Documenti/Fatture/<FORNITORE> <numero>": la fattura (copiata dalla cartella in arrivo o caricata
+// dall'app; se è una pagina HTML viene anche convertita in PDF) + il preconsuntivo in PDF. Cartella e file
+// "chi ha il link può vedere", così l'amministrazione li scarica entrambi. Registro nel foglio "Fatture collegate".
+var FC_FOGLIO = 'Fatture collegate';
+var FC_COLONNE = ['TS', 'FORNITORE', 'NUMERO', 'DATA', 'TOTALE', 'PRECONSUNTIVI', 'CARTELLA', 'FATTURA', 'PRECONSUNTIVO'];
+function _fcFoglio() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(); var sh = ss.getSheetByName(FC_FOGLIO);
+  if (!sh) { sh = ss.insertSheet(FC_FOGLIO); sh.appendRow(FC_COLONNE); sh.setFrozenRows(1); }
+  return sh;
+}
+function _fcPdfDaHtml(html, nome) {
+  var b = Utilities.newBlob(String(html || ''), 'text/html', nome + '.html');
+  return b.getAs('application/pdf').setName(nome + '.pdf');
+}
+function collegaFattura(body) {
+  var forn = String(body.forn || '').trim(), num = String(body.num || '').trim();
+  if (!forn || !num) return { error: 'fornitore e numero obbligatori' };
+  var pulito = function(s) { return String(s).replace(/[\\/:*?"<>|]/g, '-').trim(); };
+  var base = _cartellaDoc('Fatture').folder;
+  var nomeCart = pulito(forn + ' ' + num).substring(0, 100);
+  var itC = base.getFoldersByName(nomeCart); var cart = itC.hasNext() ? itC.next() : base.createFolder(nomeCart);
+  var togli = function(nome) { var it = cart.getFilesByName(nome); while (it.hasNext()) it.next().setTrashed(true); };   // ricollegare la stessa fattura sostituisce i file
+  var urlFatt = '', urlPrev = '';
+  // fattura
+  var blobF = null, nomeF = 'Fattura ' + pulito(num);
+  if (body.fileId) { var src = DriveApp.getFileById(body.fileId); blobF = src.getBlob(); nomeF += ' - ' + src.getName().replace(/^\d{4}-\d{2}-\d{2} · [^·]+ · /, ''); }
+  else if (body.b64) { blobF = Utilities.newBlob(Utilities.base64Decode(body.b64), body.mime || 'application/octet-stream', body.nome || 'fattura'); nomeF += ' - ' + (body.nome || 'fattura'); }
+  if (blobF) {
+    var mimeF = blobF.getContentType() || '';
+    if (/html/i.test(mimeF) || /\.html?$/i.test(nomeF)) {
+      var testo = blobF.getDataAsString('UTF-8'); var nomePdf = nomeF.replace(/\.html?$/i, '');
+      togli(nomePdf + '.pdf'); var fp = cart.createFile(_fcPdfDaHtml(testo, nomePdf));
+      togli(nomeF); cart.createFile(blobF.setName(nomeF));   // anche l'originale, per sicurezza
+      urlFatt = fp.getUrl();
+    } else { togli(nomeF); urlFatt = cart.createFile(blobF.setName(nomeF)).getUrl(); }
+  }
+  // preconsuntivo
+  if (body.html) { var nomeP = 'Preconsuntivo ' + pulito(body.prevNums || '') + ' (fattura ' + pulito(num) + ')'; togli(nomeP + '.pdf'); urlPrev = cart.createFile(_fcPdfDaHtml(body.html, nomeP)).getUrl(); }
+  var it = cart.getFiles(); while (it.hasNext()) { try { it.next().setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {} }
+  var urlCart = _cartellaCondivisa(cart);
+  // registro: una riga per fornitore+numero (aggiornata se si ricollega)
+  var sh = _fcFoglio(); var val = sh.getDataRange().getValues(); var riga = [new Date(), forn, num, body.data || '', +body.totale || 0, body.prevNums || '', urlCart, urlFatt, urlPrev];
+  var trovata = -1; for (var i = 1; i < val.length; i++) { if (String(val[i][1]).toUpperCase() === forn.toUpperCase() && String(val[i][2]) === num) { trovata = i + 1; break; } }
+  if (trovata > 0) sh.getRange(trovata, 1, 1, riga.length).setValues([riga]); else sh.appendRow(riga);
+  return { ok: true, cartella: urlCart, fattura: urlFatt, preconsuntivo: urlPrev };
+}
+function fattureCollegate() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(FC_FOGLIO); if (!sh) return { fatture: [] };
+  var val = sh.getDataRange().getValues(); var out = [];
+  for (var i = 1; i < val.length; i++) out.push({ forn: val[i][1], num: String(val[i][2]), data: val[i][3] instanceof Date ? Utilities.formatDate(val[i][3], 'Europe/Rome', 'yyyy-MM-dd') : String(val[i][3]), totale: +val[i][4] || 0, prev: val[i][5], cartella: val[i][6], fattura: val[i][7], preconsuntivo: val[i][8] });
+  return { fatture: out };
 }
 
 // ════════════════════ ANAGRAFICA: verifica e unificazione ════════════════════
