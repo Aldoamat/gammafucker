@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v161</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v162</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -4374,7 +4374,7 @@ async function analizzaFattura(){
         if(!document.getElementById('prev-numero').value.trim() && numV2) document.getElementById('prev-numero').value = numV2;
         if(!document.getElementById('fatt-totale-fatt').value && parsed.totale_imponibile) document.getElementById('fatt-totale-fatt').value = (+parsed.totale_imponibile).toFixed(2);
         // c'è un preconsuntivo aperto di questo fornitore? → riconciliazione invece dell'abbinamento riga per riga
-        if(!_ricSalta){ const pc=_ricTrova(fornV2, parsed); if(pc.length){ _ricApri(parsed, result, fornV2, numV2, pc); return; } }
+        if(!_ricSalta){ const pc=_ricTrova(fornV2, parsed, numV2); if(pc.length){ _ricApri(parsed, result, fornV2, numV2, pc); return; } }
         voci = abbinaRigheFattura(parsed.righe, {fornitore:fornV2, numero_fattura:numV2, data_fattura:parsed.data_fattura});
         if(!voci.length) throw new Error('Nessuna riga nella fattura');
       } else {
@@ -4631,18 +4631,23 @@ function _ricMesi(parsed){
   return m;
 }
 // righe PREV aperte del fornitore nei mesi della fattura (+ quelle già passate su fatture vere, per lo stato del preconsuntivo)
-function _ricTrova(forn, parsed){
+function _ricTrova(forn, parsed, num){
   const fornCampo=document.getElementById('fatt-fornitore').value.trim(); const mesi=_ricMesi(parsed); const out=[];
   const fornOk=fl=>_ricFornEq(fl, forn) || (fornCampo && _ricFornEq(fl, fornCampo));
+  const numN=String(num||'').trim().toLowerCase();
   data.forEach(s=>{ if(!s.note || !mesi.has(String(s.data).slice(0,7))) return;
-    s.note.split('|').map(l=>l.trim()).filter(Boolean).forEach(l=>{ const m=l.match(/^Fattura\s+n\.?\s*(PREV\S*)\s+/i); if(!m) return;
-      const p=_parsaNota(l); const fl=(p&&p.forn&&p.forn!=='—')?p.forn:l.slice(m[0].length).split(' - ')[0];
+    s.note.split('|').map(l=>l.trim()).filter(Boolean).forEach(l=>{ const m=l.match(/^Fattura\s+n\.?\s*(PREV\S*)\s+/i);
+      const p=_parsaNota(l);
+      if(!m){ // già passata su questa stessa fattura (la si sta rianalizzando): resta abbinabile, non si rinumera
+        const g=l.match(/\(preconsuntivo ([^)]+)\)/i); if(!g || !numN || String(p.numFatt||'').trim().toLowerCase()!==numN) return;
+        if(!fornOk(p.forn)) return; out.push({id:out.length, s, riga:l, prev:g[1], forn:p.forn, imp:+p.costo||0, gia:true}); return; }
+      const fl=(p&&p.forn&&p.forn!=='—')?p.forn:l.slice(m[0].length).split(' - ')[0];
       if(!fornOk(fl)) return; out.push({id:out.length, s, riga:l, prev:m[1], forn:fl, imp:+(p&&p.costo)||0}); }); });
   return out;
 }
-function _ricGiaFatturate(prevNums){
-  const out=[]; const set=new Set(prevNums.map(x=>x.toUpperCase()));
-  data.forEach(s=>{ if(!s.note) return; s.note.split('|').map(l=>l.trim()).forEach(l=>{ const m=l.match(/\(preconsuntivo ([^)]+)\)/i); if(!m || !set.has(m[1].toUpperCase())) return; const p=_parsaNota(l); out.push({prev:m[1], num:p.numFatt, imp:+p.costo||0}); }); });
+function _ricGiaFatturate(prevNums, num){
+  const out=[]; const set=new Set(prevNums.map(x=>x.toUpperCase())); const numN=String(num||'').trim().toLowerCase();
+  data.forEach(s=>{ if(!s.note) return; s.note.split('|').map(l=>l.trim()).forEach(l=>{ const m=l.match(/\(preconsuntivo ([^)]+)\)/i); if(!m || !set.has(m[1].toUpperCase())) return; const p=_parsaNota(l); if(numN && String(p.numFatt||'').trim().toLowerCase()===numN) return; out.push({prev:m[1], num:p.numFatt, imp:+p.costo||0}); }); });
   return out;
 }
 function _ricCore(t){ return _normTxt(String(t||'')).replace(/^TEATRO\s+(COMUNALE\s+)?/,'').replace(/\s+DI\s+.*$/,'').trim(); }
@@ -4663,7 +4668,7 @@ function _ricApri(parsed, raw, forn, num, righePrev){
     const testo=_normTxt([r.teatro, r.citta, r.descrizione].join(' ')); const citta=_risolviCitta(r.citta||'', r.teatro||'')||r.citta||'';
     let k=chiavi.find(k=>{ const sp=spazi[k]; const c=_ricCore(sp.teatro); return c && (testo.includes(c) || _teatroEq(sp.teatro, r.teatro||'')) && (!citta || _cittaEq(sp.citta, citta) || testo.includes(_normTxt(sp.citta))); });
     if(!k && citta){ const kk=chiavi.filter(k=>_cittaEq(spazi[k].citta, citta)); if(kk.length===1) k=kk[0]; }
-    return {r, imp:+r.importo, spazio:k||'', date:(r.date||[]).map(d=>normalizeDate(d)).filter(Boolean), righe:new Set(), on:false}; });
+    return {r, imp:+r.importo, spazio:k||'', date:(r.date||[]).map(d=>normalizeDate(d)).filter(Boolean), righe:new Set(), extra:new Set(), on:false}; });
   // abbinamento automatico alle giornate: prima le righe con data, poi le altre; ogni giornata va a una sola riga
   const usate=new Set();
   const peso=f=>(f.spazio?2:0)+(f.date.length?1:0); const ordine=fatt.map((f,i)=>i).sort((a,b)=>peso(fatt[b])-peso(fatt[a]));   // prima le righe più precise
@@ -4675,16 +4680,24 @@ function _ricApri(parsed, raw, forn, num, righePrev){
     const sc=_ricSomma(cand, f.imp) || (f.spazio && f.date.length && cand.length && cand.every(x=>f.date.includes(x.s.data)) ? cand : null);   // senza spazio serve l'importo esatto
     if(sc && sc.length){ sc.forEach(x=>{ f.righe.add(x.id); usate.add(x.id); }); f.on=true; if(!f.spazio) f.spazio=_ricKey(sc[0].s); }
     else if(f.spazio) f.on=true; });
-  _ric={parsed, raw, forn, num:num||parsed.numero_fattura||'', righePrev, prevNums, spazi, fatt, gia:_ricGiaFatturate(prevNums), aperta:null};
+  // righe senza giornate di preconsuntivo ma con date: propone gli eventi di quei giorni citati nella riga (città, spazio o titolo)
+  fatt.forEach(f=>{ if(f.righe.size || !f.date.length) return; const testo=_normTxt(String(f.r.descrizione||'')+' '+(f.r.citta||'')+' '+(f.r.teatro||''));
+    const punti=s=>{ let p=0; if(s.citta && testo.includes(_normTxt(s.citta))) p+=2; const c=_ricCore(s.teatro); if(c && c.length>=4 && testo.includes(c)) p+=1;
+      if(String(s.spett||'').split(/[^A-Za-zÀ-ÿ0-9]+/).filter(w=>w.length>=3 && !/^(DEL|DELLA|CON|PER|THE|UNA|UNO)$/i.test(w)).some(w=>testo.includes(_normTxt(w)))) p+=1; return p; };
+    f.date.forEach(d=>{ const ev=data.filter(s=>s.data===d).map(s=>({s, p:punti(s)})).filter(x=>x.p>0).sort((a,b)=>b.p-a.p); if(ev.length && (ev.length===1 || ev[0].p>ev[1].p)) f.extra.add(ev[0].s.id); });
+    if(f.extra.size) f.on=true; });
+  _ric={parsed, raw, forn, num:num||parsed.numero_fattura||'', righePrev, prevNums, spazi, fatt, gia:_ricGiaFatturate(prevNums, num||parsed.numero_fattura), mesi:_ricMesi(parsed)};
   _ricRender(); document.getElementById('ric-ov').classList.add('open');
 }
 function _ricCalcola(){
   const {righePrev, fatt}=_ric; const byId=Object.fromEntries(righePrev.map(x=>[x.id,x]));
   const attive=fatt.filter(f=>f.on);
-  const coperte=attive.reduce((a,f)=>a+[...f.righe].reduce((b,id)=>b+_ricC(byId[id].imp),0),0);
+  const copR=f=>[...f.righe].reduce((b,id)=>b+_ricC(byId[id].imp),0);
+  const extraR=f=>f.extra.size?Math.max(0,_ricC(f.imp)-copR(f)):0;   // quello che le giornate PREV non coprono va sugli eventi scelti
+  const coperte=attive.reduce((a,f)=>a+copR(f),0), extra=attive.reduce((a,f)=>a+extraR(f),0);
   const fatturato=attive.reduce((a,f)=>a+_ricC(f.imp),0);
-  const vuote=attive.filter(f=>!f.righe.size).length;
-  return {coperte:coperte/100, fatturato:fatturato/100, ok:fatturato>0 && fatturato===coperte && !vuote, vuote, byId};
+  const vuote=attive.filter(f=>!f.righe.size && !f.extra.size).length;
+  return {coperte:coperte/100, extra:extra/100, fatturato:fatturato/100, ok:fatturato>0 && fatturato===coperte+extra && !vuote, vuote, byId, extraR:f=>extraR(f)/100};
 }
 function _ricRender(){
   const esc=x=>String(x||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
@@ -4697,6 +4710,7 @@ function _ricRender(){
     (imponibile && Math.abs(imponibile-totRighe)>=0.01?` <span style="color:#f59e0b;">(le righe lette sommano ${_ricEur(totRighe)})</span>`:'');
   // stato dei preconsuntivi
   let h=`<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin:4px 0;">Preconsuntivi</div>`+
+    (righePrev.some(x=>x.gia)?`<div style="font-size:11px;color:#f59e0b;margin-bottom:4px;">⚠️ Questa fattura risulta già collegata per ${righePrev.filter(x=>x.gia).length} giornate (${_ricEur(righePrev.filter(x=>x.gia).reduce((a,x)=>a+x.imp,0))}): restano come sono e confermando non vengono duplicate. Qui sotto abbina solo quello che manca.</div>`:'')+
     prevNums.map(n=>{ const aperte=righePrev.filter(x=>x.prev===n); const totAp=aperte.reduce((a,x)=>a+x.imp,0); const g=gia.filter(x=>x.prev.toUpperCase()===n.toUpperCase()); const totG=g.reduce((a,x)=>a+x.imp,0);
       const questa=aperte.filter(x=>usateDa[x.id]!==undefined).reduce((a,x)=>a+x.imp,0); const resta=totAp-questa; const nums=[...new Set(g.map(x=>x.num))];
       return `<div style="font-size:12px;padding:4px 0;border-top:1px solid var(--border);"><b>${esc(n)}</b> · totale ${_ricEur(totAp+totG)}
@@ -4714,8 +4728,10 @@ function _ricRender(){
       ${f.on?`<div style="margin:4px 0 0 23px;">
         <select onchange="_ric.fatt[${i}].spazio=this.value;_ricRender()" style="font-size:11px;padding:2px 6px;max-width:100%;margin-bottom:3px;"><option value="">— spazio —</option>${Object.keys(spazi).map(k=>`<option value="${esc(k)}"${k===f.spazio?' selected':''}>${etSp(k)}</option>`).join('')}</select>
         ${cand.map(riga).join('')||'<div style="color:var(--text3);">nessuna giornata in questo spazio</div>'}
-        ${altre.length?`<select onchange="if(this.value!=='')_ricTogli(${i},+this.value,true)" style="font-size:10px;padding:1px 6px;margin-top:3px;max-width:100%;"><option value="">+ giornata di un altro spazio…</option>${altre.map(x=>`<option value="${x.id}">${gg(x.s.data)} · ${esc((x.s.teatro||x.s.citta)+' · '+String(x.s.spett||'').slice(0,30))} · ${_ricEur(x.imp)}</option>`).join('')}</select>`:''}
-        <div style="margin-top:3px;color:${!f.righe.size?'#ef4444':Math.abs(d)<0.005?'var(--green)':'#f59e0b'};">${!f.righe.size?'✗ nessuna giornata abbinata':Math.abs(d)<0.005?'✓ giornate '+_ricEur(cop):'giornate '+_ricEur(cop)+' · differenza '+(d>0?'+':'')+_ricEur(d)}</div>
+        ${altre.length?`<select onchange="if(this.value!=='')_ricTogli(${i},+this.value,true)" style="font-size:10px;padding:1px 6px;margin-top:3px;max-width:100%;"><option value="">+ giornata del preconsuntivo di un altro spazio…</option>${altre.map(x=>`<option value="${x.id}">${gg(x.s.data)} · ${esc((x.s.teatro||x.s.citta)+' · '+String(x.s.spett||'').slice(0,30))} · ${_ricEur(x.imp)}</option>`).join('')}</select>`:''}
+        ${[...f.extra].map(id=>{ const s=data.find(x=>x.id===id); if(!s) return ''; const quota=c.extraR(f)/f.extra.size; return `<label style="display:flex;gap:6px;align-items:center;font-size:11px;padding:1px 0;color:#a78bfa;"><input type="checkbox" checked onchange="_ric.fatt[${i}].extra.delete(${id});_ricRender()" style="width:13px;height:13px;">${gg(s.data)} · ${esc(s.citta+' · '+(s.teatro||'')+' · '+String(s.spett||'').slice(0,34))} <span style="color:var(--text3);">fuori preconsuntivo</span><b style="margin-left:auto;">${_ricEur(quota)}</b></label>`; }).join('')}
+        <select onchange="if(this.value){_ric.fatt[${i}].extra.add(+this.value);_ric.fatt[${i}].on=true;_ricRender();}" style="font-size:10px;padding:1px 6px;margin-top:3px;max-width:100%;"><option value="">+ evento del mese (fuori preconsuntivo)…</option>${data.filter(s=>_ric.mesi.has(String(s.data).slice(0,7)) && !f.extra.has(s.id)).sort((a,b)=>a.data.localeCompare(b.data)||String(a.citta).localeCompare(String(b.citta))).map(s=>`<option value="${s.id}"${f.date.includes(s.data)?' style="font-weight:700;"':''}>${gg(s.data)} · ${esc(s.citta+' · '+(s.teatro||'')+' · '+String(s.spett||'').slice(0,40))}</option>`).join('')}</select>
+        <div style="margin-top:3px;color:${!f.righe.size&&!f.extra.size?'#ef4444':(Math.abs(d)<0.005||f.extra.size&&d>0)?'var(--green)':'#f59e0b'};">${!f.righe.size&&!f.extra.size?'✗ niente di abbinato: scegli giornate o eventi':(f.extra.size&&d>0.005?(f.righe.size?'giornate '+_ricEur(cop)+' + ':'')+'fuori preconsuntivo '+_ricEur(d)+(f.extra.size>1?' (diviso su '+f.extra.size+' eventi)':''):Math.abs(d)<0.005?'✓ giornate '+_ricEur(cop):'giornate '+_ricEur(cop)+' · differenza '+(d>0?'+':'')+_ricEur(d))}</div>
       </div>`:''}</div>`; }).join('');
   document.getElementById('ric-box').innerHTML=h;
   const fuori=fatt.filter(f=>!f.on);
@@ -4735,35 +4751,42 @@ async function _ricConferma(){
   if(!num){ toast('Manca il numero della fattura', true); return; }
   const ids=new Set(); fatt.filter(f=>f.on).forEach(f=>f.righe.forEach(id=>ids.add(id)));
   const scelti=righePrev.filter(r=>ids.has(r.id)); const prevNums=[...new Set(scelti.map(r=>r.prev))];
+  const fornNota=(scelti[0]&&scelti[0].forn)||(righePrev[0]&&righePrev[0].forn)||forn;
+  if(!scelti.length && !c.extra){ toast('Niente da collegare', true); return; }
   const parz=prevNums.map(n=>{ const tutte=righePrev.filter(x=>x.prev===n).length, qui=scelti.filter(x=>x.prev===n).length; return qui<tutte?n+' (parziale: '+qui+' di '+tutte+' giornate aperte)':n; });
   // servizio con le parole della fattura per ogni giornata
   const srvId={}; fatt.filter(f=>f.on).forEach(f=>{ const sv=_servDaRigaFattura(f.r.descrizione); f.righe.forEach(id=>srvId[id]=sv); });
-  const righeRep=_righeReport(scelti.map(r=>({s:r.s, riga:r.riga, prev:r.prev, forn:r.forn, srv:srvId[r.id]})));
-  const htmlPrev='<html><head><meta charset="utf-8"></head><body>'+_buildReportHTML(righeRep, scelti[0].forn, parz.join(' + ')+' → fattura '+num, c.coperte)+'</body></html>';
+  const righeRep=_righeReport(scelti.map(r=>({s:r.s, riga:r.gia?r.riga.replace(/^Fattura\s+n\.?\s*\S+\s+/i,'Fattura n.'+r.prev+' ').replace(/\s*\(preconsuntivo [^)]*\)/i,''):r.riga, prev:r.prev, forn:r.forn, srv:srvId[r.id]})));
+  const htmlPrev=scelti.length?'<html><head><meta charset="utf-8"></head><body>'+_buildReportHTML(righeRep, fornNota, parz.join(' + ')+' → fattura '+num, c.coperte)+'</body></html>':'';
   // rinumera solo le giornate abbinate: le altre restano PREV (preconsuntivo ancora aperto)
   const prima=_undoSnapshot(); let mod=0;
-  const perSp={}; scelti.forEach(r=>{ (perSp[r.s.id]=perSp[r.s.id]||{s:r.s, righe:[]}).righe.push(r); });
+  const perSp={}; scelti.filter(r=>!r.gia).forEach(r=>{ (perSp[r.s.id]=perSp[r.s.id]||{s:r.s, righe:[]}).righe.push(r); });
   Object.values(perSp).forEach(({s, righe})=>{
     const daFare=righe.map(r=>r.riga);
     s.note=s.note.split('|').map(l=>l.trim()).filter(Boolean).map(l=>{ const k=daFare.indexOf(l); if(k<0) return l; daFare.splice(k,1); mod++;
       const m=l.match(/^Fattura\s+n\.?\s*(PREV\S*)\s+/i); return 'Fattura n.'+num+' '+l.slice(m[0].length)+' (preconsuntivo '+m[1]+')'; }).join(' | ');
     s.ts=new Date().toISOString(); });
+  // righe fuori preconsuntivo: nota di fattura normale sugli eventi scelti (importo diviso in parti uguali)
+  let extraN=0; fatt.filter(f=>f.on && f.extra.size).forEach(f=>{ const tot=c.extraR(f); if(tot<0.005) return; const ev=[...f.extra].map(id=>data.find(x=>x.id===id)).filter(Boolean); if(!ev.length) return;
+    const q=Math.floor(tot*100/ev.length)/100; const desc=String(f.r.descrizione||'prestazione').replace(/\s+/g,' ').slice(0,90);
+    ev.forEach((s,k)=>{ const imp=k===ev.length-1?+(tot-q*(ev.length-1)).toFixed(2):q; const nota='Fattura n.'+num+' '+fornNota+' - '+desc+' €'+imp.toFixed(2)+' (fuori preconsuntivo)';
+      s.note=s.note?s.note+' | '+nota:nota; s.ts=new Date().toISOString(); extraN++; }); });
   data.sort((a,b)=>a.data.localeCompare(b.data)); sv('spettacoli',data); window._pullBlockUntil=Date.now()+30000;
-  const restano=righePrev.filter(r=>!ids.has(r.id) && prevNums.includes(r.prev)); const totResta=restano.reduce((a,x)=>a+x.imp,0);
+  const restano=righePrev.filter(r=>!ids.has(r.id) && prevNums.includes(r.prev) && !r.gia); const totResta=restano.reduce((a,x)=>a+x.imp,0);
   _undoRegistra(prima, 'fattura '+num+' su preconsuntivo '+prevNums.join('+')); _logModifica('fattura', 'Fattura '+num+' '+forn+' collegata al preconsuntivo '+parz.join(' + ')+' ('+mod+' giornate, '+_ricEur(c.coperte)+')');
   renderList(); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
   document.getElementById('ric-ov').classList.remove('open');
-  toast('✓ '+mod+' giornate sulla fattura '+num+(restano.length?' · restano '+_ricEur(totResta)+' da fatturare ('+restano.length+' giornate)':' · preconsuntivo chiuso, i conti tornano'));
+  toast('✓ '+mod+' giornate sulla fattura '+num+(extraN?' + '+extraN+' eventi fuori preconsuntivo':'')+(restano.length?' · restano '+_ricEur(totResta)+' da fatturare ('+restano.length+' giornate)':' · preconsuntivo chiuso, i conti tornano'));
   const te=document.getElementById('fatt-testo'); const nomeCorr=te.dataset.pdfName||'';
-  const payload={action:'collegaFattura', forn:scelti[0].forn, num, data:normalizeDate(parsed.data_fattura||'')||'', totale:c.coperte, prevNums:parz.join(' + '), html:htmlPrev};
+  const payload={action:'collegaFattura', forn:fornNota, num, data:normalizeDate(parsed.data_fattura||'')||'', totale:+(c.coperte+c.extra).toFixed(2), prevNums:parz.join(' + ')||'—', html:htmlPrev};
   if(_inboxCorrente && _inboxCorrente.id && _inboxCorrente.nome===nomeCorr) payload.fileId=_inboxCorrente.id;
   else if(_fattFile && _fattFile.nome===nomeCorr && _fattFile.b64){ payload.b64=_fattFile.b64; payload.nome=_fattFile.nome; payload.mime=_fattFile.mime; }
   const resto=fatt.filter(f=>!f.on).map(f=>f.r); const raw=resto.length?JSON.stringify({...parsed, righe:resto}):null;
   _ric=null;
   try{ const j=await _inboxCall(payload); _fattureCollegate=null;
     toast('✓ Fattura '+num+' collegata: cartella Drive pronta per l\'amministrazione');
-    if(payload.fileId && !raw && _inboxCorrente){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true, 'Fattura n.'+num+' — '+scelti[0].forn+' (preconsuntivo '+parz.join(' + ')+')'); }
-    if(j.cartella){ try{ await navigator.clipboard.writeText('Fattura '+scelti[0].forn+' n.'+num+' con preconsuntivo: '+j.cartella); }catch(e){} }
+    if(payload.fileId && !raw && _inboxCorrente){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true, 'Fattura n.'+num+' — '+fornNota+' (preconsuntivo '+parz.join(' + ')+')'); }
+    if(j.cartella){ try{ await navigator.clipboard.writeText('Fattura '+fornNota+' n.'+num+' con preconsuntivo: '+j.cartella); }catch(e){} }
   }catch(e){ toast('Note aggiornate, ma il salvataggio su Drive non è riuscito: '+e.message, true); }
   if(raw){ window._ricRiprendi=raw; analizzaFattura(); }
 }
@@ -6949,7 +6972,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v161</span>
+    <span>Report generato da GammaFucker v162</span>
   </div>
   </body></html>`;
 
@@ -7055,7 +7078,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v161</span>
+    <span>Report generato da GammaFucker v162</span>
   </div>
   </body></html>`;
 
@@ -7151,7 +7174,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v161</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v162</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7224,7 +7247,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v161</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v162</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
