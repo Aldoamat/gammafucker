@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v158</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v159</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -449,6 +449,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <select id="fil-stagione" onchange="renderList()"><option value="">Tutte le stagioni</option></select>
     <button class="btn btn-o btn-sm collab-only" style="display:none;white-space:nowrap;" id="btn-rep-stag" onclick="generaReportFiltri()" title="Report degli spettacoli con i filtri impostati qui sopra">🎭 Report</button>
     <a class="btn btn-o btn-sm collab-only" id="btn-carica-fatt" href="../carica/?pin=12345" target="_blank" rel="noopener" style="display:none;white-space:nowrap;color:#fbbf24;border-color:rgba(251,191,36,.5);text-decoration:none;" title="Pagina per caricare le fatture a Aldo (senza account Google)">📤 Carica fatture</a>
+    <a class="btn btn-o btn-sm collab-only" id="btn-storico-fatt" href="../carica/?pin=12345#storico" target="_blank" rel="noopener" style="display:none;white-space:nowrap;color:#60a5fa;border-color:rgba(96,165,250,.5);text-decoration:none;" title="Le fatture caricate su Drive, giorno per giorno, e quali sono già state lavorate">🗂 Fatture caricate</a>
     <button class="btn btn-o btn-sm admin-only" style="white-space:nowrap;color:#f59e0b;border-color:rgba(245,158,11,.45);" onclick="apriDaFare()" title="Prossimi spettacoli senza scheda tecnica o senza info inviate">📋 Da fare</button>
     <button class="btn btn-o btn-sm admin-only" style="white-space:nowrap;color:#34d399;border-color:rgba(52,211,153,.45);" onclick="apriSettimana()" title="Verifica e report della settimana appena trascorsa">📅 Settimana</button>
   </div>
@@ -2497,7 +2498,8 @@ async function caricaRubrica(forza=false){
 }
 function _rubricaStato(){ const st=document.getElementById('rubrica-stato'); if(st) st.textContent = rubrica.length ? rubrica.length+' contatti in rubrica' : 'rubrica vuota'; }
 function _initRubrica(){
-  try{ const a=document.getElementById('btn-carica-fatt'); if(a) a.href=new URL('../carica/?pin='+encodeURIComponent(ld('inboxPin','')||'12345'), location.href).href; }catch(e){}
+  try{ const a=document.getElementById('btn-carica-fatt'); if(a) a.href=new URL('../carica/?pin='+encodeURIComponent(ld('inboxPin','')||'12345'), location.href).href;
+    const b=document.getElementById('btn-storico-fatt'); if(b) b.href=new URL('../carica/?pin='+encodeURIComponent(ld('inboxPin','')||'12345')+'#storico', location.href).href; }catch(e){}
   setTimeout(()=>caricaRubrica(false), 3500);
   attachRubrica('si-referente-nome', c=>{ _setVal('si-referente-email', c.email); _setVal('si-referente-tel', c.tel); }, {aziende:false});
   attachRubrica('si-referente2-nome', c=>{ _setVal('si-referente2-email', c.email); _setVal('si-referente2-tel', c.tel); }, {aziende:false});
@@ -4605,8 +4607,8 @@ async function _inboxAnalizza(id, nome){
     toast('✓ '+nomeF+' caricato: controlla fornitore e numero, poi Analizza Fattura');
   }catch(e){ toast('Errore: '+e.message, true); }
 }
-async function _inboxArchivia(id, nome, silenzioso){
-  try{ await _inboxCall({action:'inboxArchivia', id}); toast('✓ '+nome+' spostata in Elaborate'); if(!silenzioso) caricaInbox(); }
+async function _inboxArchivia(id, nome, silenzioso, nota){
+  try{ await _inboxCall({action:'inboxArchivia', id, nota:nota||'segnata come fatta, senza analisi'}); toast('✓ '+nome+' spostata in Elaborate'); if(!silenzioso) caricaInbox(); }
   catch(e){ toast('Archiviazione non riuscita: '+e.message, true); }
 }
 
@@ -4720,7 +4722,7 @@ async function _ricConferma(){
   _ric=null;
   try{ const j=await _inboxCall(payload); _fattureCollegate=null;
     toast('✓ Fattura '+num+' collegata: cartella Drive pronta per l\'amministrazione');
-    if(payload.fileId && !raw && _inboxCorrente){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true); }
+    if(payload.fileId && !raw && _inboxCorrente){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true, 'Fattura n.'+num+' — '+scelti[0].forn+' (collegata al preconsuntivo '+prevNums.join(' + ')+')'); }
     if(j.cartella){ try{ await navigator.clipboard.writeText('Fattura '+scelti[0].forn+' n.'+num+' con preconsuntivo: '+j.cartella); toast('✓ Link della cartella copiato'); }catch(e){} }
   }catch(e){ toast('Note aggiornate, ma il salvataggio su Drive non è riuscito: '+e.message, true); }
   if(raw){ window._ricRiprendi=raw; analizzaFattura(); }
@@ -4897,7 +4899,7 @@ function rendApplica(){
   if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
   document.getElementById('rend-ov').classList.remove('open'); _rendDati=null;
   toast('✓ Rendiconto inserito come previsione su '+mod+' giornate'+(creati?' · '+creati+' eventi creati':''));
-  if(_inboxCorrente){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true); }
+  if(_inboxCorrente){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true, 'Preconsuntivo '+num+' — '+forn+' ('+mod+' giornate)'); }
   goTab('list');
 }
 function _importaReportPresenze(fogli, nomeFile){
@@ -6776,7 +6778,7 @@ function applicaFattura(){
   }
   toast(msg);
   goTab('list');
-  if(_inboxCorrente){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true); }
+  if(_inboxCorrente){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true, 'Fattura'+(_prevNumLog?' n.'+_prevNumLog:'')+(_prevFornLog?' — '+_prevFornLog:'')); }
 }
 
 
@@ -6907,7 +6909,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v158</span>
+    <span>Report generato da GammaFucker v159</span>
   </div>
   </body></html>`;
 
@@ -7013,7 +7015,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v158</span>
+    <span>Report generato da GammaFucker v159</span>
   </div>
   </body></html>`;
 
@@ -7109,7 +7111,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v158</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v159</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7182,7 +7184,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v158</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v159</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');

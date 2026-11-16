@@ -43,6 +43,16 @@
 </div>
 
 <div class="card" id="fatte" style="display:none"><label>Caricate in questa sessione</label><div id="fatte-lista"></div></div>
+<div class="card" id="storico">
+  <label>📋 Fatture caricate</label>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 4px;">
+    <label style="display:flex;gap:6px;align-items:center;margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text2);"><input type="checkbox" id="st-mie" onchange="mostraStorico()" style="width:auto;"> solo le mie</label>
+    <select id="st-giorni" onchange="caricaStorico()" style="flex:1;min-width:120px;width:auto;"><option value="30">ultimi 30 giorni</option><option value="90" selected>ultimi 3 mesi</option><option value="365">ultimo anno</option></select>
+    <button onclick="caricaStorico()" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;">🔄</button>
+  </div>
+  <div id="st-sommario" style="font-size:12px;color:var(--text2);margin:6px 0;"></div>
+  <div id="st-lista"><div style="font-size:13px;color:var(--text3);">Tocca 🔄 per vedere l'elenco.</div></div>
+</div>
 <div class="foot">GammaFucker · pagina di caricamento · i file restano privati nella cartella di lavoro</div>
 
 <script>
@@ -89,8 +99,36 @@ async function carica(){
   }
   const ok=coda.filter(x=>x.stato==='ok');
   if(ok.length){ const box=document.getElementById('fatte'); box.style.display='block'; document.getElementById('fatte-lista').innerHTML+=ok.map(x=>`<div class="file"><div class="n ok">✓ ${String(x.nomeFinale||x.file.name).replace(/</g,'&lt;')}</div></div>`).join(''); coda=coda.filter(x=>x.stato!=='ok'); render(); }
+  if(ok.length) caricaStorico();
   btn.textContent=coda.some(x=>x.stato==='err')?'🔁 Riprova':'📤 Carica'; btn.disabled=!coda.some(x=>x.stato!=='ok');
 }
+// ── elenco caricate / lavorate ──
+let storico=[];
+const GG=['dom','lun','mar','mer','gio','ven','sab'];
+function giorno(d){ const x=new Date(d.slice(0,10)+'T12:00:00'); return GG[x.getDay()]+' '+d.slice(8,10)+'/'+d.slice(5,7)+'/'+d.slice(0,4); }
+function hesc(t){ return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+async function caricaStorico(){
+  const pin=document.getElementById('pin').value.trim(); const el=document.getElementById('st-lista');
+  el.innerHTML='<div style="font-size:13px;color:var(--text3);">⏳ carico…</div>';
+  try{ const j=await post({action:'inboxStorico', pin, giorni:+document.getElementById('st-giorni').value}, 2); storico=j.files||[]; mostraStorico(); }
+  catch(e){ el.innerHTML='<div style="font-size:13px;color:var(--red);">'+hesc(e.message)+'</div>'; }
+}
+function mostraStorico(){
+  const chi=document.getElementById('chi').value.trim().toLowerCase(); const mie=document.getElementById('st-mie').checked;
+  const lista=storico.filter(x=>!mie || !chi || String(x.chi).toLowerCase()===chi);
+  const att=lista.filter(x=>x.stato==='attesa').length;
+  document.getElementById('st-sommario').innerHTML=lista.length?`<b>${lista.length}</b> file · <span style="color:var(--gold);">⏳ ${att} da lavorare</span> · <span style="color:var(--green);">✓ ${lista.length-att} lavorati</span>`:'';
+  if(!lista.length){ document.getElementById('st-lista').innerHTML='<div style="font-size:13px;color:var(--text3);">Nessun file in questo periodo'+(mie?' a nome tuo':'')+'.</div>'; return; }
+  const perG={}; lista.forEach(x=>{ (perG[x.caricata.slice(0,10)]=perG[x.caricata.slice(0,10)]||[]).push(x); });
+  document.getElementById('st-lista').innerHTML=Object.keys(perG).sort().reverse().map(g=>`<div style="margin-top:10px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);">${giorno(g)}</div>`+
+    perG[g].map(x=>`<div class="file" style="display:block;">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;"><div class="n" style="word-break:break-word;white-space:normal;">${hesc(x.file)}</div>
+      ${x.stato==='lavorata'?'<span style="color:var(--green);font-size:12px;white-space:nowrap;">✓ lavorata</span>':'<span style="color:var(--gold);font-size:12px;white-space:nowrap;">⏳ in attesa</span>'}</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:2px;">${hesc(x.chi||'—')} · ${x.caricata.slice(11)}${x.stato==='lavorata'&&x.lavorata?' · lavorata il '+giorno(x.lavorata)+' '+x.lavorata.slice(11):''}</div>
+      ${x.esito?`<div style="font-size:12px;color:var(--text2);margin-top:2px;">→ ${hesc(x.esito)}</div>`:''}
+    </div>`).join('')).join('');
+}
+if(location.hash==='#storico' || document.getElementById('pin').value){ caricaStorico(); if(location.hash==='#storico') setTimeout(()=>document.getElementById('storico').scrollIntoView({behavior:'smooth'}),300); }
 </script>
 </body>
 </html>

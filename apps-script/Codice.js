@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v169 ──
+// ── SPETTACOLI APP SCRIPT v170 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -155,9 +155,15 @@ function doPost(e) {
       lock.releaseLock();
       return ContentService.createTextOutput(JSON.stringify({ ok: true, impostato: !!String(body.pin || '').trim() })).setMimeType(ContentService.MimeType.JSON);
     }
+    if (body.action === 'inboxStorico') {
+      // pagina "carica": cosa è stato caricato e cosa è già stato lavorato (stesso PIN dell'upload)
+      lock.releaseLock();
+      var rs; try { rs = inboxStorico(body); } catch(errS) { rs = { error: errS.message }; }
+      return ContentService.createTextOutput(JSON.stringify(rs)).setMimeType(ContentService.MimeType.JSON);
+    }
     if (body.action === 'inboxCartella' || body.action === 'inboxLista' || body.action === 'inboxPrendi' || body.action === 'inboxArchivia') {
       lock.releaseLock();
-      var ri; try { ri = body.action === 'inboxCartella' ? inboxCartella() : body.action === 'inboxLista' ? inboxLista() : body.action === 'inboxPrendi' ? inboxPrendi(body.id) : inboxArchivia(body.id); } catch(errI) { ri = { error: errI.message }; }
+      var ri; try { ri = body.action === 'inboxCartella' ? inboxCartella() : body.action === 'inboxLista' ? inboxLista() : body.action === 'inboxPrendi' ? inboxPrendi(body.id) : inboxArchivia(body.id, body.nota); } catch(errI) { ri = { error: errI.message }; }
       return ContentService.createTextOutput(JSON.stringify(ri)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'setModelloAI') {
@@ -1526,11 +1532,29 @@ function inboxUpload(body) {
   if (r && r.done) { try { DriveApp.getFileById(r.id).setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW); } catch(e) {} }
   return r;
 }
-function inboxArchivia(id) {
+function inboxArchivia(id, nota) {
   if (!id) return { error: 'id mancante' };
   var x = DriveApp.getFileById(id); var f = _inboxFolder(); var dest = _inboxFatte(f);
+  // nella descrizione del file: quando è stata lavorata e cosa è diventata (letto da inboxStorico)
+  try { x.setDescription('LAVORATA ' + Utilities.formatDate(new Date(), 'Europe/Rome', 'yyyy-MM-dd HH:mm') + (nota ? ' · ' + String(nota).substring(0, 200) : '')); } catch(e) {}
   x.moveTo(dest);
   return { ok: true, nome: x.getName() };
+}
+
+// Elenco per la pagina "carica": file in attesa (cartella in arrivo) e lavorati (Elaborate), ultimi N giorni.
+// Solo nomi e stato, niente link: i file restano privati.
+function inboxStorico(body) {
+  var pin = PropertiesService.getScriptProperties().getProperty('inboxPin') || '';
+  if (pin && String(body.pin || '').trim() !== pin) return { error: 'PIN errato' };
+  var giorni = Math.min(+body.giorni || 90, 400); var limite = new Date(Date.now() - giorni * 864e5);
+  var f = _inboxFolder(); var out = [];
+  var leggi = function(cart, lavorata) { var it = cart.getFiles(); while (it.hasNext()) { var x = it.next(); var dc = x.getDateCreated(); if (dc < limite) continue;
+    var nome = x.getName(); var p = nome.split(' · '); var desc = String(x.getDescription() || ''); var m = desc.match(/^LAVORATA (\S+ \S+)(?: · (.*))?$/);
+    out.push({ caricata: Utilities.formatDate(dc, 'Europe/Rome', 'yyyy-MM-dd HH:mm'), chi: p.length >= 3 ? p[1] : '', file: p.length >= 3 ? p.slice(2).join(' · ') : nome,
+      stato: lavorata ? 'lavorata' : 'attesa', lavorata: m ? m[1] : (lavorata ? Utilities.formatDate(x.getLastUpdated(), 'Europe/Rome', 'yyyy-MM-dd HH:mm') : ''), esito: m && m[2] ? m[2] : '' }); } };
+  leggi(f, false); leggi(_inboxFatte(f), true);
+  out.sort(function(a, b) { return a.caricata < b.caricata ? 1 : -1; });
+  return { files: out };
 }
 
 // ════════════════════ FATTURE COLLEGATE AL PRECONSUNTIVO ════════════════════
