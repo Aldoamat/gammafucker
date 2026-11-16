@@ -27,10 +27,11 @@
 </style>
 </head>
 <body>
-<h1><img src="../icon-192.png" alt=""> Carica fatture</h1>
-<div class="sub">AMAT Marche · coordinamento tecnico. Le fatture caricate qui arrivano direttamente nella cartella di lavoro di Aldo: niente mail, niente WhatsApp.</div>
+<h1><img src="../icon-192.png" alt=""> <span id="titolo">Carica fatture</span></h1>
+<div class="sub" id="sub-carica">AMAT Marche · coordinamento tecnico. Le fatture caricate qui arrivano direttamente nella cartella di lavoro di Aldo: niente mail, niente WhatsApp.</div>
 
-<div class="card">
+<div id="vista-storico-nav" style="display:none;margin-bottom:12px;"><a id="link-carica" href="#" style="color:#34d399;font-size:14px;">📤 Carica altre fatture</a></div>
+<div class="card" id="card-carica">
   <label>Chi carica</label>
   <input type="text" id="chi" placeholder="es. Barbara" autocomplete="name">
   <label>PIN</label>
@@ -128,7 +129,12 @@ function mostraStorico(){
       ${x.esito?`<div style="font-size:12px;color:var(--text2);margin-top:2px;">→ ${hesc(x.esito)}</div>`:''}
     </div>`).join('')).join('');
 }
-if(location.hash==='#storico' || document.getElementById('pin').value){ caricaStorico(); if(location.hash==='#storico') setTimeout(()=>document.getElementById('storico').scrollIntoView({behavior:'smooth'}),300); }
+// vista solo elenco: ?vista=storico (o #storico) — dal pulsante "Fatture caricate" dell'app collaboratori
+(function(){ const q=new URLSearchParams(location.search); const soloStorico=q.get('vista')==='storico' || location.hash==='#storico';
+  if(soloStorico){ document.getElementById('card-carica').style.display='none'; document.getElementById('sub-carica').style.display='none'; document.getElementById('titolo').textContent='Fatture caricate';
+    const nav=document.getElementById('vista-storico-nav'); nav.style.display='block'; q.delete('vista'); document.getElementById('link-carica').href=location.pathname+'?'+q.toString();
+    if(document.getElementById('chi').value.trim()) document.getElementById('st-mie').checked=true; }
+  if(soloStorico || document.getElementById('pin').value) caricaStorico(); })();
 </script>
 </body>
 </html>
