@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v164</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v165</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -896,6 +896,20 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div style="display:flex;gap:8px;margin-top:12px;">
       <button class="btn btn-p" style="flex:1;" onclick="_rnSalva()">✓ Ok</button>
       <button class="btn btn-o" onclick="document.getElementById('rend-nuovo-ov').classList.remove('open')">Annulla</button>
+    </div>
+  </div>
+</div>
+<!-- ══ LAVORA SCHEDA: aiuti richiesti → giornate ══ -->
+<div class="mover" id="la-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:620px;max-height:92vh;overflow-y:auto;">
+    <div class="mtitle">⚙️ Lavora scheda — aiuti nelle giornate</div>
+    <div id="la-titolo" style="font-size:12px;color:var(--text2);margin-bottom:6px;"></div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Per ogni giornata della scheda: il massimo di persone per figura (chi scarica e monta è la stessa squadra). Correggi i numeri o la giornata prima di applicare: i valori sostituiscono quelli attuali della giornata.</div>
+    <div id="la-box"></div>
+    <div id="la-nota" style="font-size:11px;margin-top:8px;"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+      <button class="btn btn-p" style="flex:1;min-width:180px;" onclick="_laApplica()">✓ Inserisci nelle giornate</button>
+      <button class="btn btn-o" onclick="document.getElementById('la-ov').classList.remove('open')">Annulla</button>
     </div>
   </div>
 </div>
@@ -3277,6 +3291,7 @@ function _buildCard(s, grp){
       ${s.manif!=='GESTIONE'&&(!IS_COLLAB||(s.manif&&pianiProduzione[_prodKeyDi(s)]))?`<button class="iBtn" style="color:#c084fc;border-color:rgba(192,132,252,.35);" onclick="apriPianoSpettacolo(${s.id})">🎬 Piano</button>`:''}
       ${IS_COLLAB?(_gruppoDi(s).some(x=>x.prod&&x.prod.squadra&&x.prod.squadra.length)?`<button class="iBtn" style="color:#25d366;border-color:rgba(37,211,102,.35);" onclick="apriSquadraRO(${s.id})">👷 Squadra</button>`:''):`<button class="iBtn" style="color:#25d366;border-color:rgba(37,211,102,.35);" onclick="apriSquadra(${s.id})" title="WhatsApp ai tecnici / service con le info del lavoro">👷 Squadra</button>`}
       ${IS_COLLAB||s.premontaggio||s.replicaOf||_mailsDi(s).some(m=>m.tipo==='scheda'&&m.file)?'':`<button class="iBtn" style="color:#60a5fa;border-color:rgba(96,165,250,.35);" onclick="apriCercaMail(${s.id})" title="Cerca la scheda tecnica nelle mail e agganciala">📧 Scheda?</button>`}
+      ${IS_COLLAB||!_mailsDi(s).some(m=>m.tipo==='scheda'&&(m.file||m.piano))?'':`<button class="iBtn" style="color:#34d399;border-color:rgba(52,211,153,.4);" onclick="lavoraScheda(${s.id})" title="Legge la scheda e mette gli aiuti richiesti nelle giornate (premontaggio, recite, repliche)">⚙️ Lavora scheda</button>`}
       ${IS_COLLAB||s.premontaggio||s.replicaOf?'':`<button class="iBtn" style="color:#60a5fa;border-color:rgba(96,165,250,.35);border-style:dashed;" onclick="apriSchedaTesto(${s.id})" title="La scheda è arrivata nel testo della mail: incollala e diventa un PDF da mandare ai referenti">📝 Scheda da testo</button>`}
       ${IS_COLLAB?'':`<button class="iBtn" style="color:var(--purple);border-color:rgba(124,58,237,.35);" onclick="apriVoceFornitore(${s.id})">🧾 Voce fornitore</button>
       <button class="iBtn ed" onclick="editSpett(${s.id})">✏️ Modifica</button>
@@ -7011,7 +7026,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v164</span>
+    <span>Report generato da GammaFucker v165</span>
   </div>
   </body></html>`;
 
@@ -7117,7 +7132,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v164</span>
+    <span>Report generato da GammaFucker v165</span>
   </div>
   </body></html>`;
 
@@ -7213,7 +7228,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v164</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v165</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7286,7 +7301,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v164</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v165</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9392,7 +9407,7 @@ function renderPiano(){
           <div style="font-size:11px;color:var(--text2);">${_prodEsc(s.citta)}${s.teatro?' · '+_prodEsc(s.teatro):''}</div></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;">
           ${schede.length?schede.map(m=>`<span style="display:inline-flex;align-items:stretch;"><a href="${_prodEsc(m.file||m.link)}" target="_blank" rel="noopener" class="iBtn" title="${_prodEsc(m.og||'')}" style="text-decoration:none;font-size:10px;padding:3px 8px;color:#60a5fa;border-color:rgba(96,165,250,.35);${RO||m._ered?'':'border-radius:6px 0 0 6px;'}">📄 ${_prodEsc(_schedaNome(m, schede.length>1))}</a>${RO||m._ered?'':`<button class="iBtn" title="Rimuovi questo documento" style="font-size:10px;padding:3px 6px;color:var(--red);border-color:rgba(239,68,68,.35);border-left:0;border-radius:0 6px 6px 0;" onclick="rimuoviSchedaTecnica(${s.id},${m._i})">✕</button>`}</span>`).join(''):(RO?`<span class="iBtn" style="font-size:10px;padding:3px 8px;color:var(--text3);border-style:dashed;">📄 scheda non arrivata</span>`:'')}
-          ${RO?'':`<label class="iBtn" style="font-size:10px;padding:3px 8px;cursor:pointer;color:#60a5fa;border-color:rgba(96,165,250,.35);border-style:dashed;">📎 ${schede.length?'Altro documento':'Allega scheda tecnica'}<input type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.dwg" style="display:none" onchange="allegaSchedaTecnica(${s.id},this.files)"></label><button class="iBtn" style="font-size:10px;padding:3px 8px;color:#60a5fa;border-color:rgba(96,165,250,.35);border-style:dashed;" title="La scheda è arrivata nel testo della mail: incollala e diventa un PDF" onclick="apriSchedaTesto(${s.id})">📝 Scheda da testo</button>`}
+          ${RO?'':`<label class="iBtn" style="font-size:10px;padding:3px 8px;cursor:pointer;color:#60a5fa;border-color:rgba(96,165,250,.35);border-style:dashed;">📎 ${schede.length?'Altro documento':'Allega scheda tecnica'}<input type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.dwg" style="display:none" onchange="allegaSchedaTecnica(${s.id},this.files)"></label><button class="iBtn" style="font-size:10px;padding:3px 8px;color:#60a5fa;border-color:rgba(96,165,250,.35);border-style:dashed;" title="La scheda è arrivata nel testo della mail: incollala e diventa un PDF" onclick="apriSchedaTesto(${s.id})">📝 Scheda da testo</button>${schede.length?`<button class="iBtn" style="font-size:10px;padding:3px 8px;color:#34d399;border-color:rgba(52,211,153,.4);" onclick="lavoraScheda(${s.id})">⚙️ Lavora scheda</button>`:''}`}
           <button class="iBtn" style="font-size:10px;padding:3px 8px;" onclick="${RO?`apriInvioInfoSpazio(${s.id})`:`openSpazioInfoTiatro('${_js(s.citta)}','${_js(s.teatro||'')}')`}">🏛 Info spazio</button>
           ${_mailsDi(s).some(m=>m.link)?`<button class="iBtn" style="font-size:10px;padding:3px 8px;color:#f59e0b;border-color:rgba(245,158,11,.4);" onclick="apriInoltro(${s.id})">↪ Inoltra ai referenti</button>`:''}
           <button class="iBtn" style="font-size:10px;padding:3px 8px;" onclick="stampaSchedaGiornata(${s.id})">🖨 Scheda giornata</button>
@@ -10253,13 +10268,89 @@ function _waAggiorna(){
   const a=document.getElementById('wa-apri'); a.href='https://wa.me/'+num+'?text='+encodeURIComponent(testo); a.style.opacity=num?'1':'.5';
   document.getElementById('wa-anteprima').textContent=testo;
 }
+// ══ LAVORA SCHEDA: aiuti richiesti dalla scheda → numeri nelle giornate (premontaggio / recite / repliche) ══
+// La scheda (PDF/immagine/Word agganciati, o il piano ricavato dal testo della mail) viene letta dall'AI nello stesso
+// formato di "Scheda da testo"; per ogni giornata si propone il massimo di persone per figura (chi fa scarico e
+// montaggio è la stessa squadra), abbinato alla giornata dello spettacolo con quella data. Si conferma a mano.
+const _LA_FIG=[['nf','facchini','Facc.'],['nm','macchinisti','Macch.'],['ne','elettricisti','Elett.'],['nfo','fonici','Fonici'],['nsa','sarte','Sarte']];
+const _LA_SUB={nm:'sm', ne:'se', nfo:'sfo', nsa:'ssa', nf:'sf'}, _LA_TAR={nm:'tm', ne:'te', nfo:'tfo', nsa:'tsa', nf:'tf'};
+let _la=null;
+function _laPrompt(s, istr){
+  return `Sei l'assistente del coordinamento tecnico di un circuito teatrale. ${istr} relativo allo spettacolo "${s.spett}" (${s.citta}${s.teatro?', '+s.teatro:''}, debutto ${s.data}).
+Estrai il piano di lavoro SENZA inventare nulla. Rispondi SOLO con JSON valido:
+{"compagnia":"", "giornate":[{"data":"YYYY-MM-DD","etichetta":"Lunedì 16 novembre","voci":[{"ora":"07:00","attivita":"Scarico","personale":{"facchini":10,"macchinisti":0,"elettricisti":0,"fonici":0,"sarte":0,"altro":""}}]}], "esigenze":[], "contatti":[]}
+Regole: anno mancante → ${String(s.data).slice(0,4)}. "tecnico audio"/"fonico" → fonici; "sarta"/"vestiarista" → sarte; "facchino"/"scaricatore" → facchini; "elettricista"/"tecnico luci" → elettricisti; "macchinista"/"tecnico di palco" → macchinisti. Se la scheda indica il personale senza date ("al montaggio servono…"), usa una giornata con data "" ed etichetta "montaggio" / "smontaggio" / "spettacolo". Se non c'è alcuna richiesta di personale, giornate: [].`;
+}
+function _laMax(g){ const t={}; (g.voci||[]).forEach(v=>_LA_FIG.forEach(([k,n])=>{ t[k]=Math.max(t[k]||0, +((v.personale||{})[n])||0); })); return t; }
+async function lavoraScheda(id){
+  const s=data.find(x=>String(x.id)===String(id)); if(!s) return;
+  const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
+  const schede=_mailsDi(s).filter(m=>m.tipo==='scheda');
+  let piano=null, fonte='';
+  const daTesto=schede.slice().reverse().find(m=>m.piano);
+  try{
+    if(daTesto){ piano=daTesto.piano; fonte=daTesto.og; }
+    else {
+      const conFile=schede.slice().reverse().find(m=>m.file && /\/d\/([\w-]{20,})|[?&]id=([\w-]{20,})/.test(m.file));
+      if(!conFile){ toast('Nessuna scheda leggibile agganciata (serve un PDF, un\'immagine o un Word su Drive, o "Scheda da testo")', true); return; }
+      const fid=(conFile.file.match(/\/d\/([\w-]{20,})/)||conFile.file.match(/[?&]id=([\w-]{20,})/))[1];
+      toast('⏳ leggo la scheda: '+String(conFile.og||'').replace(/^Scheda tecnica — /,'')+'…');
+      const f=await _inboxCall({action:'inboxPrendi', id:fid});
+      const isImg=/^image\//.test(f.mime||''); if(!isImg && !/pdf/.test(f.mime||'')) throw new Error('formato non leggibile ('+(f.mime||'?')+')');
+      const prompt=_laPrompt(s, 'Ti allego la scheda tecnica (documento '+(isImg?'immagine':'PDF')+')');
+      const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'ai_pdf', prompt, pdf_b64:isImg?null:f.b64, img_b64:isImg?f.b64:null, img_type:isImg?f.mime:null})});
+      const j=await res.json(); if(!j.result) throw new Error(j.error||'risposta vuota');
+      const m=String(j.result).match(/\{[\s\S]*\}/); if(!m) throw new Error('risposta non valida'); piano=JSON.parse(m[0]); fonte=conFile.og;
+    }
+  }catch(e){ toast('Lettura scheda non riuscita: '+e.message, true); return; }
+  _laApri(s, piano, fonte);
+}
+function _laApri(s, piano, fonte){
+  const gruppo=_gruppoDi(s).slice().sort((a,b)=>a.data.localeCompare(b.data));
+  const righe=(piano.giornate||[]).map(g=>({g, max:_laMax(g)})).filter(r=>_LA_FIG.some(([k])=>r.max[k]));
+  if(!righe.length){ toast('Nella scheda non ho trovato richieste di personale', true); return; }
+  // giornata dello spettacolo: per data; senza data → per tipo (montaggio → premontaggio, altrimenti la recita principale)
+  righe.forEach(r=>{ let x=r.g.data?gruppo.find(y=>y.data===r.g.data):null;
+    if(!x && !r.g.data){ x=/montag|scaric|allest/i.test(r.g.etichetta||'')&&!/smont/i.test(r.g.etichetta||'')?gruppo.find(y=>y.premontaggio):/smont/i.test(r.g.etichetta||'')?gruppo[gruppo.length-1]:gruppo.find(y=>!y.premontaggio); }
+    r.dest=x?x.id:''; });
+  _la={sid:s.id, righe, gruppo, fonte};
+  const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const tipo=y=>y.residenza?'🏠 residenza':y.premontaggio?'🔧 premontaggio':y.replicaOf?'🔁 replica':'🎭 spettacolo';
+  const optG=sel=>`<option value="">— nessuna giornata —</option>`+gruppo.map(y=>`<option value="${y.id}"${String(y.id)===String(sel)?' selected':''}>${esc(_prodFmtD(y.data))} · ${tipo(y)}</option>`).join('');
+  const att=y=>y?_LA_FIG.map(([k,,l])=>+y[k]?l+' '+y[k]:'').filter(Boolean).join(' · ')||'nessuno':'';
+  document.getElementById('la-titolo').innerHTML=`${esc(s.spett)} · ${esc(s.citta)}${s.teatro?' · '+esc(s.teatro):''}<div style="font-size:10px;color:var(--text3);margin-top:2px;">dalla scheda: ${esc(String(fonte||'').replace(/^Scheda tecnica — /,''))}</div>`;
+  document.getElementById('la-box').innerHTML=righe.map((r,i)=>{ const y=gruppo.find(z=>String(z.id)===String(r.dest));
+    return `<div style="padding:8px 0;border-top:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;"><b style="font-size:12px;">${esc(r.g.etichetta||r.g.data||'giornata')}</b>
+        <select id="la-d-${i}" onchange="_la.righe[${i}].dest=this.value;document.getElementById('la-a-${i}').textContent=(()=>{const y=_la.gruppo.find(z=>String(z.id)===this.value);return y?'ora: '+(_LA_FIG.map(([k,,l])=>+y[k]?l+' '+y[k]:'').filter(Boolean).join(' · ')||'nessuno'):'';})()" style="font-size:11px;padding:2px 6px;">${optG(r.dest)}</select></div>
+      <div style="font-size:10px;color:var(--text3);margin:2px 0 4px;">${esc((r.g.voci||[]).filter(v=>_LA_FIG.some(([,n])=>+((v.personale||{})[n]))).map(v=>(v.ora?v.ora+' ':'')+(v.attivita||'')).join(' · '))}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">${_LA_FIG.map(([k,,l])=>`<label style="font-size:10px;color:var(--text2);display:flex;flex-direction:column;align-items:center;">${l}<input type="number" min="0" id="la-${k}-${i}" value="${r.max[k]||0}" style="width:52px;text-align:center;font-size:12px;padding:3px;"></label>`).join('')}
+        <span id="la-a-${i}" style="font-size:10px;color:var(--text3);margin-left:auto;">${y?'ora: '+esc(att(y)):''}</span></div></div>`; }).join('');
+  const senza=righe.filter(r=>!r.dest).length;
+  document.getElementById('la-nota').innerHTML=senza?`<span style="color:#f59e0b;">⚠️ ${senza} giornata/e della scheda non corrispondono a nessuna giornata dello spettacolo: scegline una dal menu o aggiungi prima il premontaggio / la replica.</span>`:'';
+  document.getElementById('la-ov').classList.add('open');
+}
+function _laApplica(){
+  if(!_la) return; const prima=_undoSnapshot(); let n=0; const fatte=[];
+  _la.righe.forEach((r,i)=>{ const y=data.find(z=>String(z.id)===String(r.dest)); if(!y) return;
+    _LA_FIG.forEach(([k])=>{ const v=Math.max(0, +document.getElementById('la-'+k+'-'+i).value||0); y[k]=v; y[_LA_SUB[k]]=v*(+y[_LA_TAR[k]]||0); });
+    y.totale=(+y.sm||0)+(+y.se||0)+(+y.sf||0)+(+y.sfo||0)+(+y.ssa||0); y.ts=new Date().toISOString(); n++; fatte.push(_prodFmtD(y.data)); });
+  if(!n){ toast('Nessuna giornata scelta', true); return; }
+  sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000;
+  const s=data.find(z=>z.id===_la.sid);
+  _undoRegistra(prima, 'aiuti dalla scheda — '+(s?s.spett:'')); try{ _logModifica('scheda', 'Aiuti dalla scheda inseriti in '+n+' giornate — '+(s?s.spett:'')+' ('+fatte.join(', ')+')'); }catch(e){}
+  renderList(); try{ renderPiano(); }catch(e){} if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
+  document.getElementById('la-ov').classList.remove('open'); _la=null;
+  toast('✓ Aiuti inseriti in '+n+' giornate ('+fatte.join(', ')+')');
+}
+
 // ══ SCHEDA TECNICA DA TESTO ══
 // Piano di lavoro arrivato nel corpo della mail: l'AI lo riordina (giornate → orari, attività, personale), Aldo
 // corregge l'anteprima, lo script ne fa un PDF su Drive che si aggancia allo spettacolo come scheda tecnica;
 // poi lo si manda ai referenti dello spazio con il PDF allegato (o con WhatsApp, come gli altri documenti).
-let _stId=null, _stFile=null;
+let _stId=null, _stFile=null, _stJson=null;
 function apriSchedaTesto(id){
-  const s=data.find(x=>String(x.id)===String(id)); if(!s) return; _stId=s.id; _stFile=null;
+  const s=data.find(x=>String(x.id)===String(id)); if(!s) return; _stId=s.id; _stFile=null; _stJson=null;
   document.getElementById('st-titolo').textContent=s.spett+' · '+s.citta+(s.teatro?' · '+s.teatro:'')+' · '+_prodFmtD(s.data);
   document.getElementById('st-testo').value=''; document.getElementById('st-comp').value='';
   ['st-passo2','st-passo3'].forEach(x=>document.getElementById(x).style.display='none'); document.getElementById('st-passo1').style.display='block';
@@ -10308,7 +10399,7 @@ TESTO:
 ${testo.slice(0,15000)}`;
   const b=document.getElementById('st-ai'); b.disabled=true; b.textContent='⏳ sistemo…';
   try{ const r=await callAIText(url, prompt); const m=String(r).match(/\{[\s\S]*\}/); if(!m) throw new Error('risposta non valida');
-    const j=JSON.parse(m[0]); if(!document.getElementById('st-comp').value.trim() && j.compagnia) document.getElementById('st-comp').value=j.compagnia;
+    const j=JSON.parse(m[0]); _stJson=j; if(!document.getElementById('st-comp').value.trim() && j.compagnia) document.getElementById('st-comp').value=j.compagnia;
     document.getElementById('st-anteprima').innerHTML=_stHtml(s, j, document.getElementById('st-comp').value.trim());
     document.getElementById('st-passo1').style.display='none'; document.getElementById('st-passo2').style.display='block';
   }catch(e){ toast('AI non riuscita ('+e.message+'): uso il testo così com\'è', true); schedaTestoGrezzo(); }
@@ -10316,6 +10407,7 @@ ${testo.slice(0,15000)}`;
 }
 function schedaTestoGrezzo(){
   const s=data.find(x=>x.id===_stId); const testo=document.getElementById('st-testo').value.trim(); if(!s||!testo){ toast('Incolla il testo della mail', true); return; }
+  _stJson=null;
   document.getElementById('st-anteprima').innerHTML=_stTesta(s, document.getElementById('st-comp').value.trim())+`<div style="white-space:pre-wrap;font-size:12px;line-height:1.5;">${_stEsc(testo)}</div></div>`;
   document.getElementById('st-passo1').style.display='none'; document.getElementById('st-passo2').style.display='block';
 }
@@ -10325,7 +10417,7 @@ async function schedaTestoCrea(){
   const html='<html><head><meta charset="utf-8"></head><body style="margin:24px;">'+document.getElementById('st-anteprima').innerHTML+'</body></html>';
   try{ const j=await _inboxCall({action:'schedaDaTesto', html, nome, cartella:'Schede tecniche/'+_stagioneDa(s.data).replace('/','-')+' '+(s.citta||'')});
     if(!s.mails) s.mails=[]; s.mails=s.mails.filter(m=>!(m.daTesto && m.og===('Scheda tecnica — '+nome)));
-    s.mails.push({og:'Scheda tecnica — '+nome, link:'', tipo:'scheda', file:j.url, fileId:j.id, manuale:true, daTesto:true});
+    s.mails.push({og:'Scheda tecnica — '+nome, link:'', tipo:'scheda', file:j.url, fileId:j.id, manuale:true, daTesto:true, piano:_stJson||undefined});
     s.ts=new Date().toISOString(); sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000; try{ renderPiano(); }catch(e){} if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
     _stFile=j; _schedaTestoPasso3(s);
   }catch(e){ toast('Errore: '+e.message, true); }
@@ -10334,7 +10426,8 @@ async function schedaTestoCrea(){
 function _stAddDest(em){ const i=document.getElementById('st-dest'); const v=i.value.split(',').map(x=>x.trim()).filter(Boolean); if(!v.includes(em)) v.push(em); i.value=v.join(', '); }
 function _schedaTestoPasso3(s){
   document.getElementById('st-passo2').style.display='none'; document.getElementById('st-passo3').style.display='block';
-  document.getElementById('st-fatto').innerHTML=`✓ PDF creato e agganciato allo spettacolo · <a href="${_stEsc(_stFile.url)}" target="_blank" rel="noopener" style="color:#60a5fa;">apri il PDF</a>`;
+  document.getElementById('st-fatto').innerHTML=`✓ PDF creato e agganciato allo spettacolo · <a href="${_stEsc(_stFile.url)}" target="_blank" rel="noopener" style="color:#60a5fa;">apri il PDF</a>`+
+    (_stJson&&(_stJson.giornate||[]).some(g=>_LA_FIG.some(([k])=>_laMax(g)[k]))?`<div style="margin-top:6px;"><button class="btn btn-o btn-sm" style="color:#34d399;border-color:rgba(52,211,153,.5);" onclick="_laApri(data.find(x=>x.id===_stId), _stJson, 'testo della mail')">⚙️ Inserisci gli aiuti nelle giornate</button></div>`:'');
   const si=spazioInfo[(s.citta||'')+'||'+(s.teatro||'')]||{}; const sugg=[]; const add=(lab,em)=>{ if(em && !sugg.some(x=>x.em===em)) sugg.push({lab,em}); };
   add('🔧 '+(si.referente_nome||'referente tecnico'), si.referente_email); add('🚚 '+(si.referente2_nome||'referente logistico'), si.referente2_email);
   (si.ditte||[]).forEach(d=>add('🏢 '+(d.nome||d.servizio), d.email));

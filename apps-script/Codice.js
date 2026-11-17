@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v175 ──
+// ── SPETTACOLI APP SCRIPT v176 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -1523,6 +1523,11 @@ function inboxPrendi(id) {
   // Google Docs/Sheets nativi: esportati in PDF / xlsx per l'analisi
   if (mime === 'application/vnd.google-apps.spreadsheet') { blob = x.getAs('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); mime = blob.getContentType(); }
   else if (mime.indexOf('application/vnd.google-apps.') === 0) { blob = x.getAs('application/pdf'); mime = 'application/pdf'; }
+  else if (/msword|wordprocessingml|opendocument\.text|rtf/i.test(mime) || /\.(docx?|odt|rtf)$/i.test(x.getName())) {
+    // Word: copia temporanea come Google Doc → PDF (per la lettura con l'AI, che legge PDF e immagini)
+    var tmp = Drive.Files.create({ name: 'tmp_gf_prendi', mimeType: 'application/vnd.google-apps.document' }, blob.copyBlob());
+    try { blob = DriveApp.getFileById(tmp.id).getAs('application/pdf'); mime = 'application/pdf'; } finally { try { DriveApp.getFileById(tmp.id).setTrashed(true); } catch(e) {} }
+  }
   if (blob.getBytes().length > 20 * 1024 * 1024) return { error: 'file troppo grande (max 20 MB)' };
   return { nome: x.getName(), mime: mime, b64: Utilities.base64Encode(blob.getBytes()) };
 }
