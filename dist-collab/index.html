@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v166</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v167</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -495,6 +495,13 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <span id="ai-stato" style="font-size:10px;color:var(--text3);"></span>
     </div>
     <div id="ai-consumo" style="margin-top:8px;font-size:11px;"></div>
+  </div>
+
+  <div class="fc">
+    <div class="fct">📨 Avviso fatture elaborate</div>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.5;">Quando elabori una fattura parte una mail che avvisa che è stata elaborata ed è nel casellario del fornitore.</p>
+    <label style="display:flex;gap:8px;align-items:center;font-size:12px;margin-bottom:6px;"><input type="checkbox" id="cfg-avviso-on" onchange="sv('avvisoFattureOn',this.checked)" style="width:16px;height:16px;"> invia l'avviso</label>
+    <input type="text" id="cfg-avviso-dest" placeholder="l.battistoni@amat.marche.it" onchange="sv('avvisoFattureDest',this.value.trim())" style="width:100%;box-sizing:border-box;font-size:12px;">
   </div>
 
   <div class="fc">
@@ -4867,6 +4874,7 @@ async function _ricConferma(){
   _ric=null;
   try{ const j=await _inboxCall(payload); _fattureCollegate=null;
     toast('✓ Fattura '+num+' collegata: cartella Drive pronta per l\'amministrazione');
+    _avvisaFatturaElaborata(fornNota, num, 'È collegata al preconsuntivo '+parz.join(' + ')+(j.cartella?'. Fattura e preconsuntivo in PDF: '+j.cartella:'.'));
     if(payload.fileId && !raw && _inboxCorrente){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true, 'Fattura n.'+num+' — '+fornNota+' (preconsuntivo '+parz.join(' + ')+')'); }
     if(j.cartella){ try{ await navigator.clipboard.writeText('Fattura '+fornNota+' n.'+num+' con preconsuntivo: '+j.cartella); }catch(e){} }
   }catch(e){ toast('Note aggiornate, ma il salvataggio su Drive non è riuscito: '+e.message, true); }
@@ -6924,6 +6932,7 @@ function applicaFattura(){
   }
   toast(msg);
   goTab('list');
+  _avvisaFatturaElaborata(_prevFornLog, _prevNumLog);
   if(_inboxCorrente){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true, 'Fattura'+(_prevNumLog?' n.'+_prevNumLog:'')+(_prevFornLog?' — '+_prevFornLog:'')); }
 }
 
@@ -7055,7 +7064,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v166</span>
+    <span>Report generato da GammaFucker v167</span>
   </div>
   </body></html>`;
 
@@ -7161,7 +7170,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v166</span>
+    <span>Report generato da GammaFucker v167</span>
   </div>
   </body></html>`;
 
@@ -7257,7 +7266,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v166</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v167</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7330,7 +7339,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v166</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v167</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -10297,6 +10306,23 @@ function _waAggiorna(){
   const a=document.getElementById('wa-apri'); a.href='https://wa.me/'+num+'?text='+encodeURIComponent(testo); a.style.opacity=num?'1':'.5';
   document.getElementById('wa-anteprima').textContent=testo;
 }
+// ══ AVVISO FATTURA ELABORATA ══ (Config → Avviso fatture elaborate; di default a l.battistoni)
+const AVVISO_FATT_DEST='l.battistoni@amat.marche.it';
+function _avvisoCfgInit(){ try{ const on=document.getElementById('cfg-avviso-on'), de=document.getElementById('cfg-avviso-dest'); if(on) on.checked=ld('avvisoFattureOn',true)!==false; if(de) de.value=ld('avvisoFattureDest',AVVISO_FATT_DEST); }catch(e){} }
+setTimeout(_avvisoCfgInit, 800);
+async function _avvisaFatturaElaborata(forn, num, extra){
+  if(IS_COLLAB || ld('avvisoFattureOn',true)===false) return; const to=String(ld('avvisoFattureDest',AVVISO_FATT_DEST)||'').trim(); const url=ld('sheetsUrl','');
+  if(!to || !url || (!forn && !num)) return;
+  const F=String(forn||'—').trim().toUpperCase(), N=String(num||'').trim();
+  const chiave=F+'|'+N; window._avvisiFatt=window._avvisiFatt||{}; if(window._avvisiFatt[chiave] && Date.now()-window._avvisiFatt[chiave]<15*60000) return; window._avvisiFatt[chiave]=Date.now();   // una sola mail per fattura (es. preconsuntivo + righe rimaste)
+  const collab=new URL('collab/', location.href.replace(/\/collab\/.*$/,'/').replace(/[^/]*$/,'')).href;
+  const corpo='Ciao,\nla fattura '+(N?'n. '+N+' ':'')+'del fornitore '+F+' è stata elaborata ed è visibile nel casellario fornitore '+F+' (🏢 Fornitori → '+F+').'+
+    (extra?'\n\n'+extra:'')+'\n\nApp: '+collab+'\n\nAldo';
+  try{ const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'sendEmail', to, subject:'Fattura '+(N?N+' ':'')+F+' elaborata', message:corpo})});
+    const j=await r.json(); if(j.result==='sent') toast('📨 Avviso inviato a '+to); else throw new Error(j.error||j.result||'?');
+  }catch(e){ toast('Avviso fattura non inviato: '+e.message, true); }
+}
+
 // ══ LAVORA SCHEDA: aiuti richiesti dalla scheda → numeri nelle giornate (premontaggio / recite / repliche) ══
 // La scheda (PDF/immagine/Word agganciati, o il piano ricavato dal testo della mail) viene letta dall'AI nello stesso
 // formato di "Scheda da testo"; per ogni giornata si propone il massimo di persone per figura (chi fa scarico e
