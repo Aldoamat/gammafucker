@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v165</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v166</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -3680,6 +3680,19 @@ function parseSheetRows(rows){
   })).filter(r=>r.data&&r.spett);
 }
 
+// ── Base di sincronizzazione ──
+// Per ogni riga: la "firma" della versione vista l'ultima volta sul foglio. In merge, se la riga locale è ancora
+// uguale a quella firma (= su questo dispositivo non è stata toccata) vince il foglio, così un dispositivo rimasto
+// indietro non sovrascrive più al prossimo invio le modifiche fatte altrove (es. la nota di una fattura). Se la riga
+// locale è cambiata vince il locale, come prima. Senza firma (prima volta) resta il vecchio "locale vince".
+function _rigaFirma(r){
+  const n=v=>+v||0, t=v=>String(v==null?'':v).trim(), j=v=>{ try{ return JSON.stringify(v==null?'':v); }catch(e){ return ''; } };
+  const k=[t(r.data),t(r.citta),t(r.teatro),t(r.spett),t(r.manif),n(r.nm),n(r.tm),n(r.ne),n(r.te),n(r.nf),n(r.tf),n(r.nfo),n(r.tfo),n(r.nsa),n(r.tsa),t(r.note),r.fatturato?1:0,r.premontaggio?1:0,r.residenza?1:0,t(r.replicaOf),j(r.collab&&r.collab.length?r.collab:''),j(r.mails&&r.mails.length?r.mails:''),j(r.contatti&&r.contatti.length?r.contatti:''),t(r.accordi),j(r.prod||'')].join('\u0001');
+  let h=5381; for(let i=0;i<k.length;i++) h=((h<<5)+h+k.charCodeAt(i))|0; return (h>>>0).toString(36)+k.length.toString(36);
+}
+function _syncBaseLeggi(){ try{ return JSON.parse(ld('syncBase','{}'))||{}; }catch(e){ return {}; } }
+function _syncBaseDa(righe){ const b={}; righe.forEach(r=>{ b[String(r.id)]=_rigaFirma(r); }); sv('syncBase', JSON.stringify(b)); }
+
 // ── Scarica i dati remoti e fa merge con quelli locali (senza toccare l'UI) ──
 async function fetchAndMerge(url){
   try{
@@ -3700,11 +3713,14 @@ async function fetchAndMerge(url){
     const remoteFiltered = remote.filter(r=>!deletedIds.has(String(r.id)));
     // MERGE: per ogni record remoto, se esiste uno locale con stesso ID/data+citta+spett
     // usa il locale se ha note più aggiornate (note locale sovrascrive remoto)
+    const base = _syncBaseLeggi(); const haBase = Object.keys(base).length>0;
     const merged = remoteFiltered.map(r=>{
       const loc = data.find(l=>String(l.id)===String(r.id))
                 || data.find(l=>l.data===r.data&&l.citta===r.citta&&l.spett===r.spett);
       if(!loc) return r;
-      // Locale vince sempre su tutto — l'utente è la fonte di verità
+      // riga non toccata qui dall'ultima sincronizzazione → vince il foglio (aggiornamenti fatti da altri dispositivi)
+      if(base[String(loc.id)] && base[String(loc.id)]===_rigaFirma(loc)) return {...loc, ...r};
+      // Locale modificato: vince il locale
       return {
         ...r,       // base dal remoto (campi extra da Sheets)
         ...loc,     // locale sovrascrive tutto
@@ -3716,9 +3732,13 @@ async function fetchAndMerge(url){
     const onlyLocal = data.filter(r=>{
       if(deletedIds.has(String(r.id))) return false; // skip locally deleted
       if(remoteKeys.has(r.id+'')) return false;
+      // era già sul foglio e qui non è stata toccata: se ora manca, l'ha eliminata un altro dispositivo
+      if(haBase && base[String(r.id)] && base[String(r.id)]===_rigaFirma(r)) return false;
       return !remoteFiltered.find(x=>x.data===r.data&&x.citta===r.citta&&x.spett===r.spett);
     });
     merged.push(...onlyLocal);
+    // nuova base: la versione del foglio appena vista (le righe modificate qui restano diverse → continuano a vincere)
+    { const b={}; remoteFiltered.forEach(r=>{ b[String(r.id)]=_rigaFirma(r); }); sv('syncBase', JSON.stringify(b)); }
     merged.sort((a,b)=>a.data.localeCompare(b.data));
     return { merged, remoteCount: remote.length, json };
   }catch(e){ return null; }
@@ -3807,14 +3827,22 @@ async function pushSheets(silent=false){
     }
 
     if(sent){
+      _syncBaseDa(data); sv('pushPending', ''); _syncPendingUI();
       sv('lastPullTs',Date.now());
       updateSyncInfo(autore,Date.now());
       if(!silent)toast(`✓ ${data.length} spettacoli inviati a Sheets!`);
     } else if(!silent) throw new Error('Invio fallito');
 
-  }catch(e){if(!silent)toast('Errore: '+e.message,true);}
+  }catch(e){ sv('pushPending', String(Date.now())); _syncPendingUI(); toast((silent?'⚠️ Modifiche non ancora inviate al foglio (connessione?): riprovo da solo. ':'Errore: ')+e.message, true); }
   finally{btn.classList.remove('busy');}
 }
+// invio non riuscito: indicatore sul pulsante di invio e nuovo tentativo quando torna la rete / l'app torna in primo piano
+function _syncPendingUI(){ try{ const b=document.getElementById('pushBtn'); if(!b) return; const p=!!ld('pushPending',''); b.style.boxShadow=p?'0 0 0 2px #f59e0b':''; b.title=p?'⚠️ Ci sono modifiche non ancora inviate al foglio — tocca per riprovare':''; }catch(e){} }
+function _syncRiprova(){ if(!IS_COLLAB && ld('pushPending','') && ld('sheetsUrl','') && navigator.onLine!==false) pushSheets(true); }
+window.addEventListener('online', ()=>setTimeout(_syncRiprova, 1500));
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(_syncRiprova, 2500); });
+setInterval(_syncRiprova, 2*60*1000);
+setTimeout(_syncPendingUI, 1500);
 
 async function pullSheets(){
   const url=ld('sheetsUrl','');
@@ -3844,7 +3872,7 @@ async function pullSheets(){
     _sincronizzaAnagrafica(json);
     const imported=parseSheetRows(json.data);
     imported.sort((a,b)=>a.data.localeCompare(b.data));
-    data=imported;sv('spettacoli',data);sv('lastPullTs',Date.now());
+    data=imported;sv('spettacoli',data);sv('lastPullTs',Date.now()); _syncBaseDa(imported);
     // Aggiorna città se presenti nella risposta
     if(json.teatriDB && typeof json.teatriDB==='object'){
       teatriDB={...teatriDB,...json.teatriDB};
@@ -6828,6 +6856,7 @@ function applicaFattura(){
       if(notaNuova){
         _rimuoviPrevisioni(spett, notaNuova);
         spett.note = spett.note ? spett.note.trim()+' | '+notaNuova : notaNuova;
+        spett.ts = new Date().toISOString();
       }
       modificati++;
     } else {
@@ -7026,7 +7055,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v165</span>
+    <span>Report generato da GammaFucker v166</span>
   </div>
   </body></html>`;
 
@@ -7132,7 +7161,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v165</span>
+    <span>Report generato da GammaFucker v166</span>
   </div>
   </body></html>`;
 
@@ -7228,7 +7257,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v165</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v166</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7301,7 +7330,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v165</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v166</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
