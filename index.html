@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v163</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v164</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -3277,6 +3277,7 @@ function _buildCard(s, grp){
       ${s.manif!=='GESTIONE'&&(!IS_COLLAB||(s.manif&&pianiProduzione[_prodKeyDi(s)]))?`<button class="iBtn" style="color:#c084fc;border-color:rgba(192,132,252,.35);" onclick="apriPianoSpettacolo(${s.id})">🎬 Piano</button>`:''}
       ${IS_COLLAB?(_gruppoDi(s).some(x=>x.prod&&x.prod.squadra&&x.prod.squadra.length)?`<button class="iBtn" style="color:#25d366;border-color:rgba(37,211,102,.35);" onclick="apriSquadraRO(${s.id})">👷 Squadra</button>`:''):`<button class="iBtn" style="color:#25d366;border-color:rgba(37,211,102,.35);" onclick="apriSquadra(${s.id})" title="WhatsApp ai tecnici / service con le info del lavoro">👷 Squadra</button>`}
       ${IS_COLLAB||s.premontaggio||s.replicaOf||_mailsDi(s).some(m=>m.tipo==='scheda'&&m.file)?'':`<button class="iBtn" style="color:#60a5fa;border-color:rgba(96,165,250,.35);" onclick="apriCercaMail(${s.id})" title="Cerca la scheda tecnica nelle mail e agganciala">📧 Scheda?</button>`}
+      ${IS_COLLAB||s.premontaggio||s.replicaOf?'':`<button class="iBtn" style="color:#60a5fa;border-color:rgba(96,165,250,.35);border-style:dashed;" onclick="apriSchedaTesto(${s.id})" title="La scheda è arrivata nel testo della mail: incollala e diventa un PDF da mandare ai referenti">📝 Scheda da testo</button>`}
       ${IS_COLLAB?'':`<button class="iBtn" style="color:var(--purple);border-color:rgba(124,58,237,.35);" onclick="apriVoceFornitore(${s.id})">🧾 Voce fornitore</button>
       <button class="iBtn ed" onclick="editSpett(${s.id})">✏️ Modifica</button>
       <button class="iBtn dl" onclick="delSpett(${s.id})">🗑</button>`}
@@ -7010,7 +7011,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v163</span>
+    <span>Report generato da GammaFucker v164</span>
   </div>
   </body></html>`;
 
@@ -7116,7 +7117,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v163</span>
+    <span>Report generato da GammaFucker v164</span>
   </div>
   </body></html>`;
 
@@ -7212,7 +7213,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v163</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v164</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7285,7 +7286,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v163</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v164</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9915,7 +9916,7 @@ function _daFareMancanze(s){
   const m=[], fatte=[];
   const fmt=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}); }catch{ return d||''; } };
   const ok=(lab,v)=>fatte.push('✓ '+lab+(v&&v.ts?' il '+fmt(v.ts):''));
-  if(!scheda) m.push({k:'scheda', lab:'📄 scheda tecnica non ricevuta', az:`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#60a5fa;border-color:rgba(96,165,250,.35);" onclick="_daFareAz(()=>apriCercaMail(${s.id}))">📧 Scheda?</button>`});
+  if(!scheda) m.push({k:'scheda', lab:'📄 scheda tecnica non ricevuta', az:`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:#60a5fa;border-color:rgba(96,165,250,.35);" onclick="_daFareAz(()=>apriCercaMail(${s.id}))">📧 Scheda?</button> <button class="iBtn" style="font-size:10px;padding:2px 7px;color:#60a5fa;border-color:rgba(96,165,250,.35);border-style:dashed;" onclick="_daFareAz(()=>apriSchedaTesto(${s.id}))">📝 Da testo</button>`});
   else { const sm=_mailsDi(s).find(x=>x.tipo==='scheda'&&x.file); ok('📄 scheda tecnica ricevuta', sm&&sm.data?{ts:String(sm.data).slice(0,10)}:null); }
   if(!inv.infoCompagnia) m.push({k:'info', lab:'🏛 info spazio non inviate alla compagnia', az:`<button class="iBtn" style="font-size:10px;padding:2px 7px;color:var(--accent);border-color:rgba(124,58,237,.3);" onclick="_daFareAz(()=>apriInvioInfoSpazio(${s.id}))">📧 Info spazio</button>`});
   else ok('🏛 info spazio inviate alla compagnia', inv.infoCompagnia);
