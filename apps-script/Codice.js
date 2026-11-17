@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v173 ──
+// ── SPETTACOLI APP SCRIPT v174 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -143,6 +143,12 @@ function doPost(e) {
       lock.releaseLock();
       var ru2; try { ru2 = inboxUpload(body); } catch(errU2) { ru2 = { error: errU2.message }; }
       return ContentService.createTextOutput(JSON.stringify(ru2)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (body.action === 'schedaDaTesto' || body.action === 'inviaScheda') {
+      // scheda tecnica arrivata nel corpo della mail: PDF su Drive dall'HTML preparato nell'app, e invio ai referenti con il PDF allegato
+      lock.releaseLock();
+      var rst; try { rst = body.action === 'schedaDaTesto' ? schedaDaTesto(body) : inviaScheda(body); } catch(errST) { rst = { error: errST.message }; }
+      return ContentService.createTextOutput(JSON.stringify(rst)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'collegaFattura' || body.action === 'fattureCollegate') {
       // fattura vera + preconsuntivo: cartella Drive per fattura e registro nel foglio "Fatture collegate"
@@ -1555,6 +1561,28 @@ function inboxStorico(body) {
   leggi(f, false); leggi(_inboxFatte(f), true);
   out.sort(function(a, b) { return a.caricata < b.caricata ? 1 : -1; });
   return { files: out };
+}
+
+// ════════════════════ SCHEDA TECNICA DA TESTO ════════════════════
+function schedaDaTesto(body) {
+  if (!body.html) return { error: 'contenuto mancante' };
+  var nome = String(body.nome || 'Scheda tecnica').replace(/[\\/:*?"<>|]/g, '-').substring(0, 120);
+  var cart = _cartellaDoc(String(body.cartella || 'Schede tecniche')).folder;
+  var vecchi = cart.getFilesByName(nome + '.pdf'); while (vecchi.hasNext()) vecchi.next().setTrashed(true);   // rifarla sostituisce la precedente
+  var pdf = Utilities.newBlob(String(body.html), 'text/html', nome + '.html').getAs('application/pdf').setName(nome + '.pdf');
+  var f = cart.createFile(pdf);
+  try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {}
+  return { ok: true, id: f.getId(), url: f.getUrl(), nome: f.getName() };
+}
+function inviaScheda(body) {
+  var to = String(body.to || '').trim(); if (!to) return { error: 'destinatario mancante' };
+  var ids = [].concat(body.fileIds || (body.fileId ? [body.fileId] : []));
+  var att = ids.map(function(id) { return DriveApp.getFileById(id).getBlob(); });
+  var testo = String(body.testo || '');
+  var opt = { attachments: att, htmlBody: testo.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br>') };
+  if (COPIA_MAIL_A && to.toLowerCase().indexOf(COPIA_MAIL_A.toLowerCase()) < 0) opt.bcc = COPIA_MAIL_A;
+  GmailApp.sendEmail(to, String(body.oggetto || 'Scheda tecnica'), testo, opt);
+  return { ok: true, allegati: att.length };
 }
 
 // ════════════════════ FATTURE COLLEGATE AL PRECONSUNTIVO ════════════════════
