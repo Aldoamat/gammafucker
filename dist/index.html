@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v171</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v172</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -7122,7 +7122,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v171</span>
+    <span>Report generato da GammaFucker v172</span>
   </div>
   </body></html>`;
 
@@ -7228,7 +7228,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v171</span>
+    <span>Report generato da GammaFucker v172</span>
   </div>
   </body></html>`;
 
@@ -7324,7 +7324,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v171</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v172</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7397,7 +7397,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v171</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v172</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9647,21 +9647,24 @@ function apriInoltro(id){
 let _inAllegati=null;
 // oggetto della mail = quello della mail scelta (si aggiorna cambiando mail)
 function _inOggetto(){ const s=data.find(x=>String(x.id)===String(_inId)); if(!s) return; const mails=_mailsDi(s).filter(m=>m.link); const m=mails[+document.getElementById('in-mail').value]||mails[0]; if(!m) return;
-  document.getElementById('in-ogg').value='Fwd: '+String(m.og||'').replace(/^Scheda tecnica\s*[—–-]\s*/,'')+' — '+s.spett+' '+_prodFmtD(s.data); }
+  document.getElementById('in-ogg').value='Fwd: '+String(m.oggetto||String(m.og||'').split(' | ')[0]).replace(/^Scheda tecnica\s*[—–-]\s*/,'').replace(/^\s*((I|R|RE|FW|FWD|Fwd|Re):\s*)+/i,'')+' — '+s.spett+' '+_prodFmtD(s.data); }
 // file della scheda già salvati su Drive per lo spettacolo (id dai link) → piano B se la mail non si trova più
 function _inFileScheda(s){ return _mailsDi(s).filter(m=>m.tipo==='scheda' && m.file).map(m=>({nome:String(m.og||'scheda').replace(/^Scheda tecnica\s*[—–-]\s*/,''), id:m.fileId||((String(m.file).match(/\/d\/([\w-]{20,})/)||String(m.file).match(/[?&]id=([\w-]{20,})/)||[])[1])})).filter(x=>x.id); }
 let _inPianoB=null;
+// nome del file della scheda (dal titolo registrato): "Scheda tecnica — I: TITOLO | 12.SAN SEVERINO.docx" → "12.SAN SEVERINO.docx";
+// "Scheda tecnica — Matelica scheda tecnica Hospitality Suite" (agganciata a mano) → il nome stesso. Le mail normali: niente.
+function _inFileAtteso(m){ if(m.tipo!=='scheda') return ''; const og=String(m.og||''); const p=og.split(' | '); if(p.length>1) return p[p.length-1].trim(); return /^Scheda tecnica\s*[—–-]/.test(og)?og.replace(/^Scheda tecnica\s*[—–-]\s*/,'').trim():''; }
 async function _inCaricaAllegati(){
   const s=data.find(x=>String(x.id)===String(_inId)); if(!s) return; _inPianoB=null;
   const mails=_mailsDi(s).filter(m=>m.link); const m=mails[+document.getElementById('in-mail').value]; if(!m) return;
   const box=document.getElementById('in-allegati'); _inAllegati=null; box.innerHTML='⏳ leggo gli allegati della mail…';
   const url=ld('sheetsUrl',''); if(!url){ box.innerHTML=''; return; }
   try{
-    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'allegatiMail', link:m.tid||m.link, fonte:m.oggetto||m.og})});
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'allegatiMail', link:m.tid||m.link, fonte:m.oggetto||m.og, file:_inFileAtteso(m)})});
     const txt=await res.text(); let j; try{ j=JSON.parse(txt); }catch(_){ throw new Error('script in aggiornamento, riprova'); }
     if(j.error) throw new Error(j.error);
     // mail ritrovata: mi segno id e oggetto vero sulla scheda, così le prossime volte la trova al primo colpo
-    if(j.id && (!m.tid || !m.oggetto)){ m.tid=j.id; m.oggetto=j.oggetto||m.oggetto||''; s.ts=new Date().toISOString(); sv('spettacoli',data); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),500); }
+    if(j.id && (m.tid!==j.id || !m.oggetto)){ m.tid=j.id; m.oggetto=j.oggetto||m.oggetto||''; s.ts=new Date().toISOString(); sv('spettacoli',data); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),500); }
     const esc=v=>String(v||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
     const all=j.allegati||[];
     if(!all.length){ box.innerHTML='la mail non ha allegati: verrà inoltrato solo il testo'; _inAllegati=[]; return; }
@@ -9703,7 +9706,7 @@ async function inviaInoltro(){
     return;
   }
   try{
-    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'inoltraMail', link:m.tid||m.link, fonte:m.oggetto||m.og, to:dest, testo:document.getElementById('in-testo').value, oggetto:document.getElementById('in-ogg').value.trim(), allegati:(_inAllegati?[...document.querySelectorAll('.in-att:checked')].map(c=>+c.value):undefined)})});
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'inoltraMail', link:m.tid||m.link, fonte:m.oggetto||m.og, file:_inFileAtteso(m), to:dest, testo:document.getElementById('in-testo').value, oggetto:document.getElementById('in-ogg').value.trim(), allegati:(_inAllegati?[...document.querySelectorAll('.in-att:checked')].map(c=>+c.value):undefined)})});
     const j=await res.json(); if(j.error) throw new Error(j.error);
     document.getElementById('inoltra-ov').classList.remove('open');
     _segnaInvio(s, 'schedaTeatro', 'mail a '+dest);

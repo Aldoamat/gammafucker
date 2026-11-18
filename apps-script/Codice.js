@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v182 ──
+// ── SPETTACOLI APP SCRIPT v183 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -193,12 +193,12 @@ function doPost(e) {
     }
     if (body.action === 'allegatiMail') {
       lock.releaseLock();
-      var ra; try { ra = allegatiMailThread(body.link, body.fonte); } catch(errA) { ra = { error: errA.message }; }
+      var ra; try { ra = allegatiMailThread(body.link, body.fonte, body.file); } catch(errA) { ra = { error: errA.message }; }
       return ContentService.createTextOutput(JSON.stringify(ra)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'inoltraMail') {
       lock.releaseLock();
-      var rf2; try { rf2 = inoltraMailThread(body.link, body.fonte, body.to, body.testo, body.oggetto, body.allegati); } catch(errF) { rf2 = { error: errF.message }; }
+      var rf2; try { rf2 = inoltraMailThread(body.link, body.fonte, body.to, body.testo, body.oggetto, body.allegati, body.file); } catch(errF) { rf2 = { error: errF.message }; }
       return ContentService.createTextOutput(JSON.stringify(rf2)).setMimeType(ContentService.MimeType.JSON);
     }
     if (body.action === 'leggiScheda') {
@@ -1040,34 +1040,63 @@ function scansionaSchede(maxMin) {
 // Lettura forzata di un singolo thread (dall'app: pulsante sulla segnalazione).
 // Ignora il filtro "sembra scheda" e l'etichetta: legge tutti i PDF/Word del thread.
 // Trova la conversazione Gmail dal link salvato sullo spettacolo (o dall'oggetto)
-function _threadDaLink(link, fonte) {
-  var th = null, L = String(link || '');
-  // id del thread: "…?th=18c…", "…#inbox/18c…", "…/18c…" (i link nuovi di Gmail tipo FMfcg… non sono id: si passa all'oggetto)
+// Ritrova la mail di una scheda agganciata. Con il nome del file atteso ("12.SAN SEVERINO.docx") ogni candidato
+// deve contenerlo davvero: niente più mail sbagliate con lo stesso titolo nell'oggetto (es. "Informazioni spazi —
+// <titolo>" inviata da noi). Ordine: id dal link → ricerca per nome del file → per oggetto; scartate le mail inviate da noi.
+function _normNomeFile(n) { return String(n || '').toLowerCase().replace(/\.[a-z0-9]{2,5}$/i, '').replace(/[^a-z0-9à-ÿ]+/gi, ' ').trim(); }
+function _fileAttesoDa(fonte, file) {
+  if (file) return _normNomeFile(file);
+  var p = String(fonte || '').split(' | '); if (p.length > 1) return _normNomeFile(p[p.length - 1]);
+  return '';
+}
+function _nomeCombacia(n, atteso) { return n === atteso || (n.length > 4 && atteso.length > 4 && (n.indexOf(atteso) >= 0 || atteso.indexOf(n) >= 0)); }
+function _haFile(th, atteso) {
+  if (!atteso) return true;
+  return th.getMessages().some(function(m) { return m.getAttachments().some(function(a) { return _nomeCombacia(_normNomeFile(a.getName()), atteso); }); });
+}
+function _daNoi(th) {
+  var me = ''; try { me = (Session.getEffectiveUser().getEmail() || '').toLowerCase(); } catch(e) {}
+  var m0 = th.getMessages()[0]; var da = String(m0.getFrom() || '').toLowerCase();
+  return (me && da.indexOf(me) >= 0) || /^informazioni spazi/i.test(m0.getSubject() || '');
+}
+function _threadDaLink(link, fonte, file) {
+  var L = String(link || ''); var atteso = _fileAttesoDa(fonte, file);
+  // schede agganciate a mano ("Scheda tecnica — <nome file>"): il testo è il nome del file
+  if (!atteso && String(fonte || '').indexOf(' | ') < 0 && /^\s*Scheda tecnica\s*[—–-]/i.test(String(fonte || ''))) atteso = _normNomeFile(String(fonte).replace(/^\s*Scheda tecnica\s*[—–-]\s*/i, ''));
+  // id del thread dal link: "…?th=18c…", "…#inbox/18c…", "…/18c…"
   var cand = [];
   var mTh = L.match(/[?&#]th=([0-9a-f]{12,})/i); if (mTh) cand.push(mTh[1]);
   var mHex = L.match(/([0-9a-f]{15,})\s*$/i); if (mHex) cand.push(mHex[1]);
   var ultimo = L.split(/[\/#?&=]/).pop(); if (ultimo) cand.push(ultimo);
-  for (var c = 0; c < cand.length && !th; c++) { try { th = GmailApp.getThreadById(cand[c]); } catch(e) {} }
-  if (!th && fonte) {
-    // oggetto senza prefissi dell'app ("Scheda tecnica — ") né I:/R:/Fwd:
-    var ogg = String(fonte).split(' | ')[0].replace(/^\s*Scheda tecnica\s*[—–-]\s*/i, '').replace(/\s*\(da mail\)\s*$/i, '')
-      .replace(/^\s*((I|R|RE|FW|FWD|TR|Fwd|Re|I):\s*)+/i, '').replace(/"/g, '').trim();
-    if (ogg.length > 6) {
-      var found = GmailApp.search('subject:"' + ogg.substring(0, 80) + '" newer_than:400d', 0, 3);
-      var parole = ogg.replace(/[^\wÀ-ÿ' ]+/g, ' ').split(/\s+/).filter(function(w){ return w.length >= 4; }).slice(0, 6);
-      // le schede agganciate a mano portano il NOME DELL'ALLEGATO, non l'oggetto: cerco anche tra i nomi dei file
-      if (!found.length) found = GmailApp.search('has:attachment newer_than:400d filename:"' + ogg.substring(0, 80) + '"', 0, 3);
-      if (!found.length && parole.length >= 2) found = GmailApp.search('has:attachment newer_than:400d ' + parole.map(function(w){ return 'filename:' + w; }).join(' '), 0, 3);
-      if (!found.length && parole.length >= 2) found = GmailApp.search('has:attachment newer_than:400d ' + parole.map(function(w){ return 'subject:' + w; }).join(' '), 0, 3);
-      if (found.length) th = found[0];
-    }
+  for (var c = 0; c < cand.length; c++) { try { var t0 = GmailApp.getThreadById(cand[c]); if (t0 && _haFile(t0, atteso)) return t0; } catch(e) {} }
+  var ogg = String(fonte || '').split(' | ')[0].replace(/^\s*Scheda tecnica\s*[—–-]\s*/i, '').replace(/\s*\(da mail\)\s*$/i, '')
+    .replace(/^\s*((I|R|RE|FW|FWD|TR|Fwd|Re|I):\s*)+/i, '').replace(/"/g, '').trim();
+  var query = [];
+  if (atteso) {
+    query.push('has:attachment newer_than:400d filename:"' + atteso.substring(0, 80) + '"');
+    var pf = atteso.split(' ').filter(function(w){ return w.length >= 3; }).slice(0, 6);
+    if (pf.length >= 2) query.push('has:attachment newer_than:400d ' + pf.map(function(w){ return 'filename:' + w; }).join(' '));
   }
-  return th;
+  if (ogg.length > 6) {
+    query.push('subject:"' + ogg.substring(0, 80) + '" has:attachment newer_than:400d');
+    var parole = ogg.replace(/[^\wÀ-ÿ' ]+/g, ' ').split(/\s+/).filter(function(w){ return w.length >= 4; }).slice(0, 6);
+    if (parole.length >= 2) query.push('has:attachment newer_than:400d ' + parole.map(function(w){ return 'subject:' + w; }).join(' '));
+  }
+  var visti = {};
+  for (var q = 0; q < query.length; q++) {
+    var found = []; try { found = GmailApp.search(query[q], 0, 10); } catch(e) {}
+    for (var k = 0; k < found.length; k++) { var t = found[k]; if (visti[t.getId()]) continue; visti[t.getId()] = 1;
+      if (!atteso && _daNoi(t)) continue;          // senza il file a confermarla, mai una mail mandata da noi
+      if (_haFile(t, atteso)) return t; }
+  }
+  return null;
 }
 // Inoltra ai referenti (teatro, service…) la mail della compagnia con tutti gli allegati, più un testo introduttivo
-// il messaggio del thread con allegati (di solito la scheda tecnica), altrimenti l'ultimo
-function _msgConAllegati(th) {
-  var msgs = th.getMessages(), msg = msgs[msgs.length - 1];
+// il messaggio con il file atteso (la scheda), altrimenti l'ultimo con allegati, altrimenti l'ultimo
+function _msgConAllegati(th, atteso) {
+  var msgs = th.getMessages();
+  if (atteso) for (var j = msgs.length - 1; j >= 0; j--) { if (msgs[j].getAttachments().some(function(a) { return _nomeCombacia(_normNomeFile(a.getName()), atteso); })) return msgs[j]; }
+  var msg = msgs[msgs.length - 1];
   for (var i = msgs.length - 1; i >= 0; i--) { if (msg.getAttachments().length) break; if (msgs[i].getAttachments().length) { msg = msgs[i]; break; } }
   return msg;
 }
@@ -1098,19 +1127,19 @@ function agganciaAllegatiMail(link, allegati, titolo, threadId, oggetto) {
   return { ok: true, file: out, da: msg.getFrom(), oggetto: msg.getSubject(), contatti: _contattiScheda(msg, []) };
 }
 // Elenco allegati della mail: l'app li mostra con le spunte, così al teatro va solo la scheda di competenza
-function allegatiMailThread(link, fonte) {
-  var th = _threadDaLink(link, fonte);
+function allegatiMailThread(link, fonte, file) {
+  var th = _threadDaLink(link, fonte, file);
   if (!th) return { error: 'mail non trovata (né link né oggetto corrispondente)' };
-  var msg = _msgConAllegati(th);
+  var msg = _msgConAllegati(th, _fileAttesoDa(fonte, file));
   var atts = msg.getAttachments().map(function(a, i){ return { i: i, nome: a.getName(), kb: Math.round(a.getSize() / 1024), tipo: a.getContentType() }; });
   return { ok: true, id: th.getId(), oggetto: msg.getSubject(), da: msg.getFrom(), allegati: atts };
 }
 // allegati: array di indici (da allegatiMailThread). Se manca → inoltro classico con tutto.
-function inoltraMailThread(link, fonte, to, testo, oggetto, allegati) {
+function inoltraMailThread(link, fonte, to, testo, oggetto, allegati, file) {
   if (!to) return { error: 'destinatario mancante' };
-  var th = _threadDaLink(link, fonte);
+  var th = _threadDaLink(link, fonte, file);
   if (!th) return { error: 'mail non trovata (né link né oggetto corrispondente)' };
-  var msg = _msgConAllegati(th);
+  var msg = _msgConAllegati(th, _fileAttesoDa(fonte, file));
   var intro = String(testo || '');
   var corpoOrig = msg.getBody();
   var opt = { htmlBody: intro.replace(/\n/g, '<br>') + '<br><br>---------- Messaggio inoltrato ----------<br>' + corpoOrig };
