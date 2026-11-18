@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v167</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v168</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -855,6 +855,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">L'amministrazione carica le fatture dalla <b>pagina di caricamento</b> (senza account Google, basta il PIN) oppure direttamente nella cartella Drive <b>GammaFucker Documenti / Fatture in arrivo</b>. Tu le analizzi da qui; dopo l'inserimento il file passa in "Elaborate".</div>
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;">
       <a id="inbox-pagina" href="#" target="_blank" rel="noopener" class="iBtn" style="text-decoration:none;font-size:11px;padding:3px 9px;color:#fbbf24;border-color:rgba(251,191,36,.5);">📤 Pagina di caricamento</a>
+      <button class="iBtn" style="font-size:11px;padding:3px 9px;" title="Crea la copia PDF delle fatture caricate come pagina web (HTML), anche di quelle già elaborate" onclick="_inboxPdfHtml(this)">🖨 PDF delle fatture HTML</button>
       <button class="iBtn" style="font-size:11px;padding:3px 9px;" onclick="_inboxCopiaPagina()">🔗 Copia link per l'amministrazione</button>
       <button class="iBtn" style="font-size:11px;padding:3px 9px;" onclick="_inboxPin()">🔑 PIN</button>
     </div>
@@ -4696,6 +4697,12 @@ async function _inboxAnalizza(id, nome){
     toast('✓ '+nomeF+' caricato: controlla fornitore e numero, poi Analizza Fattura');
   }catch(e){ toast('Errore: '+e.message, true); }
 }
+async function _inboxPdfHtml(b){
+  if(b){ b.disabled=true; b.textContent='⏳ converto…'; }
+  try{ const j=await _inboxCall({action:'inboxPdfHtml'}); toast(j.fatte?'✓ Creati '+j.fatte+' PDF accanto alle fatture HTML':'Tutte le fatture HTML hanno già il loro PDF'); if(j.errori&&j.errori.length) toast('Non convertite: '+j.errori.join('; '), true); }
+  catch(e){ toast('Errore: '+e.message, true); }
+  finally{ if(b){ b.disabled=false; b.textContent='🖨 PDF delle fatture HTML'; } }
+}
 async function _inboxArchivia(id, nome, silenzioso, nota){
   try{ await _inboxCall({action:'inboxArchivia', id, nota:nota||'segnata come fatta, senza analisi'}); toast('✓ '+nome+' spostata in Elaborate'); if(!silenzioso) caricaInbox(); }
   catch(e){ toast('Archiviazione non riuscita: '+e.message, true); }
@@ -7064,7 +7071,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v167</span>
+    <span>Report generato da GammaFucker v168</span>
   </div>
   </body></html>`;
 
@@ -7170,7 +7177,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v167</span>
+    <span>Report generato da GammaFucker v168</span>
   </div>
   </body></html>`;
 
@@ -7266,7 +7273,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v167</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v168</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7339,7 +7346,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v167</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v168</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');

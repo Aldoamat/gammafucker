@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v178 ──
+// ── SPETTACOLI APP SCRIPT v179 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -167,8 +167,9 @@ function doPost(e) {
       var rs; try { rs = inboxStorico(body); } catch(errS) { rs = { error: errS.message }; }
       return ContentService.createTextOutput(JSON.stringify(rs)).setMimeType(ContentService.MimeType.JSON);
     }
-    if (body.action === 'inboxCartella' || body.action === 'inboxLista' || body.action === 'inboxPrendi' || body.action === 'inboxArchivia') {
+    if (body.action === 'inboxCartella' || body.action === 'inboxLista' || body.action === 'inboxPrendi' || body.action === 'inboxArchivia' || body.action === 'inboxPdfHtml') {
       lock.releaseLock();
+      if (body.action === 'inboxPdfHtml') { var rp; try { rp = inboxPdfHtml(); } catch(eP) { rp = { error: eP.message }; } return ContentService.createTextOutput(JSON.stringify(rp)).setMimeType(ContentService.MimeType.JSON); }
       var ri; try { ri = body.action === 'inboxCartella' ? inboxCartella() : body.action === 'inboxLista' ? inboxLista() : body.action === 'inboxPrendi' ? inboxPrendi(body.id) : inboxArchivia(body.id, body.nota); } catch(errI) { ri = { error: errI.message }; }
       return ContentService.createTextOutput(JSON.stringify(ri)).setMimeType(ContentService.MimeType.JSON);
     }
@@ -1512,7 +1513,7 @@ function _inboxFatte(folder) { var it = folder.getFoldersByName(INBOX_FATTE); re
 function inboxCartella() { var f = _inboxFolder(); _inboxFatte(f); return { url: f.getUrl(), id: f.getId() }; }
 function inboxLista() {
   var f = _inboxFolder(); var out = []; var it = f.getFiles();
-  while (it.hasNext()) { var x = it.next(); out.push({ id: x.getId(), nome: x.getName(), mime: x.getMimeType(), size: x.getSize(), data: x.getDateCreated().toISOString(), url: x.getUrl() }); }
+  while (it.hasNext()) { var x = it.next(); if (/^COPIA_PDF:/.test(String(x.getDescription() || ''))) continue; out.push({ id: x.getId(), nome: x.getName(), mime: x.getMimeType(), size: x.getSize(), data: x.getDateCreated().toISOString(), url: x.getUrl() }); }
   out.sort(function(a, b) { return a.data < b.data ? 1 : -1; });
   return { url: f.getUrl(), files: out };
 }
@@ -1540,8 +1541,32 @@ function inboxUpload(body) {
   var chi = String(body.chi || '').replace(/[\\/:*?"<>|]/g, ' ').trim().substring(0, 40);
   var nome = (+body.idx === 0 || !body.fileId) ? (Utilities.formatDate(new Date(), 'Europe/Rome', 'yyyy-MM-dd') + (chi ? ' · ' + chi : '') + ' · ' + String(body.nome).substring(0, 120)) : body.nome;
   var r = caricaChunk(INBOX_CARTELLA, nome, body.mime, body.b64, +body.idx || 0, +body.total || 1, body.fileId);
-  if (r && r.done) { try { DriveApp.getFileById(r.id).setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW); } catch(e) {} }
+  if (r && r.done) { try { var fu = DriveApp.getFileById(r.id); fu.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW); _htmlPdfCopia(fu); } catch(e) {} }
   return r;
+}
+// Fatture HTML (pagine salvate da portali): copia PDF accanto all'originale, leggibile ovunque (Word apre l'HTML con
+// la codifica sbagliata). La copia porta nella descrizione "COPIA_PDF:<id originale>": non compare tra le fatture
+// da lavorare e segue l'originale quando viene spostato in Elaborate.
+function _isHtmlFile(x) { return /html/i.test(x.getMimeType() || '') || /\.(html?|xhtml)$/i.test(x.getName()); }
+function _htmlPdfCopia(x) {
+  if (!_isHtmlFile(x)) return null;
+  var testo = x.getBlob().getDataAsString('UTF-8');
+  if (!/<meta[^>]+charset/i.test(testo)) testo = /<head[^>]*>/i.test(testo) ? testo.replace(/<head[^>]*>/i, function(h) { return h + '<meta charset="utf-8">'; }) : '<meta charset="utf-8">' + testo;
+  var base = x.getName().replace(/\.(html?|xhtml)$/i, '');
+  var pdf = Utilities.newBlob(testo, 'text/html', base + '.html').getAs('application/pdf').setName(base + '.pdf');
+  var cart = x.getParents().next(); var f = cart.createFile(pdf);
+  try { f.setDescription('COPIA_PDF:' + x.getId()); f.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW); } catch(e) {}
+  return f;
+}
+// le fatture HTML già caricate (in arrivo + Elaborate) che non hanno ancora la copia PDF
+function inboxPdfHtml() {
+  var f = _inboxFolder(); var fatte = 0, errori = [];
+  [f, _inboxFatte(f)].forEach(function(cart) {
+    var copie = {}, html = []; var it = cart.getFiles();
+    while (it.hasNext()) { var x = it.next(); var d = String(x.getDescription() || ''); var m = d.match(/^COPIA_PDF:(\S+)/); if (m) copie[m[1]] = true; else if (_isHtmlFile(x)) html.push(x); }
+    html.forEach(function(x) { if (copie[x.getId()]) return; try { _htmlPdfCopia(x); fatte++; } catch(e) { errori.push(x.getName() + ': ' + e.message); } });
+  });
+  return { ok: true, fatte: fatte, errori: errori };
 }
 function inboxArchivia(id, nota) {
   if (!id) return { error: 'id mancante' };
@@ -1549,6 +1574,8 @@ function inboxArchivia(id, nota) {
   // nella descrizione del file: quando è stata lavorata e cosa è diventata (letto da inboxStorico)
   try { x.setDescription('LAVORATA ' + Utilities.formatDate(new Date(), 'Europe/Rome', 'yyyy-MM-dd HH:mm') + (nota ? ' · ' + String(nota).substring(0, 200) : '')); } catch(e) {}
   x.moveTo(dest);
+  // la copia PDF (fatture HTML) segue l'originale
+  try { var itc = f.getFiles(); while (itc.hasNext()) { var c = itc.next(); if (String(c.getDescription() || '') === 'COPIA_PDF:' + id) c.moveTo(dest); } } catch(e) {}
   return { ok: true, nome: x.getName() };
 }
 
@@ -1560,7 +1587,7 @@ function inboxStorico(body) {
   var giorni = Math.min(+body.giorni || 90, 400); var limite = new Date(Date.now() - giorni * 864e5);
   var f = _inboxFolder(); var out = [];
   var leggi = function(cart, lavorata) { var it = cart.getFiles(); while (it.hasNext()) { var x = it.next(); var dc = x.getDateCreated(); if (dc < limite) continue;
-    var nome = x.getName(); var p = nome.split(' · '); var desc = String(x.getDescription() || ''); var m = desc.match(/^LAVORATA (\S+ \S+)(?: · (.*))?$/);
+    var nome = x.getName(); var p = nome.split(' · '); var desc = String(x.getDescription() || ''); if (/^COPIA_PDF:/.test(desc)) continue; var m = desc.match(/^LAVORATA (\S+ \S+)(?: · (.*))?$/);
     out.push({ caricata: Utilities.formatDate(dc, 'Europe/Rome', 'yyyy-MM-dd HH:mm'), chi: p.length >= 3 ? p[1] : '', file: p.length >= 3 ? p.slice(2).join(' · ') : nome,
       stato: lavorata ? 'lavorata' : 'attesa', lavorata: m ? m[1] : (lavorata ? Utilities.formatDate(x.getLastUpdated(), 'Europe/Rome', 'yyyy-MM-dd HH:mm') : ''), esito: m && m[2] ? m[2] : '' }); } };
   leggi(f, false); leggi(_inboxFatte(f), true);
