@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v181 ──
+// ── SPETTACOLI APP SCRIPT v182 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -1054,10 +1054,11 @@ function _threadDaLink(link, fonte) {
       .replace(/^\s*((I|R|RE|FW|FWD|TR|Fwd|Re|I):\s*)+/i, '').replace(/"/g, '').trim();
     if (ogg.length > 6) {
       var found = GmailApp.search('subject:"' + ogg.substring(0, 80) + '" newer_than:400d', 0, 3);
-      if (!found.length) {   // ultima prova: le parole dell'oggetto, mail con allegati
-        var parole = ogg.replace(/[^\wÀ-ÿ' ]+/g, ' ').split(/\s+/).filter(function(w){ return w.length >= 4; }).slice(0, 6);
-        if (parole.length >= 2) found = GmailApp.search('has:attachment newer_than:400d ' + parole.map(function(w){ return 'subject:' + w; }).join(' '), 0, 3);
-      }
+      var parole = ogg.replace(/[^\wÀ-ÿ' ]+/g, ' ').split(/\s+/).filter(function(w){ return w.length >= 4; }).slice(0, 6);
+      // le schede agganciate a mano portano il NOME DELL'ALLEGATO, non l'oggetto: cerco anche tra i nomi dei file
+      if (!found.length) found = GmailApp.search('has:attachment newer_than:400d filename:"' + ogg.substring(0, 80) + '"', 0, 3);
+      if (!found.length && parole.length >= 2) found = GmailApp.search('has:attachment newer_than:400d ' + parole.map(function(w){ return 'filename:' + w; }).join(' '), 0, 3);
+      if (!found.length && parole.length >= 2) found = GmailApp.search('has:attachment newer_than:400d ' + parole.map(function(w){ return 'subject:' + w; }).join(' '), 0, 3);
       if (found.length) th = found[0];
     }
   }
@@ -1102,7 +1103,7 @@ function allegatiMailThread(link, fonte) {
   if (!th) return { error: 'mail non trovata (né link né oggetto corrispondente)' };
   var msg = _msgConAllegati(th);
   var atts = msg.getAttachments().map(function(a, i){ return { i: i, nome: a.getName(), kb: Math.round(a.getSize() / 1024), tipo: a.getContentType() }; });
-  return { ok: true, oggetto: msg.getSubject(), da: msg.getFrom(), allegati: atts };
+  return { ok: true, id: th.getId(), oggetto: msg.getSubject(), da: msg.getFrom(), allegati: atts };
 }
 // allegati: array di indici (da allegatiMailThread). Se manca → inoltro classico con tutto.
 function inoltraMailThread(link, fonte, to, testo, oggetto, allegati) {

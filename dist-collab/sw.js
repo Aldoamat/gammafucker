@@ -1,4 +1,4 @@
-const CACHE='collab-v170';
+const CACHE='collab-v171';
 const ASSETS=['./sw.js','./manifest.json'];
 
 self.addEventListener('install', e=>{
