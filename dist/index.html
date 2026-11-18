@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v168</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v169</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1225,6 +1225,11 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div class="field">
       <label>Testo fattura (incolla qui o si riempie dal PDF)</label>
       <textarea id="fatt-testo" style="height:120px;font-size:11px;" placeholder="Es:&#10;Ditta Rossi Facchinaggi - Fattura n.12/2025&#10;15/03/2025 - Ancona - montaggio/smontaggio - €350&#10;22/03/2025 - Pesaro - facchinaggio - €280&#10;..."></textarea>
+    </div>
+    <div class="field">
+      <label>📱 Dettaglio dal fornitore (facoltativo — messaggio WhatsApp / mail)</label>
+      <textarea id="fatt-dettaglio" style="height:90px;font-size:11px;" oninput="_dettAnteprima()" placeholder="Quando la fattura è riassunta e il dettaglio arriva a parte, incollalo qui:&#10;02/11/2026 Civitanova Marche&#10;4 facchini 22 ore 360€&#10;Benzina 30€&#10;07/11/2026 Osimo&#10;2 facchini 10 ore 150€"></textarea>
+      <div id="fatt-dett-info" style="font-size:10px;color:var(--text3);margin-top:3px;"></div>
     </div>
     <div style="display:flex;gap:8px;">
       <div class="field" style="flex:2;margin:0;">
@@ -4340,12 +4345,51 @@ function loadFatturaExcel(input){
 }
 
 
+// ── Dettaglio dal fornitore ──
+// Fattura riassunta ("facchinaggio Civitanova/Osimo 2-7-8 novembre 1.125 €") + dettaglio in un messaggio:
+// "02/11/2026 Civitanova Marche" apre una giornata; le righe con un importo sono servizio (facchini, ore, tecnici…)
+// o rimborso (benzina, pranzo, km…, sommato come spese alla giornata). Le righe così ottenute sostituiscono
+// quelle della fattura e passano dal solito abbinamento (preconsuntivo compreso).
+function _dettParse(txt){
+  const out=[]; let cur=null, totale=null; const annoDef=new Date().getFullYear();
+  String(txt||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean).forEach(l=>{
+    const h=l.match(/^(\d{1,2})[\/.\-](\d{1,2})(?:[\/.\-](\d{2,4}))?\s*[-–:,]?\s*(.*)$/);
+    if(h && !/€|\beur/i.test(l.slice(h[0].length-h[4].length))){ let a=h[3]?+h[3]:annoDef; if(a<100) a+=2000;
+      cur={data:a+'-'+String(h[2]).padStart(2,'0')+'-'+String(h[1]).padStart(2,'0'), citta:h[4].replace(/[-–:,.]+$/,'').trim(), voci:[]}; out.push(cur); return; }
+    const m=l.match(/^(.*?)[\s:=-]*(?:€\s*)?(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:€|euro|eur)?\s*$/i);
+    if(!m || !/€|euro|eur/i.test(l) && !/\d+\s*$/.test(l)) return;
+    const imp=+String(m[2]).replace(/\s/g,'').replace(/\.(?=\d{3}\b)/g,'').replace(',','.'); if(!(imp>0)) return;
+    const desc=m[1].replace(/[\s:=-]+$/,'').trim();
+    if(/^tot/i.test(desc)){ totale=imp; return; }
+    if(!cur) return;
+    const rimb=/benzin|carbur|gasol|pranz|cena|pasto|pasti|vitto|alloggi|hotel|autostrad|pedagg|parchegg|\bkm\b|chilometr|rimbors|spes|viaggio|treno/i.test(desc) && !/\d+\s*ore\b/i.test(desc);   // 'pranzo di 2 facchini' è un rimborso, '4 facchini 22 ore' no
+    cur.voci.push({desc:desc||'servizio', imp, rimb});
+  });
+  const giorni=out.filter(g=>g.voci.length);
+  const righe=[]; giorni.forEach(g=>{ g.voci.forEach(v=>righe.push({descrizione:(v.rimb?v.desc:v.desc+' — '+g.citta).slice(0,150), importo:v.imp, quantita:1, tipo:v.rimb?'rimborso':'servizio', date:v.rimb?[]:[g.data], citta:g.citta, teatro:'', titolo:''})); });
+  // un rimborso senza servizio prima nella stessa giornata → resta con la data
+  let ultimaData=null; righe.forEach(r=>{ if(r.tipo==='servizio') ultimaData=r.date[0]; });
+  const somma=+righe.reduce((a,r)=>a+r.importo,0).toFixed(2);
+  return {giorni, righe, somma, totale, serv:+righe.filter(r=>r.tipo==='servizio').reduce((a,r)=>a+r.importo,0).toFixed(2)};
+}
+function _dettAnteprima(){
+  const el=document.getElementById('fatt-dett-info'); const t=document.getElementById('fatt-dettaglio').value.trim(); if(!t){ el.innerHTML=''; return; }
+  const d=_dettParse(t); if(!d.giorni.length){ el.innerHTML='<span style="color:#f59e0b;">Non riconosco le giornate: ogni giornata deve iniziare con la data (es. 02/11/2026 Civitanova Marche)</span>'; return; }
+  const eur=v=>'€ '+v.toLocaleString('it-IT',{minimumFractionDigits:2});
+  el.innerHTML=`✓ ${d.giorni.length} giornate · servizio ${eur(d.serv)} + spese ${eur(d.somma-d.serv)} = <b>${eur(d.somma)}</b>`+(d.totale!=null?(Math.abs(d.totale-d.somma)<0.01?' <span style="color:var(--green);">= totale del messaggio ✓</span>':` <span style="color:#ef4444;">≠ totale del messaggio ${eur(d.totale)}</span>`):'')+
+    '<br>'+d.giorni.map(g=>g.data.slice(8,10)+'/'+g.data.slice(5,7)+' '+g.citta+' '+eur(g.voci.reduce((a,v)=>a+v.imp,0))).join(' · ');
+}
+
 async function analizzaFattura(){
   const testo = document.getElementById('fatt-testo').value.trim();
   const fornitore = document.getElementById('fatt-fornitore').value.trim();
   const numFattura = document.getElementById('fatt-numero').value.trim();
   const url = ld('sheetsUrl','');
-  if(!testo){toast('Incolla il testo della fattura o carica un PDF',true);return;}
+  const _dett=_dettParse(document.getElementById('fatt-dettaglio').value);
+  if(!testo && _dett.righe.length && !window._ricRiprendi){
+    if(!fornitore){ toast('Con il solo dettaglio scrivi almeno il nome del fornitore (o carica anche la fattura)', true); return; }
+    window._fattPronta=JSON.stringify({fornitore, numero_fattura:numFattura, data_fattura:new Date().toISOString().slice(0,10), totale_imponibile:_dett.somma, righe:[]});
+  } else if(!testo){toast('Incolla il testo della fattura o carica un PDF',true);return;}
   if(!url){toast("Configura prima Google Sheets in ⚙️ Config — serve come ponte per l'AI",true);return;}
 
   const btn = document.getElementById('fatt-btn');
@@ -4391,6 +4435,7 @@ async function analizzaFattura(){
     let result;
     const _ricSalta=!!window._ricRiprendi;
     if(window._ricRiprendi){ result=window._ricRiprendi; window._ricRiprendi=null; } else
+    if(window._fattPronta){ result=window._fattPronta; window._fattPronta=null; } else
     if(isPDF && testoEl.dataset.pdfB64){
       result = await callAIWithPDF(url, testoEl.dataset.pdfB64, fornitore, numFattura, spettList, null);
     } else if(isImage && testoEl.dataset.imgB64){
@@ -4463,6 +4508,12 @@ async function analizzaFattura(){
         if(!document.getElementById('prev-fornitore').value.trim() && fornV2) document.getElementById('prev-fornitore').value = fornV2;
         if(!document.getElementById('prev-numero').value.trim() && numV2) document.getElementById('prev-numero').value = numV2;
         if(!document.getElementById('fatt-totale-fatt').value && parsed.totale_imponibile) document.getElementById('fatt-totale-fatt').value = (+parsed.totale_imponibile).toFixed(2);
+        // dettaglio dal fornitore: sostituisce le righe riassuntive della fattura (solo alla prima passata)
+        if(!_ricSalta && _dett.righe.length){
+          const imp=+parsed.totale_imponibile||0; parsed.righe=_dett.righe;
+          if(imp && Math.abs(imp-_dett.somma)>=0.01) toast('⚠️ Il dettaglio somma € '+_dett.somma.toFixed(2)+' ma la fattura è di € '+imp.toFixed(2)+': controlla prima di applicare', true);
+          else toast('📱 Fattura spacchettata dal dettaglio: '+_dett.giorni.length+' giornate'+(imp?' · totale ✓':''));
+        }
         // c'è un preconsuntivo aperto di questo fornitore? → riconciliazione invece dell'abbinamento riga per riga
         if(!_ricSalta){ const pc=_ricTrova(fornV2, parsed, numV2); if(pc.length){ _ricApri(parsed, result, fornV2, numV2, pc); return; } }
         voci = abbinaRigheFattura(parsed.righe, {fornitore:fornV2, numero_fattura:numV2, data_fattura:parsed.data_fattura});
@@ -7071,7 +7122,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v168</span>
+    <span>Report generato da GammaFucker v169</span>
   </div>
   </body></html>`;
 
@@ -7177,7 +7228,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v168</span>
+    <span>Report generato da GammaFucker v169</span>
   </div>
   </body></html>`;
 
@@ -7273,7 +7324,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v168</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v169</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7346,7 +7397,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v168</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v169</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
