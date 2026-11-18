@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v169</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v170</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1084,7 +1084,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div class="mtitle">↪ Inoltra la mail della compagnia</div>
     <div id="in-titolo" style="font-size:11px;color:var(--text2);margin-bottom:10px;"></div>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <div class="field"><label>Mail da inoltrare</label><select id="in-mail" style="width:100%;font-size:12px;" onchange="_inCaricaAllegati()"></select>
+      <div class="field"><label>Mail da inoltrare</label><select id="in-mail" style="width:100%;font-size:12px;" onchange="_inOggetto();_inCaricaAllegati()"></select>
         <div id="in-allegati" style="margin-top:6px;font-size:11px;color:var(--text3);"></div></div>
       <div class="field"><label>Destinatari (referente teatro, service, tecnici…)</label><input type="text" id="in-dest" placeholder="email1, email2"><div id="in-suggeriti" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;"></div></div>
       <div class="field"><label>Oggetto</label><input type="text" id="in-ogg"></div>
@@ -7122,7 +7122,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v169</span>
+    <span>Report generato da GammaFucker v170</span>
   </div>
   </body></html>`;
 
@@ -7228,7 +7228,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v169</span>
+    <span>Report generato da GammaFucker v170</span>
   </div>
   </body></html>`;
 
@@ -7324,7 +7324,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v169</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v170</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7397,7 +7397,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v169</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v170</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9609,9 +9609,9 @@ function apriInoltro(id){
   document.getElementById('in-titolo').textContent=s.spett+' · '+s.citta+(s.teatro?' · '+s.teatro:'')+' · '+_prodFmtD(s.data);
   const esc=v=>String(v||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
   const sel=document.getElementById('in-mail');
-  sel.innerHTML=mails.map((m,i)=>`<option value="${i}"${m.tipo==='scheda'?' selected':''}>${m.tipo==='scheda'?'📎 ':'✉ '}${esc(m.og)}</option>`).join('');
-  const m=mails[+sel.value]||mails[0];
-  document.getElementById('in-ogg').value='Fwd: '+String(m.og||'').replace(/^Scheda tecnica — /,'')+' — '+s.spett+' '+_prodFmtD(s.data);
+  const iSch=Math.max(0, mails.map(m=>m.tipo).lastIndexOf('scheda'));
+  sel.innerHTML=mails.map((m,i)=>`<option value="${i}">${m.tipo==='scheda'?'📎 ':'✉ '}${esc(m.og)}</option>`).join(''); sel.value=String(iSch);
+  _inOggetto();
   // destinatari suggeriti: referente teatro, email ZTL, service/aziende della scheda spazio
   const si=spazioInfo[(s.citta||'')+'||'+(s.teatro||'')]||{};
   const sugg=[]; const add=(lab,em)=>{ if(em && !sugg.some(x=>x.em===em)) sugg.push({lab,em}); };
@@ -9645,8 +9645,14 @@ function apriInoltro(id){
 // allegati della mail scelta: li chiedo allo script e li mostro con le spunte; preseleziono quelli che nel nome
 // citano il titolo dello spettacolo (una mail con più schede → al teatro va solo la sua), altrimenti tutti
 let _inAllegati=null;
+// oggetto della mail = quello della mail scelta (si aggiorna cambiando mail)
+function _inOggetto(){ const s=data.find(x=>String(x.id)===String(_inId)); if(!s) return; const mails=_mailsDi(s).filter(m=>m.link); const m=mails[+document.getElementById('in-mail').value]||mails[0]; if(!m) return;
+  document.getElementById('in-ogg').value='Fwd: '+String(m.og||'').replace(/^Scheda tecnica\s*[—–-]\s*/,'')+' — '+s.spett+' '+_prodFmtD(s.data); }
+// file della scheda già salvati su Drive per lo spettacolo (id dai link) → piano B se la mail non si trova più
+function _inFileScheda(s){ return _mailsDi(s).filter(m=>m.tipo==='scheda' && m.file).map(m=>({nome:String(m.og||'scheda').replace(/^Scheda tecnica\s*[—–-]\s*/,''), id:m.fileId||((String(m.file).match(/\/d\/([\w-]{20,})/)||String(m.file).match(/[?&]id=([\w-]{20,})/)||[])[1])})).filter(x=>x.id); }
+let _inPianoB=null;
 async function _inCaricaAllegati(){
-  const s=data.find(x=>String(x.id)===String(_inId)); if(!s) return;
+  const s=data.find(x=>String(x.id)===String(_inId)); if(!s) return; _inPianoB=null;
   const mails=_mailsDi(s).filter(m=>m.link); const m=mails[+document.getElementById('in-mail').value]; if(!m) return;
   const box=document.getElementById('in-allegati'); _inAllegati=null; box.innerHTML='⏳ leggo gli allegati della mail…';
   const url=ld('sheetsUrl',''); if(!url){ box.innerHTML=''; return; }
@@ -9663,7 +9669,12 @@ async function _inCaricaAllegati(){
     _inAllegati=all;
     box.innerHTML=`<div style="margin-bottom:3px;">Allegati da inoltrare${pertinenti.length&&pertinenti.length<all.length?' <span style="color:#f59e0b;">(spuntati solo quelli che sembrano di questo spettacolo)</span>':''}:</div>`
       + all.map(a=>`<label style="display:flex;gap:6px;align-items:center;font-size:11px;padding:2px 0;cursor:pointer;color:var(--text);"><input type="checkbox" class="in-att" value="${a.i}" ${sel.has(a.i)?'checked':''} style="width:14px;height:14px;"> 📎 ${esc(a.nome)} <span style="color:var(--text3);">${a.kb} KB</span></label>`).join('');
-  }catch(e){ box.innerHTML='<span style="color:#f59e0b;">allegati non leggibili ('+String(e.message).replace(/</g,'&lt;')+'): verrà inoltrata la mail intera</span>'; _inAllegati=null; }
+  }catch(e){
+    _inAllegati=null; const fs=/non trovata/i.test(e.message)?_inFileScheda(s):[];
+    if(fs.length){ _inPianoB=fs; const esc=v=>String(v||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+      box.innerHTML=`<div style="color:#f59e0b;margin-bottom:3px;">La mail originale non si trova più in Gmail: invio una mail nuova con i file della scheda salvati su Drive.</div>`+fs.map((f,i)=>`<label style="display:flex;gap:6px;align-items:center;font-size:11px;padding:2px 0;cursor:pointer;color:var(--text);"><input type="checkbox" class="in-pb" value="${i}" checked style="width:14px;height:14px;">📎 ${esc(f.nome)}</label>`).join(''); }
+    else box.innerHTML='<span style="color:#f59e0b;">allegati non leggibili ('+String(e.message).replace(/</g,'&lt;')+'): verrà inoltrata la mail intera</span>';
+  }
 }
 function _inWaAggiorna(){
   const sel=document.getElementById('in-wa-dest'), numEl=document.getElementById('in-wa-num');
@@ -9681,6 +9692,14 @@ async function inviaInoltro(){
   if(!dest){ toast('Inserisci almeno un destinatario', true); return; }
   const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
   const btn=document.getElementById('in-btn'); btn.disabled=true; btn.textContent='⏳ Inoltro…';
+  if(_inPianoB){   // mail non trovata: mail nuova con i file della scheda da Drive
+    try{ const ids=[...document.querySelectorAll('.in-pb:checked')].map(c=>_inPianoB[+c.value].id); if(!ids.length) throw new Error('nessun file scelto');
+      const j=await _inboxCall({action:'inviaScheda', to:dest, oggetto:document.getElementById('in-ogg').value.replace(/^Fwd:\s*/,''), testo:document.getElementById('in-testo').value.replace(/vi inoltro la mail della compagnia con/,'vi invio'), fileIds:ids});
+      document.getElementById('inoltra-ov').classList.remove('open'); _segnaInvio(s, 'schedaTeatro', 'mail a '+dest); toast('✓ Scheda inviata a '+dest+' con '+(j.allegati||ids.length)+' allegati');
+    }catch(e){ toast('Errore: '+e.message, true); }
+    finally{ btn.disabled=false; btn.textContent='↪ Inoltra'; }
+    return;
+  }
   try{
     const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'inoltraMail', link:m.link, fonte:m.og, to:dest, testo:document.getElementById('in-testo').value, oggetto:document.getElementById('in-ogg').value.trim(), allegati:(_inAllegati?[...document.querySelectorAll('.in-att:checked')].map(c=>+c.value):undefined)})});
     const j=await res.json(); if(j.error) throw new Error(j.error);

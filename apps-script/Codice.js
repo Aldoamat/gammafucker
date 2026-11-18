@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v180 ──
+// ── SPETTACOLI APP SCRIPT v181 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -1041,12 +1041,25 @@ function scansionaSchede(maxMin) {
 // Ignora il filtro "sembra scheda" e l'etichetta: legge tutti i PDF/Word del thread.
 // Trova la conversazione Gmail dal link salvato sullo spettacolo (o dall'oggetto)
 function _threadDaLink(link, fonte) {
-  var th = null;
-  var id = String(link || '').split(/[\/#]/).pop();
-  if (id) { try { th = GmailApp.getThreadById(id); } catch(e) {} }
+  var th = null, L = String(link || '');
+  // id del thread: "…?th=18c…", "…#inbox/18c…", "…/18c…" (i link nuovi di Gmail tipo FMfcg… non sono id: si passa all'oggetto)
+  var cand = [];
+  var mTh = L.match(/[?&#]th=([0-9a-f]{12,})/i); if (mTh) cand.push(mTh[1]);
+  var mHex = L.match(/([0-9a-f]{15,})\s*$/i); if (mHex) cand.push(mHex[1]);
+  var ultimo = L.split(/[\/#?&=]/).pop(); if (ultimo) cand.push(ultimo);
+  for (var c = 0; c < cand.length && !th; c++) { try { th = GmailApp.getThreadById(cand[c]); } catch(e) {} }
   if (!th && fonte) {
-    var ogg = String(fonte).split(' | ')[0].replace(/^\s*((I|R|RE|FW|FWD|TR|Fwd|Re|I):\s*)+/i, '').replace(/"/g, '').trim();
-    if (ogg.length > 6) { var found = GmailApp.search('subject:"' + ogg.substring(0, 80) + '" newer_than:365d', 0, 3); if (found.length) th = found[0]; }
+    // oggetto senza prefissi dell'app ("Scheda tecnica — ") né I:/R:/Fwd:
+    var ogg = String(fonte).split(' | ')[0].replace(/^\s*Scheda tecnica\s*[—–-]\s*/i, '').replace(/\s*\(da mail\)\s*$/i, '')
+      .replace(/^\s*((I|R|RE|FW|FWD|TR|Fwd|Re|I):\s*)+/i, '').replace(/"/g, '').trim();
+    if (ogg.length > 6) {
+      var found = GmailApp.search('subject:"' + ogg.substring(0, 80) + '" newer_than:400d', 0, 3);
+      if (!found.length) {   // ultima prova: le parole dell'oggetto, mail con allegati
+        var parole = ogg.replace(/[^\wÀ-ÿ' ]+/g, ' ').split(/\s+/).filter(function(w){ return w.length >= 4; }).slice(0, 6);
+        if (parole.length >= 2) found = GmailApp.search('has:attachment newer_than:400d ' + parole.map(function(w){ return 'subject:' + w; }).join(' '), 0, 3);
+      }
+      if (found.length) th = found[0];
+    }
   }
   return th;
 }
@@ -1116,17 +1129,7 @@ function inoltraMailThread(link, fonte, to, testo, oggetto, allegati) {
   return { ok: true, oggetto: oggetto || ('Fwd: ' + msg.getSubject()), allegati: tutti.length, da: msg.getFrom() };
 }
 function leggiSchedaThread(link, fonte) {
-  var th = null;
-  var id = String(link || '').split(/[\/#]/).pop();
-  if (id) { try { th = GmailApp.getThreadById(id); } catch(e) {} }
-  if (!th && fonte) {
-    // segnalazioni vecchie senza link: cerca per oggetto (senza prefissi I:/R:/Fwd:)
-    var ogg = String(fonte).split(' | ')[0].replace(/^\s*((I|R|RE|FW|FWD|TR|Fwd|Re|I):\s*)+/i, '').replace(/"/g, '').trim();
-    if (ogg.length > 6) {
-      var found = GmailApp.search('subject:"' + ogg.substring(0, 80) + '" has:attachment newer_than:365d', 0, 3);
-      if (found.length) th = found[0];
-    }
-  }
+  var th = _threadDaLink(link, fonte);
   if (!th) return { error: 'mail non trovata (né link né oggetto corrispondente)' };
   var ctx = _ctxSchede();
   if (!ctx.KEY) return { error: 'anthropicKey mancante' };
