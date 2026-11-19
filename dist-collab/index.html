@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v172</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v173</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1248,6 +1248,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       </div>
     </div>
     <button class="btn btn-pu" onclick="analizzaFattura()" id="fatt-btn" style="margin-top:8px;">🤖 Analizza Fattura</button>
+    <div id="fatt-doppio" style="display:none;margin-top:8px;padding:10px 12px;border:1px solid rgba(245,158,11,.5);background:rgba(245,158,11,.08);border-radius:8px;font-size:12px;"></div>
 
     <div style="margin-top:16px;padding:12px;background:var(--bg2);border-radius:var(--rsm);border:1px solid var(--border2);">
       <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">📋 Riestraifattura per numero / fornitore</div>
@@ -4345,6 +4346,27 @@ function loadFatturaExcel(input){
 }
 
 
+// ── Fattura già elaborata? ──
+// Stesso fornitore e stesso numero già presenti nelle note degli spettacoli (anche collegata a un preconsuntivo):
+// la fattura NON viene rielaborata; se arriva dalla cartella Drive passa da sola in "Elaborate".
+const _numFattNorm=n=>String(n||'').toUpperCase().replace(/^N[.°º]?\s*/,'').replace(/\s+/g,'').replace(/(^|[^0-9])0+(?=\d)/g,'$1');
+function _fatturaGiaElaborata(forn, num){
+  const N=_numFattNorm(num); if(!N || !forn || /^PREV/i.test(N)) return [];
+  const out=[]; data.forEach(s=>{ if(!s.note) return; s.note.split('|').map(l=>l.trim()).forEach(l=>{ if(!/^Fattura\s+n/i.test(l)) return; const p=_parsaNota(l);
+    if(_numFattNorm(p.numFatt)===N && (_ricFornEq(p.forn, forn) || _normTxt(p.forn)===_normTxt(forn))) out.push({s, imp:+p.costo||0}); }); });
+  return out;
+}
+function _fatturaDoppia(forn, num, trovate){
+  const box=document.getElementById('fatt-doppio'); const tot=trovate.reduce((a,x)=>a+x.imp,0);
+  const ev=[...new Set(trovate.map(x=>_prodFmtD(x.s.data)+' '+x.s.citta+' · '+x.s.spett))];
+  const te=document.getElementById('fatt-testo'); const daDrive=_inboxCorrente && _inboxCorrente.id && _inboxCorrente.nome===(te.dataset.pdfName||'');
+  box.innerHTML=`⚠️ <b>Fattura già elaborata:</b> ${String(forn).replace(/</g,'&lt;')} n. ${String(num).replace(/</g,'&lt;')} è già su ${trovate.length} righe (€ ${tot.toFixed(2)}) — ${ev.slice(0,4).map(x=>x.replace(/</g,'&lt;')).join('; ')}${ev.length>4?'…':''}.
+    ${daDrive?'<br>Il file è stato spostato in <b>Elaborate</b>, non è stato caricato niente.':'<br>Non ho caricato niente.'}
+    <div style="margin-top:6px;"><button class="iBtn" style="font-size:11px;padding:3px 9px;" onclick="window._ignoraDoppio=true;document.getElementById('fatt-doppio').style.display='none';analizzaFattura()">Analizza comunque (è un'altra fattura)</button></div>`;
+  box.style.display='block'; toast('⚠️ Fattura '+num+' già elaborata: non la ricarico', true);
+  if(daDrive){ const f=_inboxCorrente; _inboxCorrente=null; _inboxArchivia(f.id, f.nome, true, 'doppione: fattura n.'+num+' — '+forn+' già elaborata'); }
+}
+
 // ── Dettaglio dal fornitore ──
 // Fattura riassunta ("facchinaggio Civitanova/Osimo 2-7-8 novembre 1.125 €") + dettaglio in un messaggio:
 // "02/11/2026 Civitanova Marche" apre una giornata; le righe con un importo sono servizio (facchini, ore, tecnici…)
@@ -4385,6 +4407,8 @@ async function analizzaFattura(){
   const fornitore = document.getElementById('fatt-fornitore').value.trim();
   const numFattura = document.getElementById('fatt-numero').value.trim();
   const url = ld('sheetsUrl','');
+  const _ignoraDoppio=!!window._ignoraDoppio; window._ignoraDoppio=false; document.getElementById('fatt-doppio').style.display='none';
+  if(!_ignoraDoppio && !window._ricRiprendi && fornitore && numFattura){ const gia=_fatturaGiaElaborata(fornitore, numFattura); if(gia.length){ _fatturaDoppia(fornitore, numFattura, gia); return; } }
   const _dett=_dettParse(document.getElementById('fatt-dettaglio').value);
   if(!testo && _dett.righe.length && !window._ricRiprendi){
     if(!fornitore){ toast('Con il solo dettaglio scrivi almeno il nome del fornitore (o carica anche la fattura)', true); return; }
@@ -4505,6 +4529,7 @@ async function analizzaFattura(){
         // Formato v2: l'AI ha trascritto le righe, l'abbinamento lo facciamo qui
         const fornV2 = fornitore || parsed.fornitore || '';
         const numV2  = numFattura || parsed.numero_fattura || '';
+        if(!_ignoraDoppio && !_ricSalta){ const gia=_fatturaGiaElaborata(fornV2, numV2); if(gia.length){ _fatturaDoppia(fornV2, numV2, gia); return; } }
         if(!document.getElementById('prev-fornitore').value.trim() && fornV2) document.getElementById('prev-fornitore').value = fornV2;
         if(!document.getElementById('prev-numero').value.trim() && numV2) document.getElementById('prev-numero').value = numV2;
         if(!document.getElementById('fatt-totale-fatt').value && parsed.totale_imponibile) document.getElementById('fatt-totale-fatt').value = (+parsed.totale_imponibile).toFixed(2);
@@ -7122,7 +7147,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v172</span>
+    <span>Report generato da GammaFucker v173</span>
   </div>
   </body></html>`;
 
@@ -7228,7 +7253,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v172</span>
+    <span>Report generato da GammaFucker v173</span>
   </div>
   </body></html>`;
 
@@ -7324,7 +7349,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v172</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v173</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7397,7 +7422,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v172</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v173</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
