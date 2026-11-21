@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v177</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v178</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -749,6 +749,11 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
           <label>senza orario (prove, montaggi) <input id="risc-senza" type="text" value="9-20" style="width:52px;font-size:11px;"></label>
           <label><b>max ore/giorno</b> <input id="risc-max" type="number" value="12" min="1" max="24" style="width:44px;font-size:11px;"></label>
           <label>ore prima dello spettacolo <input id="risc-prima" type="number" value="1" min="0" max="4" style="width:44px;font-size:11px;"></label>
+          <div style="flex-basis:100%;font-size:10px;color:var(--text3);margin-top:4px;">Orari ridotti per gli spazi con zone (Teatro Rossini), nei giorni "tutto il teatro": mattina = uffici, spento nella pausa, riaccensione N ore prima dello spettacolo ma non prima dell'ora di ripresa; fine 23 se serale, altrimenti +2 ore (min 20); domenica solo pomeriggio</div>
+          <label>orari ridotti <select id="risc-rid" style="font-size:11px;"><option value="1">sì</option><option value="0">no</option></select></label>
+          <label>riaccensione ore prima <input id="risc-ridprima" type="number" value="4" min="1" max="8" style="width:44px;font-size:11px;"></label>
+          <label>ripresa non prima delle <input id="risc-ridda" type="number" value="15" min="12" max="20" style="width:44px;font-size:11px;"></label>
+          <label>senza orario <input id="risc-ridsenza" type="text" value="15-20" style="width:52px;font-size:11px;"></label>
           <button class="btn btn-o btn-sm" onclick="salvaRiscConfig()">💾 Salva regole</button>
         </div>
       </details>
@@ -2208,10 +2213,10 @@ let _risc = null;   // {mese, anno, spazi:[{nome,...}], giorni:[{data, dow, cell
 function _riscConfig(){
   const c = ld('riscConfig', null) || {};
   const g = (id, d)=>{ const el=document.getElementById(id); return el && el.value!=='' ? el.value : (c[id]!==undefined ? c[id] : d); };
-  return { spazi: g('risc-spazi', RISC_SPAZI_DEFAULT), pausa: g('risc-pausa','13-15'), ini:+g('risc-ini',9), iniwe:+g('risc-iniwe',10), dopo:+g('risc-dopo',2), fine:+g('risc-fine',23), senza: g('risc-senza','9-20'), max:+g('risc-max',12), prima:+g('risc-prima',1) };
+  return { spazi: g('risc-spazi', RISC_SPAZI_DEFAULT), pausa: g('risc-pausa','13-15'), ini:+g('risc-ini',9), iniwe:+g('risc-iniwe',10), dopo:+g('risc-dopo',2), fine:+g('risc-fine',23), senza: g('risc-senza','9-20'), max:+g('risc-max',12), prima:+g('risc-prima',1), rid:g('risc-rid','1')!=='0', ridPrima:+g('risc-ridprima',4), ridDa:+g('risc-ridda',15), ridSenza:g('risc-ridsenza','15-20') };
 }
-function salvaRiscConfig(){ const c={}; ['risc-spazi','risc-pausa','risc-ini','risc-iniwe','risc-dopo','risc-fine','risc-senza','risc-max','risc-prima'].forEach(id=>{ const el=document.getElementById(id); if(el) c[id]=el.value; }); sv('riscConfig', c); toast('✓ Regole riscaldamento salvate'); }
-function _riscCaricaConfigUI(){ const c=ld('riscConfig', null)||{}; if(c['risc-spazi'] && /UFFICI \+ SALA R\./.test(c['risc-spazi'])){ c['risc-spazi']=c['risc-spazi'].replace(/UFFICI \+ SALA R\./g,'TUTTO IL TEATRO'); sv('riscConfig', c); } ['risc-spazi','risc-pausa','risc-ini','risc-iniwe','risc-dopo','risc-fine','risc-senza','risc-max','risc-prima'].forEach(id=>{ const el=document.getElementById(id); if(el && c[id]!==undefined && c[id]!=='') el.value=c[id]; }); const t=document.getElementById('risc-spazi'); if(t && !t.value) t.value=RISC_SPAZI_DEFAULT; }
+function salvaRiscConfig(){ const c={}; ['risc-spazi','risc-pausa','risc-ini','risc-iniwe','risc-dopo','risc-fine','risc-senza','risc-max','risc-prima','risc-rid','risc-ridprima','risc-ridda','risc-ridsenza'].forEach(id=>{ const el=document.getElementById(id); if(el) c[id]=el.value; }); sv('riscConfig', c); toast('✓ Regole riscaldamento salvate'); }
+function _riscCaricaConfigUI(){ const c=ld('riscConfig', null)||{}; if(c['risc-spazi'] && /UFFICI \+ SALA R\./.test(c['risc-spazi'])){ c['risc-spazi']=c['risc-spazi'].replace(/UFFICI \+ SALA R\./g,'TUTTO IL TEATRO'); sv('riscConfig', c); } ['risc-spazi','risc-pausa','risc-ini','risc-iniwe','risc-dopo','risc-fine','risc-senza','risc-max','risc-prima','risc-rid','risc-ridprima','risc-ridda','risc-ridsenza'].forEach(id=>{ const el=document.getElementById(id); if(el && c[id]!==undefined && c[id]!=='') el.value=c[id]; }); const t=document.getElementById('risc-spazi'); if(t && !t.value) t.value=RISC_SPAZI_DEFAULT; }
 function _riscSpazi(cfg){
   return cfg.spazi.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
     const p=l.split('|').map(x=>x.trim());
@@ -2262,6 +2267,23 @@ function _riscPianifica(ore, o){
   if(iv[0]){ out.m1=i2h(iv[0].a); out.m2=i2h(iv[0].b); } if(iv[1]){ out.p1=i2h(iv[1].a); out.p2=i2h(iv[1].b); }
   return out;
 }
+// Orari ridotti (Teatro Rossini, giorni "tutto il teatro") — dal prospetto di novembre 2026:
+// lun–sab mattina = fascia uffici, spento nella pausa, pomeriggio da max(ripresa, primo spettacolo − N ore) fino alle
+// 23 se serale (≥20) o a max(20, ultimo spettacolo + 2); senza orario: fascia "senza orario"; domenica solo pomeriggio.
+// Spettacoli di mattina (prima delle 13): la mattina copre almeno da 2 ore prima a 2 ore dopo.
+function _riscRidotto(ore, o){
+  const cfg=o.cfg, out={m1:null,m2:null,p1:null,p2:null};
+  const sz=String(cfg.ridSenza||'15-20').match(/(\d{1,2})\s*-\s*(\d{1,2})/); const s1=sz?+sz[1]:15, s2=sz?+sz[2]:20;
+  const matt=ore.filter(t=>t<13).sort((a,b)=>a-b), pom=ore.filter(t=>t>=13).sort((a,b)=>a-b);
+  if(o.dow!==0 && o.uffici){ out.m1=o.uffici[0]; out.m2=o.uffici[1]; }
+  if(matt.length){ out.m1=Math.min(out.m1!=null?out.m1:24, Math.max(6, matt[0]-2)); out.m2=Math.max(out.m2||0, Math.min(14, matt[matt.length-1]+2)); }
+  if(pom.length){ const T0=pom[0], T1=pom[pom.length-1]; out.p1=Math.max(cfg.ridDa, Math.floor((T0-cfg.ridPrima)*2)/2); out.p2=T1>=20?cfg.fine:Math.max(20, Math.ceil((T1+2)*2)/2); }
+  else if(!matt.length){ out.p1=s1; out.p2=s2; }
+  // tetto ore: taglio dall'inizio della mattina
+  let tot=()=>((out.m1!=null?out.m2-out.m1:0)+(out.p1!=null?out.p2-out.p1:0));
+  while(tot()>cfg.max && out.m1!=null){ out.m1+=0.5; if(out.m1>=out.m2){ out.m1=out.m2=null; } }
+  return out;
+}
 function _riscHM(h){ if(h==null||h==='') return ''; const hh=Math.floor(h), mm=Math.round((h-hh)*60); return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0'); }
 function _riscDec(t){ const m=String(t||'').trim().match(/^(\d{1,2})(?:[.:,h](\d{2}))?$/); return m?+m[1]+(+(m[2]||0))/60:null; }
 async function generaRiscaldamento(file){
@@ -2284,7 +2306,8 @@ async function generaRiscaldamento(file){
         if(!evs.length){ if(uffici){ cella.m1=uffici[0]; cella.m2=Math.min(uffici[1], uffici[0]+cfg.max); } return cella; }
         const ore=[].concat(...evs.map(_riscOrari));
         cella.oreSala=[].concat(...evs.filter(e=>/ROSSINI/.test(_normTxt(e.sala)) && e.tipo!=='tecnico' && !/\bvisit|riunion|conferenz/i.test(e.testo)).map(_riscOrari));   // inizio spettacolo in sala (per la biglietteria)
-        const r=_riscPianifica(ore, {dow, uffici, pA, pB, sA, sB, cfg});
+        const ridotto = cfg.rid && sp.zonaEv;   // spazi con zone (Rossini): orari ridotti
+        const r = ridotto ? _riscRidotto(ore, {dow, uffici:sp.uffici, cfg}) : _riscPianifica(ore, {dow, uffici, pA, pB, sA, sB, cfg});
         cella.m1=r.m1; cella.m2=r.m2; cella.p1=r.p1; cella.p2=r.p2;
         cella.zona=sp.zonaEv||sp.zonaBase;
         return cella;
@@ -7252,7 +7275,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v177</span>
+    <span>Report generato da GammaFucker v178</span>
   </div>
   </body></html>`;
 
@@ -7358,7 +7381,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v177</span>
+    <span>Report generato da GammaFucker v178</span>
   </div>
   </body></html>`;
 
@@ -7454,7 +7477,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v177</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v178</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7527,7 +7550,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v177</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v178</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
