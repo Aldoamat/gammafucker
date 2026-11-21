@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v176</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v177</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -2374,7 +2374,7 @@ function stampaRisc(){
   r.giorni.forEach(g=>{ const we=g.dow===0||g.dow===6; const d=g.data.split('-').reverse().join('/');
     h+=`<tr class="${we?'we':''}"><td class="data" style="${g.dow===0?'color:#dc2626;':''}">${gg[g.dow]} ${d}</td>`;
     g.celle.forEach((c,si)=>{ const tot=((c.m1!=null&&c.m2!=null)?Math.max(0,c.m2-c.m1):0)+((c.p1!=null&&c.p2!=null)?Math.max(0,c.p2-c.p1):0);
-      h+=`<td>${_riscHM(c.m1)}</td><td>${_riscHM(c.m2)}</td><td>${_riscHM(c.p1)}</td><td>${_riscHM(c.p2)}</td><td class="tot">${tot?_riscHM(tot):''}</td>`; if(r.spazi[si].zonaBase||r.spazi[si].zonaEv) h+=`<td class="zona">${esc(c.zona)}</td>`; h+=`<td class="ev">${esc(c.ev)}</td>`; });
+      h+=`<td>${_riscHM(c.m1)}</td><td>${_riscHM(c.m2)}</td><td>${_riscHM(c.p1)}</td><td>${_riscHM(c.p2)}</td><td class="tot">${tot?_riscHM(tot):''}</td>`; if(r.spazi[si].zonaBase||r.spazi[si].zonaEv) h+=`<td class="zona">${esc(c.zona)}</td>`; h+=`<td class="ev">${esc(_riscEvPulito(c.ev))}</td>`; });
     h+='</tr>'; });
   h+='</tbody></table></body></html>';
   const w=window.open('','_blank','width=1000,height=760'); w.document.write(h); w.document.close();
@@ -2384,6 +2384,17 @@ function stampaRisc(){
 //  · UFFICI e ACS UFFICI: le ore degli uffici (fascia uffici di Config, lun–sab) dentro gli orari calcolati — per ora identiche;
 //  · ACS CAMERINI (TEATRO), FOYER (BIGLIETTERIA), TEATRO: tutti gli orari calcolati, nei giorni con zona "TUTTO IL TEATRO".
 const RISC_ROSSINI_ZONE=[{nome:'UFFICI', tipo:'uffici'},{nome:'ACS UFFICI', tipo:'uffici'},{nome:'ACS CAMERINI (TEATRO)', tipo:'teatro'},{nome:'FOYER (BIGLIETTERIA)', tipo:'foyer'},{nome:'TEATRO', tipo:'teatro'}];
+// Testo evento per i PDF del servizio calore: niente "???"/"Prem?" (dubbi), telefoni ed email (dati personali)
+function _riscEvPulito(t){
+  return String(t||'')
+    .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g,'')                           // email
+    .replace(/\+?\d{2,4}[\s.\/-]?\d{3}[\s.\/-]?\d{3,4}\b/g,m=>/\d{5,}|\d{3}[\s.\/-]\d{3}/.test(m)?'':m)   // 347 7086550, 071.234567, 347 708 6550
+    .replace(/\b\d{6,}\b/g,'')                                          // numeri lunghi
+    .replace(/\b(tel|cell|telefono|cellulare|mob)\.?\s*:?\s*/gi,'')
+    .replace(/\?+/g,'')                                                 // ??? e "Prem?"
+    .replace(/\s*\/\s*(?=\/|·|$)/g,'').replace(/(^|·)\s*\/\s*/g,'$1').replace(/\s*·\s*(?=·|$)/g,'').replace(/^\s*·\s*/,'')
+    .replace(/\s{2,}/g,' ').trim();
+}
 function _riscBlocchi(c){ const b=[]; if(c.m1!=null&&c.m2!=null&&c.m2>c.m1) b.push([c.m1,c.m2]); if(c.p1!=null&&c.p2!=null&&c.p2>c.p1) b.push([c.p1,c.p2]); return b; }
 function _riscZonaRossini(c, tipo, sp, dow){
   const b=_riscBlocchi(c);
@@ -2414,27 +2425,27 @@ function stampaRiscRossini(){
   const mese=Object.keys(_MESI_IT).find(k=>_MESI_IT[k]===r.mese);
   const GG=['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'], MM=['','gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
   let h=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Orari riscaldamento Teatro Rossini ${mese} ${r.anno}</title><style>
-    @page{margin:8mm;} @media print{.np{display:none} body{padding:0;}}
+    @page{size:A4 landscape;margin:7mm;} @media print{.np{display:none} body{padding:0;}}
     *{box-sizing:border-box;} body{font-family:Calibri,Arial,sans-serif;color:#000;padding:14px;margin:0 auto;max-width:1150px;}
     table{border-collapse:collapse;width:100%;table-layout:fixed;} thead{display:table-header-group;} tr{break-inside:avoid;page-break-inside:avoid;}
     th{border:1px solid #000;background:#a5a5a5;font-weight:bold;text-align:center;padding:2px 1px;}
     th.t1{font-size:13px;} th.z{font-size:10px;line-height:1.15;} th.f{font-size:8.5px;} th.d{font-size:8px;}
-    td{border:1px solid #000;text-align:center;font-size:9.5px;padding:2px 1px;white-space:nowrap;} td.data{text-align:left;padding-left:4px;font-size:9px;}
-    tr.dom td.data{color:#c00000;} td.zs{border-left:2px solid #000;}
+    td{border:1px solid #000;text-align:center;font-size:9px;padding:2px 0;white-space:nowrap;overflow:hidden;} td.data{text-align:left;padding-left:3px;font-size:8.5px;}
+    tr.dom td.data{color:#c00000;} td.zs{border-left:2px solid #000;} td.ev{text-align:left;white-space:normal;font-size:8.5px;line-height:1.15;border-left:2px solid #000;padding:1px 3px;}
     .tit{font-size:15px;font-weight:bold;margin:0 0 2px;} .sub{font-size:10px;color:#444;margin-bottom:6px;}
   </style></head><body>
-  <div class="np" style="margin-bottom:10px;font-family:Arial;"><button onclick="window.print()" style="padding:6px 16px;">🖨 Stampa / Salva PDF</button> <span style="color:#666;font-size:11px;">consigliato A4 orizzontale</span></div>
+  <div class="np" style="margin-bottom:10px;font-family:Arial;"><button onclick="window.print()" style="padding:6px 16px;">🖨 Stampa / Salva PDF</button> <span style="color:#666;font-size:11px;">A4 orizzontale</span></div>
   <div class="tit">Orari riscaldamento — Teatro Rossini — ${esc(mese)} ${r.anno}</div><div class="sub">AMAT Marche · coordinamento tecnico</div>
-  <table><colgroup><col style="width:150px;">${RISC_ROSSINI_ZONE.map(()=>'<col><col><col><col>').join('')}</colgroup>
-  <thead><tr><th rowspan="4" class="t1">DATA</th><th class="t1" colspan="${RISC_ROSSINI_ZONE.length*4}">TEATRO ROSSINI</th></tr>
+  <table><colgroup><col style="width:92px;">${RISC_ROSSINI_ZONE.map(()=>'<col><col><col><col>').join('')}<col style="width:175px;"></colgroup>
+  <thead><tr><th rowspan="4" class="t1">DATA</th><th class="t1" colspan="${RISC_ROSSINI_ZONE.length*4}">TEATRO ROSSINI</th><th rowspan="4" class="z">EVENTO<br><span style="font-weight:normal;font-size:8px;">(dal calendario)</span></th></tr>
   <tr>${RISC_ROSSINI_ZONE.map(z=>`<th class="z" colspan="4">${esc(z.nome)}</th>`).join('')}</tr>
   <tr>${RISC_ROSSINI_ZONE.map(()=>'<th class="f" colspan="2">MATTINA</th><th class="f" colspan="2">POMERIGGIO</th>').join('')}</tr>
   <tr>${RISC_ROSSINI_ZONE.map(()=>'<th class="d">DALLE</th><th class="d">ALLE</th><th class="d">DALLE</th><th class="d">ALLE</th>').join('')}</tr></thead><tbody>`;
   r.giorni.forEach(g=>{ const c=g.celle[si]; const [a,m,d]=g.data.split('-');
-    h+=`<tr class="${g.dow===0?'dom':''}"><td class="data">${GG[g.dow]}, ${MM[+m]} ${d}, ${a}</td>`;
+    h+=`<tr class="${g.dow===0?'dom':''}"><td class="data">${GG[g.dow]} ${d}/${m}/${a}</td>`;
     RISC_ROSSINI_ZONE.forEach(z=>{ const [mt,pm]=_riscDueFasce(_riscZonaRossini(c, z.tipo, sp, g.dow));
       h+=`<td class="zs">${mt?_riscHM(mt[0]):''}</td><td>${mt?_riscHM(mt[1]):''}</td><td>${pm?_riscHM(pm[0]):''}</td><td>${pm?_riscHM(pm[1]):''}</td>`; });
-    h+='</tr>'; });
+    h+=`<td class="ev">${esc(_riscEvPulito(c.ev))}</td></tr>`; });
   h+='</tbody></table></body></html>';
   const w=window.open('','_blank','width=1150,height=780'); w.document.write(h); w.document.close();
 }
@@ -2460,7 +2471,7 @@ function stampaRiscSpazio(chiave){
   <tr><th>DALLE</th><th>ALLE</th><th>DALLE</th><th>ALLE</th></tr></thead><tbody>`;
   r.giorni.forEach(g=>{ const c=g.celle[si]; const we=g.dow===0||g.dow===6; const d=g.data.split('-').reverse().join('/');
     const tot=((c.m1!=null&&c.m2!=null)?Math.max(0,c.m2-c.m1):0)+((c.p1!=null&&c.p2!=null)?Math.max(0,c.p2-c.p1):0);
-    h+=`<tr class="${we?'we':''}"><td style="${g.dow===0?'color:#dc2626;':''}">${gg[g.dow]} ${d}</td><td>${_riscHM(c.m1)}</td><td>${_riscHM(c.m2)}</td><td>${_riscHM(c.p1)}</td><td>${_riscHM(c.p2)}</td><td class="tot">${tot?_riscHM(tot):''}</td>${zona?`<td>${esc(c.zona)}</td>`:''}<td class="ev">${esc(c.ev)}</td></tr>`; });
+    h+=`<tr class="${we?'we':''}"><td style="${g.dow===0?'color:#dc2626;':''}">${gg[g.dow]} ${d}</td><td>${_riscHM(c.m1)}</td><td>${_riscHM(c.m2)}</td><td>${_riscHM(c.p1)}</td><td>${_riscHM(c.p2)}</td><td class="tot">${tot?_riscHM(tot):''}</td>${zona?`<td>${esc(c.zona)}</td>`:''}<td class="ev">${esc(_riscEvPulito(c.ev))}</td></tr>`; });
   h+='</tbody></table></body></html>';
   const w=window.open('','_blank','width=900,height=780'); w.document.write(h); w.document.close();
 }
@@ -7241,7 +7252,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v176</span>
+    <span>Report generato da GammaFucker v177</span>
   </div>
   </body></html>`;
 
@@ -7347,7 +7358,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v176</span>
+    <span>Report generato da GammaFucker v177</span>
   </div>
   </body></html>`;
 
@@ -7443,7 +7454,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v176</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v177</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7516,7 +7527,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v176</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v177</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
