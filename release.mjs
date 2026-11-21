@@ -73,16 +73,23 @@ function embed(scriptSrc) {
 function build(target) {
   const v = versions();
   const next = target ? +target : (v.app || 0) + 1;
-  const scriptNext = (v.script || 0) + 1;
-  console.log(`Build: app v${v.app} → v${next}, Apps Script v${v.script} → v${scriptNext}`);
+  // Lo script cambia versione solo se il suo codice è cambiato dall'ultimo commit: ogni versione nuova di
+  // Apps Script occupa uno dei 200 posti disponibili (limite di Google), e il deploy parte solo se apps-script/ cambia.
+  let scr = read(P.script);
+  const norm = t => t.replace(/SPETTACOLI APP SCRIPT v\d+/, 'SPETTACOLI APP SCRIPT v0');
+  let scriptCambiato = true;
+  try { const prima = execSync('git show HEAD:apps-script/Codice.js', { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }); scriptCambiato = norm(prima) !== norm(scr); } catch (e) {}
+  const scriptNext = scriptCambiato ? (v.script || 0) + 1 : v.script;
+  console.log(`Build: app v${v.app} → v${next}, Apps Script ` + (scriptCambiato ? `v${v.script} → v${scriptNext}` : `v${v.script} (invariato, nessun deploy dello script)`));
 
   let idx = read(P.index);
   idx = idx.replace(/GammaFucker v\d+/g, `GammaFucker v${next}`);
   idx = idx.replace(/font-weight:normal;">v\d+</, `font-weight:normal;">v${next}<`);
 
-  let scr = read(P.script);
-  scr = scr.replace(/SPETTACOLI APP SCRIPT v\d+/, `SPETTACOLI APP SCRIPT v${scriptNext}`);
-  write(P.script, scr);
+  if (scriptCambiato) {
+    scr = scr.replace(/SPETTACOLI APP SCRIPT v\d+/, `SPETTACOLI APP SCRIPT v${scriptNext}`);
+    write(P.script, scr);
+  }
 
   // dalla v108 lo script non è più incluso in index.html (vive solo in apps-script/Codice.js)
   write(P.index, idx);
