@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v173</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v174</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -434,7 +434,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 
   <!-- Filtro per stato fatturazione -->
   <div class="stato-filter">
-    <span class="stato-chip" id="chip-week" onclick="setWeekFilter()" style="border-color:rgba(245,200,66,.4);color:var(--gold);background:rgba(245,200,66,.1);">📅 Questa settimana</span>
+    <span class="stato-chip" id="chip-week" onclick="setWeekFilter()" style="border-color:rgba(245,200,66,.4);color:var(--gold);background:rgba(245,200,66,.1);" title="Da oggi ai prossimi 6 giorni">📅 Prossimi 7 giorni</span>
     <span class="stato-chip active-all" id="chip-all" onclick="setStatoFilter('all')">Tutti</span>
     <span class="stato-chip" id="chip-fatt" onclick="setStatoFilter('fatt')">💚 Fatturabili</span>
     <span class="stato-chip" id="chip-fat" onclick="setStatoFilter('fat')">🔴 Fatturati</span>
@@ -3374,13 +3374,11 @@ function _listaFiltrata(){
     (!st||_stagioneDa(s.data)===st)
   );
 
-  // Filtro settimana corrente
+  // Filtro "prossimi 7 giorni": da oggi a oggi+6 (gli spettacoli già passati non compaiono)
   if(weekFilter){
-    const oggi=new Date();
-    const dow=oggi.getDay()===0?6:oggi.getDay()-1; // lunedì=0
-    const lun=new Date(oggi);lun.setDate(oggi.getDate()-dow);lun.setHours(0,0,0,0);
-    const dom=new Date(lun);dom.setDate(lun.getDate()+6);dom.setHours(23,59,59,999);
-    fil=fil.filter(s=>{const d=new Date(s.data+'T12:00:00');return d>=lun&&d<=dom;});
+    const da=new Date(); da.setHours(0,0,0,0);
+    const a=new Date(da); a.setDate(da.getDate()+6); a.setHours(23,59,59,999);
+    fil=fil.filter(s=>{const d=new Date(s.data+'T12:00:00');return d>=da&&d<=a;});
   }
 
   // Filtro stato fatturazione
@@ -3389,7 +3387,7 @@ function _listaFiltrata(){
   else if(statoFilter==='zero') fil=fil.filter(s=>!s.totale||s.totale===0);
 
   const nm=['','gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
-  const desc=[st?'stagione '+st:'', ci||'', ma||'', ms?nm[+ms.split('-')[1]]+' '+ms.split('-')[0]:'', weekFilter?'settimana corrente':'', statoFilter==='fatt'?'da fatturare':statoFilter==='fat'?'fatturati':statoFilter==='zero'?'da definire':'', q?'ricerca "'+q+'"':''].filter(Boolean);
+  const desc=[st?'stagione '+st:'', ci||'', ma||'', ms?nm[+ms.split('-')[1]]+' '+ms.split('-')[0]:'', weekFilter?'prossimi 7 giorni':'', statoFilter==='fatt'?'da fatturare':statoFilter==='fat'?'fatturati':statoFilter==='zero'?'da definire':'', q?'ricerca "'+q+'"':''].filter(Boolean);
   return { lista: fil, descrizione: desc.join(' · ') || 'tutti gli spettacoli', stagione: st, citta: ci };
 }
 function renderList(){
@@ -7147,7 +7145,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v173</span>
+    <span>Report generato da GammaFucker v174</span>
   </div>
   </body></html>`;
 
@@ -7253,7 +7251,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v173</span>
+    <span>Report generato da GammaFucker v174</span>
   </div>
   </body></html>`;
 
@@ -7349,7 +7347,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v173</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v174</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7422,7 +7420,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v173</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v174</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
