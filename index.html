@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v179</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v180</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -751,6 +751,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
           <label>ore prima dello spettacolo <input id="risc-prima" type="number" value="1" min="0" max="4" style="width:44px;font-size:11px;"></label>
           <div style="flex-basis:100%;font-size:10px;color:var(--text3);margin-top:4px;">Orari ridotti per gli spazi con zone (Teatro Rossini), nei giorni "tutto il teatro": mattina = uffici, spento nella pausa, riaccensione N ore prima dello spettacolo ma non prima dell'ora di ripresa; fine 23 se serale, altrimenti +2 ore (min 20); domenica solo pomeriggio</div>
           <label>orari ridotti <select id="risc-rid" style="font-size:11px;"><option value="1">sì</option><option value="0">no</option></select></label>
+          <label>uffici <input id="risc-riduff" type="text" value="9-13" style="width:52px;font-size:11px;"></label>
           <label>riaccensione ore prima <input id="risc-ridprima" type="number" value="4" min="1" max="8" style="width:44px;font-size:11px;"></label>
           <label>ripresa non prima delle <input id="risc-ridda" type="number" value="15" min="12" max="20" style="width:44px;font-size:11px;"></label>
           <label>senza orario <input id="risc-ridsenza" type="text" value="15-20" style="width:52px;font-size:11px;"></label>
@@ -2208,15 +2209,15 @@ async function leggiCalendarioWord(file){
 // ════════════════════ RISCALDAMENTO: prospetto accensioni per il servizio calore ════════════════════
 // Dal calendario Word di Pesaro → tabella giorno × spazio con mattina/pomeriggio (dalle-alle), tot ore e zona,
 // nello stesso formato del file che Aldo compilava a mano. Regole in Config (riscConfig), anteprima modificabile.
-const RISC_SPAZI_DEFAULT = 'TEATRO ROSSINI | Sala della Repubblica, Teatro Rossini | 8-14 | UFFICI | TUTTO IL TEATRO\nTEATRO SPERIMENTALE | Teatro Sperimentale';
+const RISC_SPAZI_DEFAULT = 'TEATRO ROSSINI | Sala della Repubblica, Teatro Rossini | 9-13 | UFFICI | TUTTO IL TEATRO\nTEATRO SPERIMENTALE | Teatro Sperimentale';
 let _risc = null;   // {mese, anno, spazi:[{nome,...}], giorni:[{data, dow, celle:[{m1,m2,p1,p2,zona,ev}]}]}
 function _riscConfig(){
   const c = ld('riscConfig', null) || {};
   const g = (id, d)=>{ const el=document.getElementById(id); return el && el.value!=='' ? el.value : (c[id]!==undefined ? c[id] : d); };
-  return { spazi: g('risc-spazi', RISC_SPAZI_DEFAULT), pausa: g('risc-pausa','13-15'), ini:+g('risc-ini',9), iniwe:+g('risc-iniwe',10), dopo:+g('risc-dopo',2), fine:+g('risc-fine',23), senza: g('risc-senza','9-20'), max:+g('risc-max',12), prima:+g('risc-prima',1), rid:g('risc-rid','1')!=='0', ridPrima:+g('risc-ridprima',4), ridDa:+g('risc-ridda',15), ridSenza:g('risc-ridsenza','15-20') };
+  return { spazi: g('risc-spazi', RISC_SPAZI_DEFAULT), pausa: g('risc-pausa','13-15'), ini:+g('risc-ini',9), iniwe:+g('risc-iniwe',10), dopo:+g('risc-dopo',2), fine:+g('risc-fine',23), senza: g('risc-senza','9-20'), max:+g('risc-max',12), prima:+g('risc-prima',1), rid:g('risc-rid','1')!=='0', ridUff:g('risc-riduff','9-13'), ridPrima:+g('risc-ridprima',4), ridDa:+g('risc-ridda',15), ridSenza:g('risc-ridsenza','15-20') };
 }
-function salvaRiscConfig(){ const c={}; ['risc-spazi','risc-pausa','risc-ini','risc-iniwe','risc-dopo','risc-fine','risc-senza','risc-max','risc-prima','risc-rid','risc-ridprima','risc-ridda','risc-ridsenza'].forEach(id=>{ const el=document.getElementById(id); if(el) c[id]=el.value; }); sv('riscConfig', c); toast('✓ Regole riscaldamento salvate'); }
-function _riscCaricaConfigUI(){ const c=ld('riscConfig', null)||{}; if(c['risc-spazi'] && /UFFICI \+ SALA R\./.test(c['risc-spazi'])){ c['risc-spazi']=c['risc-spazi'].replace(/UFFICI \+ SALA R\./g,'TUTTO IL TEATRO'); sv('riscConfig', c); } ['risc-spazi','risc-pausa','risc-ini','risc-iniwe','risc-dopo','risc-fine','risc-senza','risc-max','risc-prima','risc-rid','risc-ridprima','risc-ridda','risc-ridsenza'].forEach(id=>{ const el=document.getElementById(id); if(el && c[id]!==undefined && c[id]!=='') el.value=c[id]; }); const t=document.getElementById('risc-spazi'); if(t && !t.value) t.value=RISC_SPAZI_DEFAULT; }
+function salvaRiscConfig(){ const c={}; ['risc-spazi','risc-pausa','risc-ini','risc-iniwe','risc-dopo','risc-fine','risc-senza','risc-max','risc-prima','risc-rid','risc-riduff','risc-ridprima','risc-ridda','risc-ridsenza'].forEach(id=>{ const el=document.getElementById(id); if(el) c[id]=el.value; }); sv('riscConfig', c); toast('✓ Regole riscaldamento salvate'); }
+function _riscCaricaConfigUI(){ const c=ld('riscConfig', null)||{}; if(c['risc-spazi'] && /UFFICI \+ SALA R\./.test(c['risc-spazi'])){ c['risc-spazi']=c['risc-spazi'].replace(/UFFICI \+ SALA R\./g,'TUTTO IL TEATRO'); sv('riscConfig', c); } ['risc-spazi','risc-pausa','risc-ini','risc-iniwe','risc-dopo','risc-fine','risc-senza','risc-max','risc-prima','risc-rid','risc-riduff','risc-ridprima','risc-ridda','risc-ridsenza'].forEach(id=>{ const el=document.getElementById(id); if(el && c[id]!==undefined && c[id]!=='') el.value=c[id]; }); const t=document.getElementById('risc-spazi'); if(t && !t.value) t.value=RISC_SPAZI_DEFAULT; }
 function _riscSpazi(cfg){
   return cfg.spazi.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
     const p=l.split('|').map(x=>x.trim());
@@ -2293,6 +2294,9 @@ async function generaRiscaldamento(file){
   try{
     const cal=await leggiCalendarioWord(file);
     const cfg=_riscConfig(); const spazi=_riscSpazi(cfg);
+    // orari ridotti: per gli spazi con zone (Rossini) la fascia uffici è quella delle regole ridotte (default 9–13),
+    // non quella scritta nella riga dello spazio
+    if(cfg.rid){ const u=String(cfg.ridUff||'9-13').match(/(\d{1,2})\s*-\s*(\d{1,2})/); if(u) spazi.forEach(sp=>{ if(sp.zonaEv) sp.uffici=[+u[1],+u[2]]; }); }
     const pausa=cfg.pausa.match(/(\d{1,2})\s*-\s*(\d{1,2})/); const pA=pausa?+pausa[1]:13, pB=pausa?+pausa[2]:15;
     const senza=cfg.senza.match(/(\d{1,2})\s*-\s*(\d{1,2})/); const sA=senza?+senza[1]:9, sB=senza?+senza[2]:20;
     const nGiorni=new Date(cal.anno, cal.mese, 0).getDate();
@@ -7275,7 +7279,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v179</span>
+    <span>Report generato da GammaFucker v180</span>
   </div>
   </body></html>`;
 
@@ -7381,7 +7385,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v179</span>
+    <span>Report generato da GammaFucker v180</span>
   </div>
   </body></html>`;
 
@@ -7477,7 +7481,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v179</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v180</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7550,7 +7554,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v179</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v180</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
