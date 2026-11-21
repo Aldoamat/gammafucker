@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v180</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v181</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -495,6 +495,13 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
       <span id="ai-stato" style="font-size:10px;color:var(--text3);"></span>
     </div>
     <div id="ai-consumo" style="margin-top:8px;font-size:11px;"></div>
+  </div>
+
+  <div class="fc">
+    <div class="fct">🩺 Diagnostica</div>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.5;">Se l'app è lenta o si pianta: tempi di scaricamento/invio al foglio, disegno della lista e memoria usata su questo dispositivo.</p>
+    <button class="btn btn-o btn-sm" onclick="mostraDiagnostica()">🩺 Mostra</button> <button class="btn btn-o btn-sm" onclick="copiaDiagnostica()">📋 Copia</button>
+    <pre id="diag-box" style="display:none;white-space:pre-wrap;font-size:10px;color:var(--text2);background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:6px;padding:8px;margin-top:8px;max-height:320px;overflow:auto;"></pre>
   </div>
 
   <div class="fc">
@@ -1650,7 +1657,16 @@ let statoFilter = 'all';
 let weekFilter = true; // mostra settimana corrente all'apertura
 
 function ld(k,d){try{const v=localStorage.getItem(_lsk(k));return v?JSON.parse(v):d;}catch{return d;}}
-function sv(k,v){localStorage.setItem(_lsk(k),JSON.stringify(v));}
+function sv(k,v){
+  const txt=JSON.stringify(v);
+  try{ localStorage.setItem(_lsk(k),txt); }
+  catch(e){
+    // memoria del browser piena (~5 MB per sito): tolgo le cache che si possono ricaricare e riprovo
+    ['rubrica','rubricaTs','undoFattura','logAggiornamenti'].forEach(x=>{ if(x!==k){ try{ localStorage.removeItem(_lsk(x)); }catch(_){} } });
+    try{ localStorage.setItem(_lsk(k),txt); }
+    catch(e2){ if(!window._avvisoMemoria){ window._avvisoMemoria=1; try{ toast('⚠️ Memoria del browser piena: alcune modifiche non restano salvate sul dispositivo. Apri Config → Diagnostica.', true); }catch(_){} } }
+  }
+}
 
 // ══════════════════════════════════ INIT ══════════════════════════════════
 // ══ SVUOTA CACHE SERVICE WORKER ══
@@ -1844,6 +1860,11 @@ function _applicaConfigExtra(json){
   }
 }
 async function silentPull(){
+  if(window._pullInCorso) return;   // niente pull sovrapposti (timer + ritorno in primo piano + invio)
+  window._pullInCorso=true;
+  try{ return await _silentPullDentro(); } finally{ window._pullInCorso=false; }
+}
+async function _silentPullDentro(){
   // Non pullare mentre la preview fattura è aperta
   if(document.getElementById('fatt-preview')&&document.getElementById('fatt-preview').style.display!=='none')return;
   // Non pullare se un salvataggio manuale è avvenuto di recente (evita sovrascrittura)
@@ -2684,7 +2705,7 @@ async function caricaRubrica(forza=false){
     const res = await fetch(url+'?action=rubrica'+(forza?'&refresh=1':'')+'&t='+Date.now());
     const j = await res.json();
     if(j.error) throw new Error(j.error);
-    rubrica = j.rubrica||[]; sv('rubrica', rubrica); sv('rubricaTs', Date.now());
+    rubrica = j.rubrica||[]; if(JSON.stringify(rubrica).length<400000){ sv('rubrica', rubrica); sv('rubricaTs', Date.now()); } else { try{ localStorage.removeItem(_lsk('rubrica')); }catch(e){} }   // rubrica grande: solo in memoria, non riempie lo spazio dei dati
     _rubricaStato(); if(forza) toast('✓ Rubrica: '+rubrica.length+' contatti');
   }catch(e){ if(st) st.textContent='rubrica non disponibile: '+e.message; }
 }
@@ -3842,9 +3863,10 @@ function _syncBaseDa(righe){ const b={}; righe.forEach(r=>{ b[String(r.id)]=_rig
 // ── Scarica i dati remoti e fa merge con quelli locali (senza toccare l'UI) ──
 async function fetchAndMerge(url){
   try{
+    const _t0=performance.now();
     const res = await fetch(url+'?action=pull&anagVer='+(+ld('anagraficaVer',0)));
-    if(!res.ok) return null;
-    const text = await res.text();
+    if(!res.ok){ _diagSegna('pull', performance.now()-_t0, 0, 'HTTP '+res.status); return null; }
+    const text = await res.text(); _diagSegna('pull', performance.now()-_t0, text.length);
     let json;
     try{ json=JSON.parse(text); }catch(e){
       const s=text.indexOf('{'), e2=text.lastIndexOf('}');
@@ -3860,9 +3882,9 @@ async function fetchAndMerge(url){
     // MERGE: per ogni record remoto, se esiste uno locale con stesso ID/data+citta+spett
     // usa il locale se ha note più aggiornate (note locale sovrascrive remoto)
     const base = _syncBaseLeggi(); const haBase = Object.keys(base).length>0;
+    const perId=new Map(), perChiave=new Map(); data.forEach(l=>{ perId.set(String(l.id), l); const k=l.data+'|'+l.citta+'|'+l.spett; if(!perChiave.has(k)) perChiave.set(k, l); });
     const merged = remoteFiltered.map(r=>{
-      const loc = data.find(l=>String(l.id)===String(r.id))
-                || data.find(l=>l.data===r.data&&l.citta===r.citta&&l.spett===r.spett);
+      const loc = perId.get(String(r.id)) || perChiave.get(r.data+'|'+r.citta+'|'+r.spett);
       if(!loc) return r;
       // riga non toccata qui dall'ultima sincronizzazione → vince il foglio (aggiornamenti fatti da altri dispositivi)
       if(base[String(loc.id)] && base[String(loc.id)]===_rigaFirma(loc)) return {...loc, ...r};
@@ -3875,12 +3897,13 @@ async function fetchAndMerge(url){
     });
     // aggiungi locali non presenti nel remoto
     const remoteKeys = new Set(remoteFiltered.map(r=>r.id+''));
+    const remChiavi=new Set(remoteFiltered.map(x=>x.data+'|'+x.citta+'|'+x.spett));
     const onlyLocal = data.filter(r=>{
       if(deletedIds.has(String(r.id))) return false; // skip locally deleted
       if(remoteKeys.has(r.id+'')) return false;
       // era già sul foglio e qui non è stata toccata: se ora manca, l'ha eliminata un altro dispositivo
       if(haBase && base[String(r.id)] && base[String(r.id)]===_rigaFirma(r)) return false;
-      return !remoteFiltered.find(x=>x.data===r.data&&x.citta===r.citta&&x.spett===r.spett);
+      return !remChiavi.has(r.data+'|'+r.citta+'|'+r.spett);
     });
     merged.push(...onlyLocal);
     // nuova base: la versione del foglio appena vista (le righe modificate qui restano diverse → continuano a vincere)
@@ -7279,7 +7302,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v180</span>
+    <span>Report generato da GammaFucker v181</span>
   </div>
   </body></html>`;
 
@@ -7385,7 +7408,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v180</span>
+    <span>Report generato da GammaFucker v181</span>
   </div>
   </body></html>`;
 
@@ -7481,7 +7504,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v180</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v181</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7554,7 +7577,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v180</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v181</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -10545,10 +10568,37 @@ function _waAggiorna(){
   const a=document.getElementById('wa-apri'); a.href='https://wa.me/'+num+'?text='+encodeURIComponent(testo); a.style.opacity=num?'1':'.5';
   document.getElementById('wa-anteprima').textContent=testo;
 }
+// ══ DIAGNOSTICA ══ (Config → Diagnostica): tempi reali su questo dispositivo, memoria usata, errori recenti
+const _diag={pull:[], push:[], render:[], errori:[]};
+function _diagSegna(tipo, ms, byte, err){ const a=_diag[tipo]; if(!a) return; a.push({t:Date.now(), ms:Math.round(ms), kb:byte?Math.round(byte/1024):0, err:err||''}); if(a.length>20) a.shift(); }
+window.addEventListener('error', e=>{ _diag.errori.push(new Date().toLocaleTimeString('it-IT')+' '+String(e.message||e.error||'').slice(0,160)); if(_diag.errori.length>15) _diag.errori.shift(); });
+window.addEventListener('unhandledrejection', e=>{ _diag.errori.push(new Date().toLocaleTimeString('it-IT')+' (promessa) '+String((e.reason&&e.reason.message)||e.reason||'').slice(0,160)); if(_diag.errori.length>15) _diag.errori.shift(); });
+function _diagTesto(){
+  const kb=n=>Math.round(n/1024); let tot=0; const chiavi=[];
+  try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); const v=localStorage.getItem(k)||''; const n=(k.length+v.length)*2; tot+=n; chiavi.push([k,n]); } }catch(e){}
+  chiavi.sort((a,b)=>b[1]-a[1]);
+  const riga=(nome,a)=>{ if(!a.length) return nome+': nessuna misura (ancora)'; const ul=a[a.length-1]; const med=Math.round(a.reduce((x,y)=>x+y.ms,0)/a.length); const max=Math.max(...a.map(x=>x.ms));
+    return nome+': ultima '+ul.ms+' ms'+(ul.kb?' ('+ul.kb+' KB)':'')+(ul.err?' ERRORE '+ul.err:'')+' · media '+med+' ms · max '+max+' ms su '+a.length; };
+  const mem=performance.memory?' · JS in uso '+Math.round(performance.memory.usedJSHeapSize/1048576)+' MB':'';
+  return ['GammaFucker '+(document.querySelector('.ver,#app-ver')?.textContent||'')+' · '+new Date().toLocaleString('it-IT'),
+    'Spettacoli: '+data.length+' · connessione: '+(navigator.onLine?'online':'OFFLINE')+(navigator.connection&&navigator.connection.effectiveType?' ('+navigator.connection.effectiveType+')':'')+mem,
+    'Invio in sospeso: '+(ld('pushPending','')?'SÌ':'no'),
+    riga('Scarica dal foglio',_diag.pull), riga('Invio al foglio',_diag.push), riga('Disegno lista',_diag.render),
+    'Memoria browser usata: '+kb(tot)+' KB su ~5000 KB'+(tot>4200*1024?'  ⚠️ QUASI PIENA':''),
+    '  '+chiavi.slice(0,8).map(([k,n])=>k.replace(LS_PREFIX,'')+' '+kb(n)+' KB').join(' · '),
+    'Errori recenti: '+(_diag.errori.length?'\n  '+_diag.errori.join('\n  '):'nessuno')].join('\n');
+}
+function mostraDiagnostica(){ const b=document.getElementById('diag-box'); b.textContent=_diagTesto(); b.style.display='block'; }
+async function copiaDiagnostica(){ const t=_diagTesto(); mostraDiagnostica(); try{ await navigator.clipboard.writeText(t); toast('📋 Diagnostica copiata: incollala nella chat'); }catch(e){ toast('Seleziona e copia il testo qui sotto', true); } }
+
 // ══ AVVISO FATTURA ELABORATA ══ (Config → Avviso fatture elaborate; di default a l.battistoni)
 const AVVISO_FATT_DEST='l.battistoni@amat.marche.it';
 function _avvisoCfgInit(){ try{ const on=document.getElementById('cfg-avviso-on'), de=document.getElementById('cfg-avviso-dest'); if(on) on.checked=ld('avvisoFattureOn',true)!==false; if(de) de.value=ld('avvisoFattureDest',AVVISO_FATT_DEST); }catch(e){} }
 setTimeout(_avvisoCfgInit, 800);
+setTimeout(()=>{   // misure su lista e invio, senza toccare le funzioni
+  if(typeof renderList==='function'){ const _rl=renderList; renderList=function(){ const t=performance.now(); try{ return _rl.apply(this, arguments); } finally{ _diagSegna('render', performance.now()-t); } }; }
+  if(typeof pushSheets==='function'){ const _ps=pushSheets; pushSheets=async function(){ const t=performance.now(); try{ return await _ps.apply(this, arguments); } finally{ _diagSegna('push', performance.now()-t, 0, ld('pushPending','')?'non riuscito':''); } }; }
+}, 0);
 async function _avvisaFatturaElaborata(forn, num, extra){
   if(IS_COLLAB || ld('avvisoFattureOn',true)===false) return; const to=String(ld('avvisoFattureDest',AVVISO_FATT_DEST)||'').trim(); const url=ld('sheetsUrl','');
   if(!to || !url || (!forn && !num)) return;
