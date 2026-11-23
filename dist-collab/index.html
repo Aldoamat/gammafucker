@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v186</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v187</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1585,9 +1585,25 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
         <div id="ii-preview" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;color:var(--text2);white-space:pre-wrap;max-height:260px;overflow-y:auto;line-height:1.6;"></div>
       </div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:16px;">
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
       <button class="btn btn-p" onclick="inviaInfoSpazio()" style="flex:1;">📤 Invia Mail</button>
+      <button class="btn btn-o" onclick="_enApri()" style="flex:1;color:#60a5fa;border-color:rgba(96,165,250,.5);" title="Compagnia straniera: scrivi in italiano, controlla la traduzione e invia in inglese">🇬🇧 In inglese</button>
       <button class="btn btn-o" onclick="document.getElementById('invia-info-ov').classList.remove('open')" style="flex:1;">Annulla</button>
+    </div>
+    <!-- compagnia straniera: italiano sopra (si scrive), inglese sotto (si controlla e parte) -->
+    <div id="en-box" style="display:none;margin-top:14px;padding:12px;border:1px solid rgba(96,165,250,.4);border-radius:10px;background:rgba(96,165,250,.04);">
+      <div style="font-size:12px;font-weight:700;color:#60a5fa;margin-bottom:6px;">🇬🇧 Mail in inglese</div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:6px;">Scrivi o correggi in italiano (puoi aggiungere in cima le risposte alle loro domande), premi Traduci, rileggi l'inglese: parte quello. Link e documenti restano gli stessi.</div>
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);">🇮🇹 Oggetto</div>
+      <input type="text" id="en-ogg-it" style="width:100%;box-sizing:border-box;font-size:12px;margin-bottom:6px;">
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);">🇮🇹 Testo</div>
+      <textarea id="en-it" style="width:100%;box-sizing:border-box;min-height:200px;font-size:11px;line-height:1.5;"></textarea>
+      <button class="btn btn-o" id="en-trad" style="width:100%;margin:8px 0;color:#60a5fa;border-color:rgba(96,165,250,.5);" onclick="_enTraduci()">🌍 Traduci in inglese ↓</button>
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);">🇬🇧 Subject</div>
+      <input type="text" id="en-ogg-en" style="width:100%;box-sizing:border-box;font-size:12px;margin-bottom:6px;">
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);">🇬🇧 Text — questo è quello che parte</div>
+      <textarea id="en-en" style="width:100%;box-sizing:border-box;min-height:200px;font-size:11px;line-height:1.5;"></textarea>
+      <button class="btn btn-p" id="en-invia" style="width:100%;margin-top:8px;" onclick="_enInvia()">📤 Invia la versione inglese</button>
     </div>
     <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:10px;">
       <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">💬 Oppure via WhatsApp (stesso testo, documenti come link)</div>
@@ -7375,7 +7391,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v186</span>
+    <span>Report generato da GammaFucker v187</span>
   </div>
   </body></html>`;
 
@@ -7481,7 +7497,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v186</span>
+    <span>Report generato da GammaFucker v187</span>
   </div>
   </body></html>`;
 
@@ -7580,7 +7596,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v186</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v187</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7653,7 +7669,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v186</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v187</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -8458,6 +8474,54 @@ function _aggiornaPreviewMail(){
 
   document.getElementById('ii-preview').textContent = corpo;
   try{ _iiWaAggiorna(); }catch(e){}
+}
+
+// ── Compagnia straniera: la stessa mail, scritta in italiano e inviata in inglese dopo controllo ──
+function _enApri(){
+  const box=document.getElementById('en-box'); if(box.style.display==='block'){ box.style.display='none'; return; }
+  const corpo=document.getElementById('ii-preview').textContent; if(corpo.startsWith('⚠️')){ toast('Nessuna scheda compilata', true); return; }
+  const nome=data.find(x=>x.id===_invioSpettId)?.spett||'spettacolo';
+  document.getElementById('en-ogg-it').value='Informazioni spazi — '+nome;
+  document.getElementById('en-it').value=corpo; document.getElementById('en-en').value=''; document.getElementById('en-ogg-en').value='';
+  box.style.display='block'; setTimeout(()=>box.scrollIntoView({behavior:'smooth', block:'start'}),50);
+}
+async function _enTraduci(){
+  const it=document.getElementById('en-it').value.trim(), oggIt=document.getElementById('en-ogg-it').value.trim(); if(!it){ toast('Scrivi il testo in italiano', true); return; }
+  const url=ld('sheetsUrl',''); if(!url){ toast('Configura Sheets URL', true); return; }
+  const b=document.getElementById('en-trad'); b.disabled=true; b.textContent='⏳ traduco…';
+  const prompt=`Translate this Italian email from a theatre circuit's technical coordinator (AMAT Marche, Italy) to a foreign touring company into clear, polite, professional British English.
+RULES:
+- Keep EXACTLY unchanged: every HTML tag and attribute (e.g. <a href="...">), every URL, email address, phone number, measurement and number, and proper names (theatres, venues, cities, people, companies, show titles).
+- Translate the visible words inside links (e.g. "⬇ Scarica pianta palco" → "⬇ Download stage plan").
+- Keep the same layout: line breaks, blank lines, emoji, separator lines (━━━), lists, ALL-CAPS headings (translate them, keep them in caps: "REFERENTE TECNICO" → "TECHNICAL CONTACT").
+- Theatre vocabulary: palcoscenico=stage, graticcia=grid, boccascena=proscenium opening, quinte=wings, americane=trusses/bars, tiri=fly bars, carico/scarico=get-in/get-out, montaggio=load-in/set-up, smontaggio=load-out/strike, camerini=dressing rooms, facchini=crew/stagehands, macchinisti=stage crew, elettricisti=electricians, fonico=sound technician, prove=rehearsals, premontaggio=pre-rig day, sala=auditorium, platea=stalls, palchi=boxes, ridotto=foyer, posti=seats.
+- Sign-off: keep the name and phone; "coordinamento tecnico Amat" → "Technical coordination, AMAT".
+Reply ONLY with valid JSON: {"subject":"...","body":"..."}
+
+SUBJECT: ${oggIt}
+
+BODY:
+${it}`;
+  try{ const r=await callAIText(url, prompt); const m=String(r).match(/\{[\s\S]*\}/); if(!m) throw new Error('risposta non valida'); const j=JSON.parse(m[0]);
+    document.getElementById('en-ogg-en').value=j.subject||''; document.getElementById('en-en').value=j.body||'';
+    // controllo: tutti i link dell'italiano devono esserci anche in inglese
+    const linkIt=(it.match(/https?:\/\/[^\s"<>]+/g)||[]), en=j.body||''; const persi=linkIt.filter(u=>!en.includes(u));
+    toast(persi.length?'⚠️ Nella traduzione mancano '+persi.length+' link: controlla prima di inviare':'✓ Tradotto: rileggi e invia', !!persi.length);
+  }catch(e){ toast('Traduzione non riuscita: '+e.message, true); }
+  finally{ b.disabled=false; b.textContent='🌍 Traduci in inglese ↓'; }
+}
+async function _enInvia(){
+  const destRaw=document.getElementById('ii-dest').value.trim(); if(!destRaw){ toast('Inserisci almeno un\'email destinatario', true); return; }
+  const corpo=document.getElementById('en-en').value.trim(), ogg=document.getElementById('en-ogg-en').value.trim();
+  if(!corpo||!ogg){ toast('Prima premi Traduci e controlla l\'inglese', true); return; }
+  const dest=destRaw.split(/[,;]/).map(e=>e.trim()).filter(Boolean).join(','); const url=ld('sheetsUrl','');
+  const b=document.getElementById('en-invia'); b.disabled=true; b.textContent='⏳ invio…';
+  try{ const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'sendEmail', to:dest, subject:ogg, message:corpo})}); const j=await res.json();
+    if(j.result!=='sent') throw new Error(j.result||j.error||'risposta sconosciuta');
+    _segnaInvio(data.find(x=>x.id===_invioSpettId), 'infoCompagnia', 'mail in inglese a '+dest); toast('✓ Mail in inglese inviata a '+dest);
+    setTimeout(()=>{ document.getElementById('en-box').style.display='none'; document.getElementById('invia-info-ov').classList.remove('open'); }, 1200);
+  }catch(e){ toast('Errore: '+e.message, true); }
+  finally{ b.disabled=false; b.textContent='📤 Invia la versione inglese'; }
 }
 
 async function inviaInfoSpazio(){
