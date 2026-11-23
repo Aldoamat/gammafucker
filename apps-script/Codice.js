@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v193 ──
+// ── SPETTACOLI APP SCRIPT v194 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -241,6 +241,22 @@ function doPost(e) {
       'N.MACC','TAR.MACC','SUB.MACC','N.ELETT','TAR.ELETT','SUB.ELETT',
       'N.FACC','TAR.FACC','SUB.FACC','N.FONI','TAR.FONI','SUB.FONI',
       'N.SART','TAR.SART','SUB.SART','TOTALE','NOTE','FATTURATO','PREMONTAGGIO','COLLAB_JSON','REPLICA_OF','MAILS_JSON','CONTATTI_JSON','ACCORDI','PROD_JSON','RIFATT_JSON'];
+    // ── PROTEZIONE: mai sostituire il foglio con molti meno spettacoli di quelli che ha ──
+    // (un dispositivo con i dati locali vuoti/vecchi, o un invio partito senza aver letto il foglio, lo azzererebbe)
+    var nPrima = Math.max(0, sh.getLastRow() - 1), nDopo = (body.data || []).length;
+    if (nPrima >= 20 && nDopo < nPrima * 0.8 && !body.forza) {
+      lock.releaseLock();
+      return ContentService.createTextOutput(JSON.stringify({ result: 'rifiutato', motivo: 'il foglio ha ' + nPrima + ' spettacoli, l\'invio ne contiene solo ' + nDopo, nPrima: nPrima, nDopo: nDopo })).setMimeType(ContentService.MimeType.JSON);
+    }
+    // copia di sicurezza del foglio prima di riscriverlo (al massimo una ogni ora): "Spettacoli_backup"
+    try {
+      var ultimoBk = +props.getProperty('ultimoBackupSpett') || 0;
+      if (nPrima >= 20 && Date.now() - ultimoBk > 3600000) {
+        var bk = ss.getSheetByName('Spettacoli_backup') || ss.insertSheet('Spettacoli_backup');
+        var vals = sh.getDataRange().getValues(); bk.clearContents(); bk.getRange(1, 1, vals.length, vals[0].length).setValues(vals);
+        props.setProperty('ultimoBackupSpett', String(Date.now()));
+      }
+    } catch(eBk) {}
     // Difesa dal "locale vince": le rinomine/correzioni del giornale si applicano anche ai dati in arrivo
     var G1 = _mappeGiornale(ss);
     if (G1.n) body.data.forEach(function(r){ _giornaleRiga(r, G1); });

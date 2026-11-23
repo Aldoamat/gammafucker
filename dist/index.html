@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v184</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v185</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -4030,13 +4030,17 @@ async function pushSheets(silent=false){
           return;
         }
       }
-    } else if(!silent){
+    } else if(silent){
+      // foglio non letto (rete lenta, timeout): un invio automatico NON parte mai alla cieca — riprova più tardi
+      sv('pushPending', String(Date.now())); _syncPendingUI(); btn.classList.remove('busy'); return;
+    } else {
       // non riesce a fare pull — chiede conferma prima di procedere
       const ok=confirm(`⚠️ Impossibile verificare il foglio Sheets.\n\nSei sicuro di voler inviare ${data.length} spettacoli?\n\nOK = invia comunque   ANNULLA = non inviare`);
       if(!ok){ btn.classList.remove('busy'); return; }
     }
 
     if(!data.length){if(!silent)toast('Nessun dato da inviare',true);btn.classList.remove('busy');return;}
+    { const visti=Object.keys(_syncBaseLeggi()).length; if(visti>=20 && data.length<visti*0.8){ btn.classList.remove('busy'); toast('⛔ Su questo dispositivo ci sono '+data.length+' spettacoli, l\'ultima volta il foglio ne aveva '+visti+': invio annullato. Usa "⬇ Scarica da Sheets".', true); return; } }
 
     // ── INVIO ──────────────────────────────────────────────────────────────
     const autore=ld('nomeUtente','Utente');
@@ -4050,6 +4054,11 @@ async function pushSheets(silent=false){
           const json=await res.json();
           if(json.result&&json.result.startsWith('locked')){
             if(!silent)toast(`🔒 ${json.lockedBy||'un collaboratore'} sta inviando, riprova`,true);
+            return;
+          }
+          if(json.result==='rifiutato'){   // il server protegge il foglio: invio con troppi pochi spettacoli
+            sv('pushPending',''); _syncPendingUI();
+            toast('⛔ Invio bloccato dal foglio: '+(json.motivo||'troppi pochi spettacoli')+'. Su questo dispositivo usa "⬇ Scarica da Sheets".', true);
             return;
           }
         }catch(e){}
@@ -7370,7 +7379,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v184</span>
+    <span>Report generato da GammaFucker v185</span>
   </div>
   </body></html>`;
 
@@ -7476,7 +7485,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v184</span>
+    <span>Report generato da GammaFucker v185</span>
   </div>
   </body></html>`;
 
@@ -7575,7 +7584,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v184</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v185</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7648,7 +7657,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v184</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v185</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
