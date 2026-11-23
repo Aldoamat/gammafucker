@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v183</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v184</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -408,6 +408,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div class="fct">📋 Accordi Contrattuali</div>
     <div class="field">
       <textarea id="f-accordi" placeholder="Accordi economici, condizioni particolari, clausole..." rows="3"></textarea>
+      <button type="button" class="btn btn-o btn-sm" style="margin-top:6px;color:#fbbf24;border-color:rgba(251,191,36,.5);" onclick="if(editingId){apriChiPaga(editingId);}else{toast('Salva prima lo spettacolo, poi scegli chi paga', true);}">💶 Chi paga (cosa si rifattura)…</button>
     </div>
   </div>
   <div class="fc" id="f-note-fatt-box" style="display:none;">
@@ -917,6 +918,35 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     <div style="display:flex;gap:8px;margin-top:12px;">
       <button class="btn btn-p" style="flex:1;" onclick="_rnSalva()">✓ Ok</button>
       <button class="btn btn-o" onclick="document.getElementById('rend-nuovo-ov').classList.remove('open')">Annulla</button>
+    </div>
+  </div>
+</div>
+<!-- ══ CHI PAGA: cosa si rifattura alla compagnia ══ -->
+<div class="mover" id="rf-ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:460px;">
+    <div class="mtitle">💶 Chi paga</div>
+    <div id="rf-titolo" style="font-size:12px;color:var(--text2);margin-bottom:6px;"></div>
+    <div id="rf-accordi" style="font-size:11px;color:#60a5fa;margin-bottom:6px;"></div>
+    <div id="rf-sugg" style="display:none;font-size:11px;margin-bottom:8px;padding:6px 8px;border:1px dashed rgba(251,191,36,.5);border-radius:6px;"></div>
+    <div style="font-size:10px;color:var(--text3);margin-bottom:6px;">Vale per tutto lo spettacolo: premontaggio, repliche, residenza.</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="btn btn-o" id="rf-b-tutto" style="flex:1;color:#10b981;border-color:rgba(16,185,129,.5);" onclick="_rfModoSet('tutto')">Tutto alla compagnia</button>
+      <button class="btn btn-o" id="rf-b-niente" style="flex:1;" onclick="_rfModoSet('niente')">Niente (a carico nostro)</button>
+      <button class="btn btn-o" id="rf-b-parte" style="flex:1;color:#f59e0b;border-color:rgba(245,158,11,.5);" onclick="_rfModoSet('parte')">In parte</button>
+    </div>
+    <div id="rf-voci" style="display:none;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:10px;font-size:12px;">
+      <div style="grid-column:1/-1;font-size:10px;color:var(--text3);">Spunta le voci che paga la compagnia (da rifatturare):</div>
+      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="rf-v-m" style="width:16px;height:16px;"> Macchinisti</label>
+      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="rf-v-e" style="width:16px;height:16px;"> Elettricisti</label>
+      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="rf-v-fo" style="width:16px;height:16px;"> Fonici</label>
+      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="rf-v-sa" style="width:16px;height:16px;"> Sarte</label>
+      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="rf-v-f" style="width:16px;height:16px;"> Facchini</label>
+      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="rf-v-srv" style="width:16px;height:16px;"> Service / noleggi</label>
+      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="rf-v-alt" style="width:16px;height:16px;"> Altre spese</label>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn btn-p" style="flex:1;" onclick="salvaChiPaga()">✓ Salva</button>
+      <button class="btn btn-o" onclick="document.getElementById('rf-ov').classList.remove('open')">Annulla</button>
     </div>
   </div>
 </div>
@@ -3465,6 +3495,7 @@ function _buildCard(s, grp){
     ${(()=>{ if(!s.note) return ''; const righe=s.note.split('|').map(l=>l.trim()).filter(Boolean).filter(l=>!/^⚠/.test(l)); const fR=righe.filter(l=>l.toLowerCase().includes('fattura')); const gR=righe.filter(l=>!l.toLowerCase().includes('fattura')); let h=''; if(gR.length) h+='<div class="spnote">'+gR.join('<br>')+'</div>'; if(fR.length) h+='<div class="spnote-fatt">'+fR.join('<br><br>')+'</div>'; { const w=_discrepanzaCosti(s); if(w) h+=w; } if(fR.length) h+=`<button class="iBtn" style="font-size:10px;margin-top:3px;border-color:rgba(124,58,237,.4);color:var(--purple);" onclick="reportFattureNote(${s.id})">📋 Fatture in nota</button>`; return h; })()}
     <div class="sptags">
       ${s.manif?`<span class="tag ${s.manif==='GESTIONE'?'gest':'m'}">${_manifLabel(s.manif)}</span>`:''}
+      ${s.manif==='GESTIONE'?'':_rifattChip(s)}
       ${isFat?`<span class="tag fat">✓ fatturato</span>`:hasTot?`<span class="tag s">€ fatturabile</span>`:''}
     </div>
     ${hp?`<div class="spprest">
@@ -3831,7 +3862,8 @@ function buildPayload(){
     mails_json:s.mails&&s.mails.length?JSON.stringify(s.mails):'',
     contatti_json:s.contatti&&s.contatti.length?JSON.stringify(s.contatti):'',
     accordi:s.accordi||'',
-    prod_json:s.prod?JSON.stringify(s.prod):''
+    prod_json:s.prod?JSON.stringify(s.prod):'',
+    rifatt_json:s.rifatt&&s.rifatt.modo?JSON.stringify(s.rifatt):''
   }));
 }
 
@@ -3875,6 +3907,7 @@ function parseSheetRows(rows){
     contatti:(()=>{try{return r.contatti_json&&r.contatti_json!==''?JSON.parse(r.contatti_json):[];}catch(e){return [];}})(),
     accordi:r.accordi||'',
     prod:(()=>{try{return r.prod_json&&r.prod_json!==''?JSON.parse(r.prod_json):undefined;}catch(e){return undefined;}})(),
+    rifatt:(()=>{try{return r.rifatt_json?JSON.parse(r.rifatt_json):undefined;}catch(e){return undefined;}})(),
     fromSheets:true,ts:new Date().toISOString()
   })).filter(r=>r.data&&r.spett);
 }
@@ -3886,7 +3919,7 @@ function parseSheetRows(rows){
 // locale è cambiata vince il locale, come prima. Senza firma (prima volta) resta il vecchio "locale vince".
 function _rigaFirma(r){
   const n=v=>+v||0, t=v=>String(v==null?'':v).trim(), j=v=>{ try{ return JSON.stringify(v==null?'':v); }catch(e){ return ''; } };
-  const k=[t(r.data),t(r.citta),t(r.teatro),t(r.spett),t(r.manif),n(r.nm),n(r.tm),n(r.ne),n(r.te),n(r.nf),n(r.tf),n(r.nfo),n(r.tfo),n(r.nsa),n(r.tsa),t(r.note),r.fatturato?1:0,r.premontaggio?1:0,r.residenza?1:0,t(r.replicaOf),j(r.collab&&r.collab.length?r.collab:''),j(r.mails&&r.mails.length?r.mails:''),j(r.contatti&&r.contatti.length?r.contatti:''),t(r.accordi),j(r.prod||'')].join('\u0001');
+  const k=[t(r.data),t(r.citta),t(r.teatro),t(r.spett),t(r.manif),n(r.nm),n(r.tm),n(r.ne),n(r.te),n(r.nf),n(r.tf),n(r.nfo),n(r.tfo),n(r.nsa),n(r.tsa),t(r.note),r.fatturato?1:0,r.premontaggio?1:0,r.residenza?1:0,t(r.replicaOf),j(r.collab&&r.collab.length?r.collab:''),j(r.mails&&r.mails.length?r.mails:''),j(r.contatti&&r.contatti.length?r.contatti:''),t(r.accordi),j(r.prod||''),j(r.rifatt&&r.rifatt.modo?{m:r.rifatt.modo,v:r.rifatt.voci}:'')].join('\u0001');
   let h=5381; for(let i=0;i<k.length;i++) h=((h<<5)+h+k.charCodeAt(i))|0; return (h>>>0).toString(36)+k.length.toString(36);
 }
 function _syncBaseLeggi(){ try{ return JSON.parse(ld('syncBase','{}'))||{}; }catch(e){ return {}; } }
@@ -7337,7 +7370,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v183</span>
+    <span>Report generato da GammaFucker v184</span>
   </div>
   </body></html>`;
 
@@ -7443,7 +7476,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v183</span>
+    <span>Report generato da GammaFucker v184</span>
   </div>
   </body></html>`;
 
@@ -7497,6 +7530,7 @@ function _reportSpettacoli(lista, descrizione, opts){
           <div style="font-size:11px;font-weight:700;">${esc(s.spett)}${multi?' <span style="font-size:9px;font-weight:600;color:#7c3aed;">· '+g.giorni.length+' giornate</span>':''}</div>
           <div style="font-size:9px;color:#6b7280;">${esc(s.teatro||'')}${s.manif?' · <span style="color:'+(s.manif==='GESTIONE'?'#db2777':'#7c3aed')+';">'+esc(_manifLabel(s.manif))+'</span>':''}</div>
           ${s.accordi?`<div style="margin-top:4px;padding:4px 8px;background:#eff6ff;border-left:3px solid #3b82f6;border-radius:3px;font-size:9.5px;color:#1e40af;">📋 ${esc(s.accordi)}</div>`:''}
+          ${s.manif==='GESTIONE'?'':_rifattReportHtml(g.giorni)}
         </td>
         <td style="padding:6px 10px;font-size:9.5px;color:#374151;vertical-align:top;">${multi?'<span style="color:#9ca3af;">vedi giornate</span>':cellaFatt(s)}</td>
         ${multi?`<td style="padding:6px 10px;font-size:10px;text-align:right;white-space:nowrap;vertical-align:top;font-weight:700;color:${g.giorni.every(x=>!x.totale||x.fatturato)?'#059669':'#1a1a2e'};">${fmt(totG)}<div style="font-size:8px;font-weight:600;color:#6b7280;">totale giornate</div></td>`:cellaImp(s)}
@@ -7536,10 +7570,12 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val">${spett.length}</div><div class="sum-lbl">Spettacoli</div></div>
     <div class="sum-item"><div class="sum-val">${Object.keys(perCitta).length}</div><div class="sum-lbl">Città</div></div>
     <div class="sum-item"><div class="sum-val">${fmt(totale)}</div><div class="sum-lbl">Totale previsto</div></div>
+    ${(()=>{ const gr=_raggruppaGiornate(spett).filter(g=>g.s.manif!=='GESTIONE'); const cc=gr.map(g=>_rifattConti(g.giorni)).filter(c=>c.si.length||c.no.length); const tot=cc.filter(c=>c.R).reduce((a,c)=>a+c.totSi,0); const nd=cc.filter(c=>!c.R).length;
+      return `<div class="sum-item"><div class="sum-val" style="color:#059669;">${fmt(tot)}</div><div class="sum-lbl">Da rifatturare</div></div>`+(nd?`<div class="sum-item"><div class="sum-val" style="color:#dc2626;">${nd}</div><div class="sum-lbl">⚠️ chi paga da definire</div></div>`:''); })()}
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v183</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v184</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7612,7 +7648,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v183</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v184</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -10207,18 +10243,19 @@ function excelSettimana(){
   if(typeof XLSX==='undefined'){ toast('Libreria Excel non caricata: riprova tra un attimo', true); return; }
   const r=_settRange(); const gruppi=_raggruppaGiornate(lista);
   const fd=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch{ return d; } };
-  const aoa=[['Spese da rifatturare · settimana '+fd(r.da)+' – '+fd(r.a)],[],['Dal','Al','Spettacolo','Città','Teatro','Tipo','Giornate','Prestazioni tecniche','Voci fornitori / note','Accordi','Importo €','Fatturato']];
+  const aoa=[['Spese da rifatturare · settimana '+fd(r.da)+' – '+fd(r.a)],[],['Dal','Al','Spettacolo','Città','Teatro','Tipo','Giornate','Prestazioni tecniche','Voci fornitori / note','Accordi','Importo €','Fatturato','Chi paga','Da rifatturare €','Non rifatturare €']];
   gruppi.forEach(g=>{ const s=g.s; const gg=g.giorni; const tot=gg.reduce((a,x)=>a+(+x.totale||0),0);
     const prest=gg.map(x=>(gg.length>1?fd(x.data).slice(0,5)+': ':'')+_fatturazioneTesto(x)).filter(x=>!/: $/.test(x)&&x).join('\n');
     const note=gg.flatMap(x=>_settNoteDi(x).map(n=>(gg.length>1?fd(x.data).slice(0,5)+': ':'')+n)).join('\n');
     const acc=[...new Set(gg.map(x=>x.accordi).filter(Boolean))].join('\n');
     const fat=gg.filter(x=>+x.totale).length?(gg.filter(x=>+x.totale).every(x=>x.fatturato)?'sì':gg.some(x=>+x.totale&&x.fatturato)?'in parte':'no'):'';
-    aoa.push([new Date(gg[0].data+'T00:00:00'), new Date(gg[gg.length-1].data+'T00:00:00'), s.spett, s.citta, s.teatro||'', s.manif||'', gg.length, prest, note, acc, tot, fat]); });
-  const n=aoa.length; aoa.push([]); aoa.push(['','','','','','','','','','TOTALE',{f:`SUM(K4:K${n})`},'']);
+    const rc=_rifattConti(gg);
+    aoa.push([new Date(gg[0].data+'T00:00:00'), new Date(gg[gg.length-1].data+'T00:00:00'), s.spett, s.citta, s.teatro||'', s.manif||'', gg.length, prest, note, acc, tot, fat, s.manif==='GESTIONE'?'':(rc.R?_rifattEtichetta(rc.R).txt:'⚠ DA DEFINIRE'), rc.R?rc.totSi:'', rc.R?rc.totNo:'']); });
+  const n=aoa.length; aoa.push([]); aoa.push(['','','','','','','','','','TOTALE',{f:`SUM(K4:K${n})`},'','',{f:`SUM(N4:N${n})`},{f:`SUM(O4:O${n})`}]);
   const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true});
-  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:11}}];
-  ws['!cols']=[{wch:11},{wch:11},{wch:30},{wch:14},{wch:22},{wch:10},{wch:8},{wch:40},{wch:48},{wch:30},{wch:12},{wch:9}];
-  Object.keys(ws).forEach(k=>{ if(k[0]==='!') return; const c=ws[k]; const {r:rr,c:cc}=XLSX.utils.decode_cell(k); if(rr<3) return; if(cc<=1 && c.v instanceof Date){ c.t='d'; c.z='dd/mm/yyyy'; } if(cc===10){ c.z='#,##0.00'; } if(cc===7||cc===8||cc===9) c.s={alignment:{wrapText:true}}; });
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:14}}];
+  ws['!cols']=[{wch:11},{wch:11},{wch:30},{wch:14},{wch:22},{wch:10},{wch:8},{wch:40},{wch:48},{wch:30},{wch:12},{wch:9},{wch:28},{wch:14},{wch:14}];
+  Object.keys(ws).forEach(k=>{ if(k[0]==='!') return; const c=ws[k]; const {r:rr,c:cc}=XLSX.utils.decode_cell(k); if(rr<3) return; if(cc<=1 && c.v instanceof Date){ c.t='d'; c.z='dd/mm/yyyy'; } if(cc===10||cc===13||cc===14){ c.z='#,##0.00'; } if(cc===7||cc===8||cc===9) c.s={alignment:{wrapText:true}}; });
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Settimana');
   XLSX.writeFile(wb, 'spese_settimana_'+r.da+'_'+r.a+'.xlsx');
 }
@@ -10652,6 +10689,100 @@ async function _avvisaFatturaElaborata(forn, num, extra){
   try{ const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'sendEmail', to, subject:'Fattura '+(N?N+' ':'')+F+' elaborata', message:corpo})});
     const j=await r.json(); if(j.result==='sent') toast('📨 Avviso inviato a '+to); else throw new Error(j.error||j.result||'?');
   }catch(e){ toast('Avviso fattura non inviato: '+e.message, true); }
+}
+
+// ══ CHI PAGA: cosa si rifattura alla compagnia ══
+// Una scelta per spettacolo (vale per premontaggio, repliche, residenza), salvata sullo spettacolo principale
+// in s.rifatt = {modo:'tutto'|'niente'|'parte', voci:{m,e,fo,sa,f,srv,alt}} (colonna RIFATT_JSON del foglio).
+// Nel report all'amministrazione ogni voce finisce in DA RIFATTURARE o NON RIFATTURARE; senza scelta: "da definire".
+const RIF_VOCI=[['m','Macchinisti'],['e','Elettricisti'],['fo','Fonici'],['sa','Sarte'],['f','Facchini'],['srv','Service / noleggi'],['alt','Altre spese']];
+const _RIF_TEC={m:['nm','tm'], e:['ne','te'], fo:['nfo','tfo'], sa:['nsa','tsa'], f:['nf','tf']};
+function _rifattDi(s){ const m=_principaleDi(s)||s; if(m.rifatt && m.rifatt.modo) return m.rifatt; const g=_gruppoDi(m).find(x=>x.rifatt && x.rifatt.modo); return g?g.rifatt:null; }
+function _rifattPaga(R, cat){ if(!R) return null; if(R.modo==='tutto') return true; if(R.modo==='niente') return false; return !!(R.voci||{})[cat]; }
+function _rifattEtichetta(R){
+  if(!R) return {txt:'da definire', col:'#ef4444'};
+  if(R.modo==='tutto') return {txt:'tutto alla compagnia', col:'#10b981'};
+  if(R.modo==='niente') return {txt:'niente (a carico nostro)', col:'#94a3b8'};
+  const si=RIF_VOCI.filter(([k])=>(R.voci||{})[k]).map(([,l])=>l.toLowerCase());
+  return {txt:'in parte: '+(si.length?si.join(', '):'nessuna voce'), col:'#f59e0b'};
+}
+// voci di costo di una giornata: prestazioni tecniche per figura + righe di fattura dei fornitori (per servizio)
+function _rifattCategoria(riga){
+  const srv=_estraiServizio({descrizione:riga, nota_originale:riga}).toLowerCase();
+  if(/facchin|movimentaz/.test(srv)) return 'f';
+  if(/service|noleggi|luci|audio|fonic|video|elettric|macchinist|tecnic|attrezz|antincend|controllo accessi|pulizi/.test(srv)) return 'srv';
+  return 'alt';
+}
+function _rifattVoci(x){
+  const out=[];
+  Object.entries(_RIF_TEC).forEach(([cat,[n,t]])=>{ const N=+x[n]||0; if(N>0) out.push({cat, testo:_prest(N, cat==='m'?'m':cat==='e'?'e':cat==='fo'?'fo':cat==='sa'?'sa':'f')+(+x[t]>0?' × €'+(+x[t]).toLocaleString('it-IT'):''), imp:N*(+x[t]||0), data:x.data}); });
+  (x.note||'').split('|').map(l=>l.trim()).filter(l=>/^Fattura\s+n/i.test(l)).forEach(l=>{ const p=_parsaNota(l); const imp=+(p.serv||p.costo)||0; if(!imp) return;
+    out.push({cat:_rifattCategoria(l), testo:(p.forn&&p.forn!=='—'?p.forn+' ':'')+(/^PREV/i.test(p.numFatt||'')?'(previsione) ':'n.'+p.numFatt+' ')+'· '+_estraiServizio({descrizione:l, nota_originale:l}), imp, data:x.data}); });
+  return out;
+}
+function _rifattConti(giorni){
+  const s=giorni[0]; const R=_rifattDi(s); const si=[], no=[];
+  giorni.forEach(x=>_rifattVoci(x).forEach(v=>{ const p=_rifattPaga(R, v.cat); (p===false?no:si).push(v); }));
+  return {R, si, no, totSi:si.reduce((a,v)=>a+v.imp,0), totNo:no.reduce((a,v)=>a+v.imp,0)};
+}
+// riconosce dagli accordi del gestionale una scelta da proporre (da confermare)
+function _rifattDaAccordi(t){
+  const a=_normTxt(t||''); if(!a) return null;
+  if(/TUTTO A CARICO (DELLA )?COMPAGNIA|TUTTI I COSTI A CARICO (DELLA )?COMPAGNIA|INTERAMENTE A CARICO (DELLA )?COMPAGNIA/.test(a)) return {modo:'tutto', voci:{}};
+  if(/NESSUN COSTO|NULLA DA RIFATTURARE|NON SI RIFATTURA|TUTTO A CARICO (DI )?AMAT|TUTTO A CARICO (DEL )?TEATRO/.test(a)) return {modo:'niente', voci:{}};
+  const parole={m:/MACCHINIST/, e:/ELETTRICIST/, fo:/FONIC|AUDIO/, sa:/SART/, f:/FACCHIN/, srv:/SERVICE|NOLEGG/};
+  const voci={}; let trovato=false;
+  String(t).split(/[.;\n]|,(?=[^,]*a carico)| e (?=\S+ a carico)/i).map(_normTxt).forEach(fr=>{ if(!/A CARICO|CARICO DELLA|RIFATTUR/.test(fr)) return; const comp=/COMPAGNIA|RIFATTUR/.test(fr) && !/AMAT|TEATRO|NOSTR/.test(fr);
+    Object.entries(parole).forEach(([k,re])=>{ if(re.test(fr) || (/TECNICI/.test(fr) && /^(m|e|fo|sa)$/.test(k))){ voci[k]=comp; trovato=true; } }); });
+  return trovato ? {modo:'parte', voci} : null;
+}
+let _rfId=null, _rfModo=null;
+function apriChiPaga(id){
+  const s=data.find(x=>String(x.id)===String(id)); if(!s) return; const m=_principaleDi(s)||s; _rfId=m.id;
+  const R=_rifattDi(m)||{modo:'', voci:{}}; _rfModo=R.modo||'';
+  document.getElementById('rf-titolo').textContent=m.spett+' · '+m.citta+' · '+_prodFmtD(m.data);
+  RIF_VOCI.forEach(([k])=>{ document.getElementById('rf-v-'+k).checked=!!(R.voci||{})[k]; });
+  const sug=_rifattDaAccordi([m.accordi, ..._gruppoDi(m).map(x=>x.accordi)].filter(Boolean).join('. '));
+  const boxS=document.getElementById('rf-sugg');
+  if(sug && !_rifattDi(m)){ boxS.innerHTML=`💡 Dagli accordi: <b>${_rifattEtichetta(sug).txt}</b> <button class="iBtn" style="font-size:10px;padding:1px 8px;" onclick='_rfUsa(${JSON.stringify(sug)})'>usa</button>`; boxS.style.display='block'; } else boxS.style.display='none';
+  document.getElementById('rf-accordi').textContent=m.accordi?'📋 '+m.accordi:'';
+  _rfRender(); document.getElementById('rf-ov').classList.add('open');
+}
+function _rfUsa(sug){ _rfModo=sug.modo; RIF_VOCI.forEach(([k])=>{ document.getElementById('rf-v-'+k).checked=!!(sug.voci||{})[k]; }); _rfRender(); }
+function _rfModoSet(m){ _rfModo=m; _rfRender(); }
+function _rfRender(){
+  ['tutto','niente','parte'].forEach(m=>{ const b=document.getElementById('rf-b-'+m); b.style.outline=_rfModo===m?'2px solid #fbbf24':'none'; b.style.opacity=_rfModo&&_rfModo!==m?'.55':'1'; });
+  document.getElementById('rf-voci').style.display=_rfModo==='parte'?'grid':'none';
+}
+function salvaChiPaga(){
+  const m=data.find(x=>String(x.id)===String(_rfId)); if(!m) return;
+  if(!_rfModo){ toast('Scegli tutto, niente o in parte', true); return; }
+  const voci={}; RIF_VOCI.forEach(([k])=>{ voci[k]=document.getElementById('rf-v-'+k).checked; });
+  m.rifatt={modo:_rfModo, voci:_rfModo==='parte'?voci:{}, ts:new Date().toISOString()};
+  _gruppoDi(m).forEach(x=>{ if(x!==m && x.rifatt){ delete x.rifatt; x.ts=new Date().toISOString(); } });   // una sola scelta, sul principale
+  m.ts=new Date().toISOString(); sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000;
+  try{ _logModifica('modifica', 'Chi paga — '+m.spett+': '+_rifattEtichetta(m.rifatt).txt); }catch(e){}
+  renderList(); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
+  document.getElementById('rf-ov').classList.remove('open'); toast('💶 '+m.spett+': '+_rifattEtichetta(m.rifatt).txt);
+}
+function _rifattChip(s){
+  if(IS_COLLAB && !_rifattDi(s)) return '';
+  const R=_rifattDi(s); const e=_rifattEtichetta(R);
+  return `<span class="tag" style="cursor:${IS_COLLAB?'default':'pointer'};color:${e.col};border-color:${e.col}66;background:${e.col}14;" ${IS_COLLAB?'':`onclick="event.stopPropagation();apriChiPaga(${s.id})"`} title="Chi paga: cosa si rifattura alla compagnia">💶 ${e.txt}</span>`;
+}
+// blocco per il report all'amministrazione
+function _rifattReportHtml(giorni){
+  const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const c=_rifattConti(giorni); if(!c.si.length && !c.no.length) return '';
+  const e=_rifattEtichetta(c.R); const eur=v=>'€ '+(+v||0).toLocaleString('it-IT',{minimumFractionDigits:2});
+  const multi=giorni.length>1; const gg=d=>d.slice(8,10)+'/'+d.slice(5,7)+' ';
+  const riga=(v,grigio)=>`<div style="display:flex;justify-content:space-between;gap:10px;${grigio?'color:#9ca3af;':''}"><span>${multi?gg(v.data):''}${esc(RIF_VOCI.find(([k])=>k===v.cat)[1])}: ${esc(v.testo)}</span><span style="white-space:nowrap;">${v.imp?eur(v.imp):''}</span></div>`;
+  if(!c.R) return `<div style="margin-top:5px;padding:5px 8px;border:2px solid #ef4444;border-radius:4px;background:#fef2f2;font-size:9.5px;color:#991b1b;"><b>⚠️ CHI PAGA DA DEFINIRE</b> — non rifatturare finché non è indicato.<div style="color:#6b7280;margin-top:2px;">${c.si.map(v=>riga(v,true)).join('')}</div></div>`;
+  return `<div style="margin-top:5px;font-size:9.5px;">
+    <div style="font-weight:700;color:${e.col==='#94a3b8'?'#475569':e.col};margin-bottom:2px;">💶 ${esc(e.txt)}</div>
+    ${c.si.length?`<div style="padding:4px 8px;border-left:3px solid #059669;background:#ecfdf5;border-radius:3px;"><div style="font-weight:800;color:#065f46;letter-spacing:.04em;">DA RIFATTURARE · ${eur(c.totSi)}</div>${c.si.map(v=>riga(v)).join('')}</div>`:''}
+    ${c.no.length?`<div style="margin-top:3px;padding:4px 8px;border-left:3px solid #cbd5e1;background:#f8fafc;border-radius:3px;"><div style="font-weight:800;color:#64748b;letter-spacing:.04em;">NON RIFATTURARE (a carico AMAT) · ${eur(c.totNo)}</div>${c.no.map(v=>riga(v,true)).join('')}</div>`:''}
+  </div>`;
 }
 
 // ══ LAVORA SCHEDA: aiuti richiesti dalla scheda → numeri nelle giornate (premontaggio / recite / repliche) ══

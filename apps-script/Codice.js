@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v192 ──
+// ── SPETTACOLI APP SCRIPT v193 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -240,7 +240,7 @@ function doPost(e) {
     var header = ['ID','DATA','CITTA','TEATRO','SPETTACOLO','MANIFESTAZIONE',
       'N.MACC','TAR.MACC','SUB.MACC','N.ELETT','TAR.ELETT','SUB.ELETT',
       'N.FACC','TAR.FACC','SUB.FACC','N.FONI','TAR.FONI','SUB.FONI',
-      'N.SART','TAR.SART','SUB.SART','TOTALE','NOTE','FATTURATO','PREMONTAGGIO','COLLAB_JSON','REPLICA_OF','MAILS_JSON','CONTATTI_JSON','ACCORDI','PROD_JSON'];
+      'N.SART','TAR.SART','SUB.SART','TOTALE','NOTE','FATTURATO','PREMONTAGGIO','COLLAB_JSON','REPLICA_OF','MAILS_JSON','CONTATTI_JSON','ACCORDI','PROD_JSON','RIFATT_JSON'];
     // Difesa dal "locale vince": le rinomine/correzioni del giornale si applicano anche ai dati in arrivo
     var G1 = _mappeGiornale(ss);
     if (G1.n) body.data.forEach(function(r){ _giornaleRiga(r, G1); });
@@ -253,7 +253,7 @@ function doPost(e) {
         r.n_facc,r.tariffa_facc,r.sub_facc,
         r.n_foni||0,r.tariffa_foni||0,r.sub_foni||0,
         r.n_sart||0,r.tariffa_sart||0,r.sub_sart||0,
-        r.totale,r.note,r.fatturato,r.premontaggio||'NO',r.collab_json||'',r.replica_of||'',r.mails_json||'',r.contatti_json||'',r.accordi||'',r.prod_json||''];
+        r.totale,r.note,r.fatturato,r.premontaggio||'NO',r.collab_json||'',r.replica_of||'',r.mails_json||'',r.contatti_json||'',r.accordi||'',r.prod_json||'',r.rifatt_json||''];
     });
     if(rows.length) sh.getRange(2,1,rows.length,header.length).setValues(rows);
     return resp('ok: '+rows.length+' righe');
