@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v185</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v186</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -921,30 +921,23 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
     </div>
   </div>
 </div>
-<!-- ══ CHI PAGA: cosa si rifattura alla compagnia ══ -->
+<!-- ══ CHI PAGA: tutte le voci esplose, spunta = a carico della compagnia (da rifatturare) ══ -->
 <div class="mover" id="rf-ov" onclick="if(event.target===this)this.classList.remove('open')">
-  <div class="modal" style="max-width:460px;">
+  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto;">
     <div class="mtitle">💶 Chi paga</div>
-    <div id="rf-titolo" style="font-size:12px;color:var(--text2);margin-bottom:6px;"></div>
-    <div id="rf-accordi" style="font-size:11px;color:#60a5fa;margin-bottom:6px;"></div>
-    <div id="rf-sugg" style="display:none;font-size:11px;margin-bottom:8px;padding:6px 8px;border:1px dashed rgba(251,191,36,.5);border-radius:6px;"></div>
-    <div style="font-size:10px;color:var(--text3);margin-bottom:6px;">Vale per tutto lo spettacolo: premontaggio, repliche, residenza.</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;">
-      <button class="btn btn-o" id="rf-b-tutto" style="flex:1;color:#10b981;border-color:rgba(16,185,129,.5);" onclick="_rfModoSet('tutto')">Tutto alla compagnia</button>
-      <button class="btn btn-o" id="rf-b-niente" style="flex:1;" onclick="_rfModoSet('niente')">Niente (a carico nostro)</button>
-      <button class="btn btn-o" id="rf-b-parte" style="flex:1;color:#f59e0b;border-color:rgba(245,158,11,.5);" onclick="_rfModoSet('parte')">In parte</button>
+    <div id="rf-titolo" style="font-size:12px;color:var(--text2);margin-bottom:4px;"></div>
+    <div id="rf-accordi" style="font-size:11px;color:#60a5fa;margin-bottom:4px;"></div>
+    <div id="rf-sugg" style="display:none;font-size:11px;margin-bottom:6px;padding:6px 8px;border:1px dashed rgba(251,191,36,.5);border-radius:6px;"></div>
+    <div id="rf-stato" style="font-size:11px;margin-bottom:4px;"></div>
+    <div style="font-size:10px;color:var(--text3);margin-bottom:6px;">Spunta = a carico della compagnia (da rifatturare). Vale per tutte le giornate dello spettacolo.</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+      <button class="btn btn-o btn-sm" style="color:#10b981;border-color:rgba(16,185,129,.5);" onclick="_rfTutti(true);window._rfVuotoModo='tutto'">✓ Tutto alla compagnia</button>
+      <button class="btn btn-o btn-sm" onclick="_rfTutti(false);window._rfVuotoModo='niente'">✗ Niente (a carico nostro)</button>
     </div>
-    <div id="rf-voci" style="display:none;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:10px;font-size:12px;">
-      <div style="grid-column:1/-1;font-size:10px;color:var(--text3);">Spunta le voci che paga la compagnia (da rifatturare):</div>
-      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="rf-v-m" style="width:16px;height:16px;"> Macchinisti</label>
-      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="rf-v-e" style="width:16px;height:16px;"> Elettricisti</label>
-      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="rf-v-fo" style="width:16px;height:16px;"> Fonici</label>
-      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="rf-v-sa" style="width:16px;height:16px;"> Sarte</label>
-      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="rf-v-f" style="width:16px;height:16px;"> Facchini</label>
-      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="rf-v-srv" style="width:16px;height:16px;"> Service / noleggi</label>
-      <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="rf-v-alt" style="width:16px;height:16px;"> Altre spese</label>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:14px;">
+    <div id="rf-cats" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;"></div>
+    <div id="rf-lista"></div>
+    <div id="rf-tot" style="margin-top:10px;font-size:12px;"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
       <button class="btn btn-p" style="flex:1;" onclick="salvaChiPaga()">✓ Salva</button>
       <button class="btn btn-o" onclick="document.getElementById('rf-ov').classList.remove('open')">Annulla</button>
     </div>
@@ -3776,10 +3769,13 @@ function aggiungiReplica(id){
 // Finestrella sotto il totale del gruppo: prestazioni sommate per tipologia + una riga per giornata (colpo d'occhio)
 function _riassuntoPrestHtml(giorni){
   const tot=_prestGruppo(giorni); if(!tot) return '';
+  const click=IS_COLLAB?'':` onclick="event.stopPropagation();apriChiPaga(${giorni[0].id})" title="Tocca: chi paga, voce per voce" `;
   const fmt=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short'}); }catch{ return d; } };
   const sig=x=>[['nm','M'],['ne','E'],['nfo','Fo'],['nsa','Sa'],['nf','F']].filter(([k])=>+x[k]>0).map(([k,l])=>`<b>${+x[k]}</b>${l}`).join(' · ');
   const righe=giorni.filter(x=>sig(x)).map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;"><span style="color:var(--text3);">${x.residenza?'🏠':x.premontaggio?'🔧':x.replicaOf?'🔁':'🎭'} ${fmt(x.data)}</span><span>${sig(x)}</span></div>`).join('');
-  return `<div style="margin:4px 0 8px auto;max-width:280px;font-size:10px;line-height:1.5;padding:5px 9px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:6px;">
+  const R=_rifattDi(giorni[0]); const e=_rifattEtichetta(R);
+  return `<div${click} style="margin:4px 0 8px auto;max-width:280px;font-size:10px;line-height:1.5;padding:5px 9px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:6px;${IS_COLLAB?'':'cursor:pointer;'}">
+    ${IS_COLLAB&&!R?'':`<div style="font-size:9px;font-weight:700;color:${e.col};margin-bottom:2px;">💶 ${e.txt}</div>`}
     <div style="color:var(--green);font-weight:700;margin-bottom:2px;">${tot.split(' · ').map(x=>x.replace(/</g,'&lt;')).join('<br>')}</div>${righe}
     <div style="font-size:8px;color:var(--text3);letter-spacing:.05em;">M macchinista · E elettricista · Fo fonico · Sa sarta · F facchinaggio</div></div>`;
 }
@@ -7379,7 +7375,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v185</span>
+    <span>Report generato da GammaFucker v186</span>
   </div>
   </body></html>`;
 
@@ -7485,7 +7481,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v185</span>
+    <span>Report generato da GammaFucker v186</span>
   </div>
   </body></html>`;
 
@@ -7584,7 +7580,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v185</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v186</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7657,7 +7653,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v185</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v186</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -10236,6 +10232,7 @@ function renderSettimana(){
         <b style="color:var(--gold);">${multi?fmt(g.giorni[0].data)+' → '+fmt(g.giorni[g.giorni.length-1].data):tipo(s)+' '+fmt(s.data)}</b> <b>${esc(s.spett)}</b> <span style="color:var(--text2);">· ${esc(s.citta)}${s.teatro?' · '+esc(s.teatro):''}</span>${s.manif?' <span style="font-size:9px;color:'+(s.manif==='GESTIONE'?_GEST_COL:'var(--purple)')+';">'+esc(_manifLabel(s.manif))+'</span>':''}
         ${multi?`<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(124,58,237,.18);color:#c4b5fd;">${g.giorni.length} giornate</span>`:''}
         <span style="flex:1;"></span>
+        ${s.manif==='GESTIONE'?'':_rifattChip(s)}
         ${totG>0?`<b style="color:${tuttiFat?'var(--green)':'var(--text)'};">${eur(totG)}</b>`:''}
         ${multi?'':bottoni(s)}
       </div>
@@ -10707,11 +10704,13 @@ async function _avvisaFatturaElaborata(forn, num, extra){
 const RIF_VOCI=[['m','Macchinisti'],['e','Elettricisti'],['fo','Fonici'],['sa','Sarte'],['f','Facchini'],['srv','Service / noleggi'],['alt','Altre spese']];
 const _RIF_TEC={m:['nm','tm'], e:['ne','te'], fo:['nfo','tfo'], sa:['nsa','tsa'], f:['nf','tf']};
 function _rifattDi(s){ const m=_principaleDi(s)||s; if(m.rifatt && m.rifatt.modo) return m.rifatt; const g=_gruppoDi(m).find(x=>x.rifatt && x.rifatt.modo); return g?g.rifatt:null; }
-function _rifattPaga(R, cat){ if(!R) return null; if(R.modo==='tutto') return true; if(R.modo==='niente') return false; return !!(R.voci||{})[cat]; }
+function _rifattPaga(R, cat, key){ if(!R) return null; if(key && R.sel && Object.prototype.hasOwnProperty.call(R.sel, key)) return !!R.sel[key]; if(R.modo==='tutto') return true; if(R.modo==='niente') return false; return !!(R.voci||{})[cat]; }
+function _rifattChiaveNota(l){ return _normTxt(String(l).replace(/^Fattura\s+n\.?\s*\S+\s+/i,'').replace(/\s*\(preconsuntivo [^)]*\)/i,'').replace(/\s*\(fuori preconsuntivo\)/i,'')).slice(0,80); }
 function _rifattEtichetta(R){
   if(!R) return {txt:'da definire', col:'#ef4444'};
   if(R.modo==='tutto') return {txt:'tutto alla compagnia', col:'#10b981'};
   if(R.modo==='niente') return {txt:'niente (a carico nostro)', col:'#94a3b8'};
+  if(R.sel && Object.keys(R.sel).length) return {txt:'in parte (voce per voce)', col:'#f59e0b'};
   const si=RIF_VOCI.filter(([k])=>(R.voci||{})[k]).map(([,l])=>l.toLowerCase());
   return {txt:'in parte: '+(si.length?si.join(', '):'nessuna voce'), col:'#f59e0b'};
 }
@@ -10724,14 +10723,14 @@ function _rifattCategoria(riga){
 }
 function _rifattVoci(x){
   const out=[];
-  Object.entries(_RIF_TEC).forEach(([cat,[n,t]])=>{ const N=+x[n]||0; if(N>0) out.push({cat, testo:_prest(N, cat==='m'?'m':cat==='e'?'e':cat==='fo'?'fo':cat==='sa'?'sa':'f')+(+x[t]>0?' × €'+(+x[t]).toLocaleString('it-IT'):''), imp:N*(+x[t]||0), data:x.data}); });
+  Object.entries(_RIF_TEC).forEach(([cat,[n,t]])=>{ const N=+x[n]||0; if(N>0) out.push({cat, key:x.id+'|'+cat, testo:_prest(N, cat==='m'?'m':cat==='e'?'e':cat==='fo'?'fo':cat==='sa'?'sa':'f')+(+x[t]>0?' × €'+(+x[t]).toLocaleString('it-IT'):''), imp:N*(+x[t]||0), data:x.data}); });
   (x.note||'').split('|').map(l=>l.trim()).filter(l=>/^Fattura\s+n/i.test(l)).forEach(l=>{ const p=_parsaNota(l); const imp=+(p.serv||p.costo)||0; if(!imp) return;
-    out.push({cat:_rifattCategoria(l), testo:(p.forn&&p.forn!=='—'?p.forn+' ':'')+(/^PREV/i.test(p.numFatt||'')?'(previsione) ':'n.'+p.numFatt+' ')+'· '+_estraiServizio({descrizione:l, nota_originale:l}), imp, data:x.data}); });
+    out.push({cat:_rifattCategoria(l), key:x.id+'|n|'+_rifattChiaveNota(l), testo:(p.forn&&p.forn!=='—'?p.forn+' ':'')+(/^PREV/i.test(p.numFatt||'')?'(previsione) ':'n.'+p.numFatt+' ')+'· '+_estraiServizio({descrizione:l, nota_originale:l}), imp, data:x.data}); });
   return out;
 }
 function _rifattConti(giorni){
   const s=giorni[0]; const R=_rifattDi(s); const si=[], no=[];
-  giorni.forEach(x=>_rifattVoci(x).forEach(v=>{ const p=_rifattPaga(R, v.cat); (p===false?no:si).push(v); }));
+  giorni.forEach(x=>_rifattVoci(x).forEach(v=>{ const p=_rifattPaga(R, v.cat, v.key); (p===false?no:si).push(v); }));
   return {R, si, no, totSi:si.reduce((a,v)=>a+v.imp,0), totNo:no.reduce((a,v)=>a+v.imp,0)};
 }
 // riconosce dagli accordi del gestionale una scelta da proporre (da confermare)
@@ -10745,33 +10744,54 @@ function _rifattDaAccordi(t){
     Object.entries(parole).forEach(([k,re])=>{ if(re.test(fr) || (/TECNICI/.test(fr) && /^(m|e|fo|sa)$/.test(k))){ voci[k]=comp; trovato=true; } }); });
   return trovato ? {modo:'parte', voci} : null;
 }
-let _rfId=null, _rfModo=null;
+let _rfId=null, _rfVoci=[], _rfSel={};
 function apriChiPaga(id){
-  const s=data.find(x=>String(x.id)===String(id)); if(!s) return; const m=_principaleDi(s)||s; _rfId=m.id;
-  const R=_rifattDi(m)||{modo:'', voci:{}}; _rfModo=R.modo||'';
-  document.getElementById('rf-titolo').textContent=m.spett+' · '+m.citta+' · '+_prodFmtD(m.data);
-  RIF_VOCI.forEach(([k])=>{ document.getElementById('rf-v-'+k).checked=!!(R.voci||{})[k]; });
-  const sug=_rifattDaAccordi([m.accordi, ..._gruppoDi(m).map(x=>x.accordi)].filter(Boolean).join('. '));
-  const boxS=document.getElementById('rf-sugg');
-  if(sug && !_rifattDi(m)){ boxS.innerHTML=`💡 Dagli accordi: <b>${_rifattEtichetta(sug).txt}</b> <button class="iBtn" style="font-size:10px;padding:1px 8px;" onclick='_rfUsa(${JSON.stringify(sug)})'>usa</button>`; boxS.style.display='block'; } else boxS.style.display='none';
-  document.getElementById('rf-accordi').textContent=m.accordi?'📋 '+m.accordi:'';
+  const s0=data.find(x=>String(x.id)===String(id)); if(!s0) return; const m=_principaleDi(s0)||s0; _rfId=m.id;
+  const giorni=[m, ..._gruppoDi(m).filter(x=>x!==m && (x.premontaggio||x.replicaOf||x.residenza))].sort((a,b)=>a.data.localeCompare(b.data));
+  const R=_rifattDi(m); _rfVoci=[]; giorni.forEach(x=>_rifattVoci(x).forEach(v=>{ v.giorno=x; _rfVoci.push(v); }));
+  _rfSel={}; _rfVoci.forEach(v=>{ const p=_rifattPaga(R, v.cat, v.key); _rfSel[v.key]=p===null?false:p; });
+  document.getElementById('rf-titolo').textContent=m.spett+' · '+m.citta+' · '+_prodFmtD(m.data)+(giorni.length>1?' · '+giorni.length+' giornate':'');
+  document.getElementById('rf-accordi').textContent=[...new Set(giorni.map(x=>x.accordi).filter(Boolean))].map(a=>'📋 '+a).join('  ');
+  const sug=_rifattDaAccordi(giorni.map(x=>x.accordi).filter(Boolean).join('. ')); const boxS=document.getElementById('rf-sugg');
+  if(sug && !R){ boxS.innerHTML=`💡 Dagli accordi: <b>${_rifattEtichetta(sug).txt}</b> <button class="iBtn" style="font-size:10px;padding:1px 8px;" onclick='_rfUsa(${JSON.stringify(sug)})'>usa</button>`; boxS.style.display='block'; } else boxS.style.display='none';
+  document.getElementById('rf-stato').innerHTML=R?'':'<span style="color:#ef4444;">⚠️ Non ancora deciso: scegli e salva.</span>';
   _rfRender(); document.getElementById('rf-ov').classList.add('open');
 }
-function _rfUsa(sug){ _rfModo=sug.modo; RIF_VOCI.forEach(([k])=>{ document.getElementById('rf-v-'+k).checked=!!(sug.voci||{})[k]; }); _rfRender(); }
-function _rfModoSet(m){ _rfModo=m; _rfRender(); }
+function _rfUsa(sug){ _rfVoci.forEach(v=>{ _rfSel[v.key]=_rifattPaga(sug, v.cat)!==false; }); _rfRender(); }
+function _rfTutti(val){ _rfVoci.forEach(v=>_rfSel[v.key]=val); _rfRender(); }
+function _rfCat(cat){ const vv=_rfVoci.filter(v=>v.cat===cat); const tutti=vv.every(v=>_rfSel[v.key]); vv.forEach(v=>_rfSel[v.key]=!tutti); _rfRender(); }
+function _rfVoce(i){ const v=_rfVoci[i]; _rfSel[v.key]=!_rfSel[v.key]; _rfRender(); }
 function _rfRender(){
-  ['tutto','niente','parte'].forEach(m=>{ const b=document.getElementById('rf-b-'+m); b.style.outline=_rfModo===m?'2px solid #fbbf24':'none'; b.style.opacity=_rfModo&&_rfModo!==m?'.55':'1'; });
-  document.getElementById('rf-voci').style.display=_rfModo==='parte'?'grid':'none';
+  const esc=x=>String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;'); const eur=v=>'€ '+(+v||0).toLocaleString('it-IT',{minimumFractionDigits:2});
+  const gg=d=>{ try{ return new Date(d+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short'}); }catch{ return d; } };
+  const cats=RIF_VOCI.filter(([k])=>_rfVoci.some(v=>v.cat===k));
+  document.getElementById('rf-cats').innerHTML=cats.map(([k,l])=>{ const vv=_rfVoci.filter(v=>v.cat===k); const n=vv.filter(v=>_rfSel[v.key]).length; const st=n===vv.length?'✓':n?'◐':'✗';
+    return `<button class="iBtn" style="font-size:11px;padding:3px 9px;${n===vv.length?'color:#10b981;border-color:rgba(16,185,129,.5);':n?'color:#f59e0b;border-color:rgba(245,158,11,.5);':'color:var(--text3);'}" onclick="_rfCat('${k}')">${st} ${esc(l)}</button>`; }).join('');
+  let h='', ultimo='';
+  _rfVoci.forEach((v,i)=>{ const x=v.giorno; if(x.data+x.id!==ultimo){ ultimo=x.data+x.id; h+=`<div style="margin-top:8px;font-size:10px;font-weight:700;color:var(--gold);">${x.residenza?'🏠':x.premontaggio?'🔧':x.replicaOf?'🔁':'🎭'} ${gg(x.data)}</div>`; }
+    const on=!!_rfSel[v.key];
+    h+=`<label style="display:flex;gap:8px;align-items:center;padding:4px 6px;margin-top:2px;border-radius:6px;cursor:pointer;background:${on?'rgba(16,185,129,.08)':'rgba(148,163,184,.05)'};">
+      <input type="checkbox" ${on?'checked':''} onchange="_rfVoce(${i})" style="width:16px;height:16px;flex-shrink:0;">
+      <span style="flex:1;font-size:11px;${on?'':'color:var(--text3);'}"><span style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);">${esc(RIF_VOCI.find(([k])=>k===v.cat)[1])}</span><br>${esc(v.testo)}</span>
+      <b style="font-size:11px;white-space:nowrap;${on?'color:#10b981;':'color:var(--text3);text-decoration:line-through;'}">${v.imp?eur(v.imp):''}</b></label>`; });
+  document.getElementById('rf-lista').innerHTML=h||'<div style="font-size:11px;color:var(--text3);padding:10px 0;">Nessuna voce di costo su questo spettacolo (prestazioni o fatture). Puoi comunque scegliere "tutto" o "niente" per quando arriveranno.</div>';
+  const si=_rfVoci.filter(v=>_rfSel[v.key]).reduce((a,v)=>a+v.imp,0), no=_rfVoci.filter(v=>!_rfSel[v.key]).reduce((a,v)=>a+v.imp,0);
+  document.getElementById('rf-tot').innerHTML=`<span style="color:#10b981;">Da rifatturare <b>${eur(si)}</b></span> · <span style="color:var(--text3);">a carico nostro ${eur(no)}</span>`;
 }
 function salvaChiPaga(){
   const m=data.find(x=>String(x.id)===String(_rfId)); if(!m) return;
-  if(!_rfModo){ toast('Scegli tutto, niente o in parte', true); return; }
-  const voci={}; RIF_VOCI.forEach(([k])=>{ voci[k]=document.getElementById('rf-v-'+k).checked; });
-  m.rifatt={modo:_rfModo, voci:_rfModo==='parte'?voci:{}, ts:new Date().toISOString()};
-  _gruppoDi(m).forEach(x=>{ if(x!==m && x.rifatt){ delete x.rifatt; x.ts=new Date().toISOString(); } });   // una sola scelta, sul principale
+  const tutti=_rfVoci.length && _rfVoci.every(v=>_rfSel[v.key]), nessuno=_rfVoci.every(v=>!_rfSel[v.key]);
+  // categorie: valgono per le voci che arriveranno dopo (nuove fatture, prestazioni aggiunte)
+  const voci={}; RIF_VOCI.forEach(([k])=>{ const vv=_rfVoci.filter(v=>v.cat===k); voci[k]=vv.length?vv.every(v=>_rfSel[v.key]):tutti; });
+  const sel={}; _rfVoci.forEach(v=>sel[v.key]=!!_rfSel[v.key]);
+  m.rifatt = !_rfVoci.length ? (window._rfVuotoModo?{modo:window._rfVuotoModo, voci:{}}:null) : tutti ? {modo:'tutto', voci:{}} : nessuno ? {modo:'niente', voci:{}} : {modo:'parte', voci, sel};
+  if(!m.rifatt){ toast('Nessuna voce: scegli "Tutto" o "Niente"', true); return; }
+  m.rifatt.ts=new Date().toISOString(); window._rfVuotoModo=null;
+  _gruppoDi(m).forEach(x=>{ if(x!==m && x.rifatt){ delete x.rifatt; x.ts=new Date().toISOString(); } });
   m.ts=new Date().toISOString(); sv('spettacoli', data); window._pullBlockUntil=Date.now()+30000;
   try{ _logModifica('modifica', 'Chi paga — '+m.spett+': '+_rifattEtichetta(m.rifatt).txt); }catch(e){}
-  renderList(); if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
+  renderList(); try{ if(document.getElementById('settimana-ov').classList.contains('open')) renderSettimana(); }catch(e){}
+  if(ld('sheetsUrl','')) setTimeout(()=>pushSheets(true),300);
   document.getElementById('rf-ov').classList.remove('open'); toast('💶 '+m.spett+': '+_rifattEtichetta(m.rifatt).txt);
 }
 function _rifattChip(s){
