@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v181</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v182</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -1663,6 +1663,8 @@ function sv(k,v){
   catch(e){
     // memoria del browser piena (~5 MB per sito): tolgo le cache che si possono ricaricare e riprovo
     ['rubrica','rubricaTs','undoFattura','logAggiornamenti'].forEach(x=>{ if(x!==k){ try{ localStorage.removeItem(_lsk(x)); }catch(_){} } });
+    // le copie dell'altra app sullo stesso sito (app collaboratori ↔ principale) si riscaricano dal foglio: vanno via per prime
+    try{ Object.keys(localStorage).forEach(x=>{ if(IS_COLLAB ? !x.startsWith('collab:') && /^(rubrica|undoFattura)$/.test(x) : /^collab:(rubrica|rubricaTs|spettacoli|syncBase)$/.test(x)) localStorage.removeItem(x); }); }catch(_){}
     try{ localStorage.setItem(_lsk(k),txt); }
     catch(e2){ if(!window._avvisoMemoria){ window._avvisoMemoria=1; try{ toast('⚠️ Memoria del browser piena: alcune modifiche non restano salvate sul dispositivo. Apri Config → Diagnostica.', true); }catch(_){} } }
   }
@@ -2705,7 +2707,7 @@ async function caricaRubrica(forza=false){
     const res = await fetch(url+'?action=rubrica'+(forza?'&refresh=1':'')+'&t='+Date.now());
     const j = await res.json();
     if(j.error) throw new Error(j.error);
-    rubrica = j.rubrica||[]; if(JSON.stringify(rubrica).length<400000){ sv('rubrica', rubrica); sv('rubricaTs', Date.now()); } else { try{ localStorage.removeItem(_lsk('rubrica')); }catch(e){} }   // rubrica grande: solo in memoria, non riempie lo spazio dei dati
+    rubrica = j.rubrica||[]; if(!IS_COLLAB && JSON.stringify(rubrica).length<400000){ sv('rubrica', rubrica); sv('rubricaTs', Date.now()); } else { try{ localStorage.removeItem(_lsk('rubrica')); }catch(e){} }   // rubrica grande: solo in memoria, non riempie lo spazio dei dati
     _rubricaStato(); if(forza) toast('✓ Rubrica: '+rubrica.length+' contatti');
   }catch(e){ if(st) st.textContent='rubrica non disponibile: '+e.message; }
 }
@@ -5468,9 +5470,12 @@ REGOLE FORMATO:
 //   rimborso spese senza data       → sommato alla riga di servizio precedente
 let fattAlias = ld('fattAlias', {});   // teatro normalizzato → città (imparato dalle correzioni)
 
+// memoria dei testi già normalizzati: _normTxt è chiamata migliaia di volte sugli stessi titoli/città (lista, gruppi)
+const _ntCache=new Map();
 function _normTxt(s){
-  return String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
-    .replace(/[^A-Z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+  const k=String(s==null?'':s); const c=_ntCache.get(k); if(c!==undefined) return c;
+  const r=k.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+  if(_ntCache.size>30000) _ntCache.clear(); _ntCache.set(k,r); return r;
 }
 const _FATT_STOP = new Set(['IL','LO','LA','I','GLI','LE','DI','DEL','DELLA','DELLE','DEI','DEGLI','DELLO','E','ED','A','AL','ALLA','ALLE','IN','UN','UNA','PER','CON','SU','DA','DAL','DALLA','TEATRO','SPETTACOLO','EVENTO','TITOLO','PRESSO','SCENA','RASSEGNA']);
 function _fattTokens(s){ return _normTxt(s).split(' ').filter(t=>t && t.length>1 && !_FATT_STOP.has(t)); }
@@ -7302,7 +7307,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v181</span>
+    <span>Report generato da GammaFucker v182</span>
   </div>
   </body></html>`;
 
@@ -7408,7 +7413,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v181</span>
+    <span>Report generato da GammaFucker v182</span>
   </div>
   </body></html>`;
 
@@ -7504,7 +7509,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v181</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v182</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7577,7 +7582,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v181</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v182</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -9974,9 +9979,11 @@ function _principaleDi(s){
 }
 // tutte le giornate dello stesso spettacolo nella stessa città (debutto, repliche, premontaggi, residenza),
 // entro 45 giorni l'una dall'altra; titolo confrontato normalizzato (apostrofi, accenti, spazi non contano)
+let _gIdx=null, _gIdxData=null, _gIdxLen=-1;
 function _gruppoDi(s){
+  if(_gIdxData!==data || _gIdxLen!==data.length){ _gIdx=new Map(); data.forEach(x=>{ const t=_normTxt(x.spett); let a=_gIdx.get(t); if(!a){ a=[]; _gIdx.set(t,a); } a.push(x); }); _gIdxData=data; _gIdxLen=data.length; }
   const t=_normTxt(s.spett); const d0=new Date(s.data+'T12:00:00');
-  return data.filter(x=>_normTxt(x.spett)===t && _cittaEq(x.citta,s.citta) && Math.abs(new Date(x.data+'T12:00:00')-d0)<=45*86400000);
+  return (_gIdx.get(t)||[]).filter(x=>x.spett!==undefined && _normTxt(x.spett)===t && _cittaEq(x.citta,s.citta) && Math.abs(new Date(x.data+'T12:00:00')-d0)<=45*86400000);
 }
 // scheda/mail e contatti: unione di tutto il gruppo (dove sono finiti non importa), senza doppioni
 function _mailsDi(s){
@@ -10595,8 +10602,13 @@ async function copiaDiagnostica(){ const t=_diagTesto(); mostraDiagnostica(); tr
 const AVVISO_FATT_DEST='l.battistoni@amat.marche.it';
 function _avvisoCfgInit(){ try{ const on=document.getElementById('cfg-avviso-on'), de=document.getElementById('cfg-avviso-dest'); if(on) on.checked=ld('avvisoFattureOn',true)!==false; if(de) de.value=ld('avvisoFattureDest',AVVISO_FATT_DEST); }catch(e){} }
 setTimeout(_avvisoCfgInit, 800);
+setTimeout(()=>{ try{
+  localStorage.removeItem('collab:rubrica'); localStorage.removeItem('collab:rubricaTs');
+  if(!IS_COLLAB){ let tot=0; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); tot+=(k.length+(localStorage.getItem(k)||'').length)*2; }
+    if(tot>4000*1024){ ['collab:spettacoli','collab:syncBase'].forEach(k=>localStorage.removeItem(k)); sv('spettacoli', data); } }   // spazio stretto: l'app collaboratori riscarica dal foglio
+}catch(e){} }, 1500);
 setTimeout(()=>{   // misure su lista e invio, senza toccare le funzioni
-  if(typeof renderList==='function'){ const _rl=renderList; renderList=function(){ const t=performance.now(); try{ return _rl.apply(this, arguments); } finally{ _diagSegna('render', performance.now()-t); } }; }
+  if(typeof renderList==='function'){ const _rl=renderList; renderList=function(){ _gIdxData=null; const t=performance.now(); try{ return _rl.apply(this, arguments); } finally{ _diagSegna('render', performance.now()-t); } }; }
   if(typeof pushSheets==='function'){ const _ps=pushSheets; pushSheets=async function(){ const t=performance.now(); try{ return await _ps.apply(this, arguments); } finally{ _diagSegna('push', performance.now()-t, 0, ld('pushPending','')?'non riuscito':''); } }; }
 }, 0);
 async function _avvisaFatturaElaborata(forn, num, extra){
