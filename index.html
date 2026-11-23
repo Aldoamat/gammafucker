@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v187</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v188</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -3823,6 +3823,7 @@ function toggleRepliche(id, btn){
 
 function delSpett(id){
   if(!confirm('Eliminare?'))return;
+  if(!_chiediCodiceElimina()){ toast('Eliminazione annullata: serve il codice', true); return; }
   data=data.filter(s=>s.id!==id);sv('spettacoli',data);
   // Registra ID eliminato per evitare che fetchAndMerge lo ripristini dal remoto
   const deleted = JSON.parse(ld('deletedIds','[]'));
@@ -3837,8 +3838,8 @@ function delSpett(id){
       if(!_url||!data.length) return;
       try{
         const autore = ld('nomeUtente','Utente');
-        const body = JSON.stringify({action:'sync', data:buildPayload(), autore, timestamp:Date.now()});
-        await fetch(_url, {method:'POST', headers:{'Content-Type':'text/plain'}, body});
+        const body = JSON.stringify({action:'sync', ..._syncExtra(), data:buildPayload(), autore, timestamp:Date.now()});
+        const r = await fetch(_url, {method:'POST', headers:{'Content-Type':'text/plain'}, body}); try{ _esitoElimina(await r.json()); }catch(_){}
       }catch(e){}
     }, 400);
   }
@@ -3934,6 +3935,16 @@ function _rigaFirma(r){
   const k=[t(r.data),t(r.citta),t(r.teatro),t(r.spett),t(r.manif),n(r.nm),n(r.tm),n(r.ne),n(r.te),n(r.nf),n(r.tf),n(r.nfo),n(r.tfo),n(r.nsa),n(r.tsa),t(r.note),r.fatturato?1:0,r.premontaggio?1:0,r.residenza?1:0,t(r.replicaOf),j(r.collab&&r.collab.length?r.collab:''),j(r.mails&&r.mails.length?r.mails:''),j(r.contatti&&r.contatti.length?r.contatti:''),t(r.accordi),j(r.prod||''),j(r.rifatt&&r.rifatt.modo?{m:r.rifatt.modo,v:r.rifatt.voci}:'')].join('\u0001');
   let h=5381; for(let i=0;i<k.length;i++) h=((h<<5)+h+k.charCodeAt(i))|0; return (h>>>0).toString(36)+k.length.toString(36);
 }
+// ── Protezione cancellazioni: il foglio tiene ogni spettacolo che non arriva nell'invio,
+// tranne quelli eliminati di proposito qui (deletedIds) con il codice di cancellazione ──
+const APP_VER = +('GammaFucker v188'.match(/\d+/)[0]);
+function _syncExtra(){ let el=[]; try{ el=JSON.parse(ld('deletedIds','[]'))||[]; }catch(e){} return { ver:APP_VER, elimina:el, codice:ld('codiceElimina',''), collab:IS_COLLAB?1:0 }; }
+function _chiediCodiceElimina(){
+  const c=ld('codiceElimina',''); if(c) return c;
+  const x=prompt('🔐 Codice di cancellazione\n\nPer eliminare spettacoli dal foglio serve il codice (resta memorizzato su questo dispositivo).\nSe non l\'hai ancora impostato, il codice che scrivi ora diventa il codice.');
+  if(!x||!x.trim()) return null; sv('codiceElimina', x.trim()); return x.trim();
+}
+function _esitoElimina(j){ if(j&&j.negate>0){ sv('codiceElimina',''); toast('⛔ Codice di cancellazione errato: '+j.negate+' spettacoli NON eliminati dal foglio. Riprova a eliminarli con il codice giusto.', true); } }
 function _syncBaseLeggi(){ try{ return JSON.parse(ld('syncBase','{}'))||{}; }catch(e){ return {}; } }
 function _syncBaseDa(righe){ const b={}; righe.forEach(r=>{ b[String(r.id)]=_rigaFirma(r); }); sv('syncBase', JSON.stringify(b)); }
 
@@ -4056,7 +4067,7 @@ async function pushSheets(silent=false){
 
     // ── INVIO ──────────────────────────────────────────────────────────────
     const autore=ld('nomeUtente','Utente');
-    const body=JSON.stringify({action:'sync',data:buildPayload(),autore,timestamp:Date.now()});
+    const body=JSON.stringify({action:'sync',..._syncExtra(),data:buildPayload(),autore,timestamp:Date.now()});
     let sent=false;
 
     try{
@@ -4073,6 +4084,7 @@ async function pushSheets(silent=false){
             toast('⛔ Invio bloccato dal foglio: '+(json.motivo||'troppi pochi spettacoli')+'. Su questo dispositivo usa "⬇ Scarica da Sheets".', true);
             return;
           }
+          _esitoElimina(json);
         }catch(e){}
         sent=true;
       }
@@ -6392,7 +6404,7 @@ function salvaEditFattura(idx){
     const _urlPush = ld('sheetsUrl','');
     if(_urlPush){
       const _autore = ld('nomeUtente','Utente');
-      const _body = JSON.stringify({action:'sync', data:buildPayload(), autore:_autore, timestamp:Date.now()});
+      const _body = JSON.stringify({action:'sync', ..._syncExtra(), data:buildPayload(), autore:_autore, timestamp:Date.now()});
       fetch(_urlPush, {method:'POST', headers:{'Content-Type':'text/plain'}, body:_body}).catch(()=>{});
     }
     let msg = '';
@@ -7057,6 +7069,7 @@ function annullaUltimoInserimento(){
   if(!confirm('Annullare "'+(u.descr||'ultimo inserimento')+'"?\nGli spettacoli tornano come erano prima.')) return;
   u.mod.forEach(m=>{ const i=data.findIndex(s=>String(s.id)===m.id); if(i>-1) data[i]={...m.prev, ts:new Date().toISOString()}; else data.push(m.prev); });
   if(u.nuovi.length){
+    _chiediCodiceElimina();
     const deleted=JSON.parse(ld('deletedIds','[]'));
     u.nuovi.forEach(id=>{ data=data.filter(s=>String(s.id)!==id); if(!deleted.includes(id)) deleted.push(id); });
     sv('deletedIds', JSON.stringify(deleted.slice(-200)));
@@ -7391,7 +7404,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v187</span>
+    <span>Report generato da GammaFucker v188</span>
   </div>
   </body></html>`;
 
@@ -7497,7 +7510,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v187</span>
+    <span>Report generato da GammaFucker v188</span>
   </div>
   </body></html>`;
 
@@ -7596,7 +7609,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v187</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v188</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7669,7 +7682,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v187</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v188</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
@@ -8921,7 +8934,7 @@ function applicaScheda(id){
 
   const u = ld('sheetsUrl','');
   if(u) fetch(u, {method:'POST', headers:{'Content-Type':'text/plain'},
-    body: JSON.stringify({action:'sync', data:buildPayload(), autore:ld('nomeUtente','Utente'), timestamp:Date.now()})}).catch(()=>{});
+    body: JSON.stringify({action:'sync', ..._syncExtra(), data:buildPayload(), autore:ld('nomeUtente','Utente'), timestamp:Date.now()})}).catch(()=>{});
 }
 
 function scartaScheda(id){
@@ -9179,7 +9192,7 @@ function approvaProposte(){
 
   const u = ld('sheetsUrl','');
   if(u){
-    const body = JSON.stringify({action:'sync', data:buildPayload(), autore:ld('nomeUtente','Utente'), timestamp:Date.now()});
+    const body = JSON.stringify({action:'sync', ..._syncExtra(), data:buildPayload(), autore:ld('nomeUtente','Utente'), timestamp:Date.now()});
     fetch(u, {method:'POST', headers:{'Content-Type':'text/plain'}, body}).catch(()=>{});
     setTimeout(()=>pushConfig(true), 600);
   }
@@ -9316,7 +9329,7 @@ function _allegaMail(spettId, segnId){
 
   const u = ld('sheetsUrl','');
   if(u) fetch(u, {method:'POST', headers:{'Content-Type':'text/plain'},
-    body: JSON.stringify({action:'sync', data:buildPayload(), autore:ld('nomeUtente','Utente'), timestamp:Date.now()})}).catch(()=>{});
+    body: JSON.stringify({action:'sync', ..._syncExtra(), data:buildPayload(), autore:ld('nomeUtente','Utente'), timestamp:Date.now()})}).catch(()=>{});
 }
 
 function gestisciMail(spettId){
@@ -9333,7 +9346,7 @@ function gestisciMail(spettId){
   toast('✓ Rimossa');
   const u = ld('sheetsUrl','');
   if(u) fetch(u, {method:'POST', headers:{'Content-Type':'text/plain'},
-    body: JSON.stringify({action:'sync', data:buildPayload(), autore:ld('nomeUtente','Utente'), timestamp:Date.now()})}).catch(()=>{});
+    body: JSON.stringify({action:'sync', ..._syncExtra(), data:buildPayload(), autore:ld('nomeUtente','Utente'), timestamp:Date.now()})}).catch(()=>{});
 }
 
 
@@ -9519,7 +9532,7 @@ function salvaEditRapido(){
   const u = ld('sheetsUrl','');
   if(u){
     fetch(u, {method:'POST', headers:{'Content-Type':'text/plain'},
-      body: JSON.stringify({action:'sync', data:buildPayload(), autore:ld('nomeUtente','Utente'), timestamp:Date.now()})}).catch(()=>{});
+      body: JSON.stringify({action:'sync', ..._syncExtra(), data:buildPayload(), autore:ld('nomeUtente','Utente'), timestamp:Date.now()})}).catch(()=>{});
   }
 }
 
@@ -9615,8 +9628,10 @@ function risolviDoppione(gi){
   let msg = 'Eliminare '+daEliminare.length+' spettacoli?';
   if(conDati.length) msg += '\n\n⚠ ATTENZIONE: '+conDati.length+' contengono importi o note fattura che andranno persi.';
   if(!confirm(msg)) return;
+  if(!_chiediCodiceElimina()){ toast('Eliminazione annullata: serve il codice', true); return; }
 
   const ids = daEliminare.map(s=>String(s.id));
+  { const del=JSON.parse(ld('deletedIds','[]')); ids.forEach(i=>{ if(!del.includes(i)) del.push(i); }); sv('deletedIds', JSON.stringify(del.slice(-200))); }
   // Le repliche degli eliminati passano al superstite
   data.forEach(s=>{ if(ids.indexOf(String(s.replicaOf))>=0) s.replicaOf = keepId; });
   data = data.filter(s=>ids.indexOf(String(s.id))<0);
@@ -9630,7 +9645,7 @@ function risolviDoppione(gi){
   const u = ld('sheetsUrl','');
   if(u){
     fetch(u, {method:'POST', headers:{'Content-Type':'text/plain'},
-      body: JSON.stringify({action:'sync', data:buildPayload(), autore:ld('nomeUtente','Utente'), timestamp:Date.now()})}).catch(()=>{});
+      body: JSON.stringify({action:'sync', ..._syncExtra(), data:buildPayload(), autore:ld('nomeUtente','Utente'), timestamp:Date.now()})}).catch(()=>{});
   }
 }
 // ══════════════════════════════════════════════════════════════════════

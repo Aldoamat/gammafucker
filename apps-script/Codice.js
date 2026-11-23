@@ -1,4 +1,4 @@
-// ── SPETTACOLI APP SCRIPT v194 ──
+// ── SPETTACOLI APP SCRIPT v195 ──
 
 function doPost(e) {
   var props = PropertiesService.getScriptProperties();
@@ -229,6 +229,12 @@ function doPost(e) {
 
     if (body.action !== 'sync') { lock.releaseLock(); return resp('unknown action'); }
 
+    // ── PROTEZIONE 2: le app vecchie (es. un'app collaboratori non aperta da mesi) non possono più scrivere ──
+    var VER_MIN = 188;
+    if (!(+body.ver >= VER_MIN)) {
+      lock.releaseLock();
+      return ContentService.createTextOutput(JSON.stringify({ result: 'rifiutato', motivo: 'app non aggiornata (v' + (body.ver || '?') + '): chiudila e riaprila per aggiornarla, poi scarica dal foglio' })).setMimeType(ContentService.MimeType.JSON);
+    }
     var autore = body.autore || 'Sconosciuto';
     var ts = body.timestamp || new Date().getTime();
     props.setProperty('lockOwner', autore);
@@ -260,6 +266,28 @@ function doPost(e) {
     // Difesa dal "locale vince": le rinomine/correzioni del giornale si applicano anche ai dati in arrivo
     var G1 = _mappeGiornale(ss);
     if (G1.n) body.data.forEach(function(r){ _giornaleRiga(r, G1); });
+    // ── PROTEZIONE 3: nessuno spettacolo sparisce dal foglio se non è eliminato di proposito, con il codice ──
+    // Le righe del foglio che non arrivano nell'invio vengono TENUTE, tranne quelle elencate in body.elimina
+    // accompagnate dal codice di cancellazione giusto (proprietà CODICE_ELIMINA; il primo codice usato dall'app principale lo imposta).
+    var tz = ss.getSpreadsheetTimeZone();
+    var kData = function(v){ return (v instanceof Date) ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : String(v || '').slice(0, 10); };
+    var kRiga = function(d, c, s){ return kData(d) + '|' + String(c || '').trim().toUpperCase() + '|' + String(s || '').trim().toUpperCase(); };
+    var codiceSalvato = props.getProperty('CODICE_ELIMINA') || '';
+    var codice = String(body.codice || '').trim();
+    if (!codiceSalvato && codice && !body.collab) { props.setProperty('CODICE_ELIMINA', codice); codiceSalvato = codice; }
+    var codiceOk = !!codice && codice === codiceSalvato;
+    var perId = {}, perKey = {}, daEliminare = {};
+    body.data.forEach(function(r){ perId[String(r.id)] = 1; perKey[kRiga(r.data, r.citta, r.spettacolo)] = 1; });
+    (body.elimina || []).forEach(function(id){ daEliminare[String(id)] = 1; });
+    var tenute = [], eliminate = 0, negate = 0;
+    if (nPrima > 0) {
+      sh.getRange(2, 1, nPrima, header.length).getValues().forEach(function(v){
+        var id = String(v[0] || ''); if (!id && !v[1]) return;
+        if (perId[id] || perKey[kRiga(v[1], v[2], v[4])]) return;          // arriva nell'invio (aggiornata)
+        if (daEliminare[id]) { if (codiceOk) { eliminate++; return; } negate++; }
+        tenute.push(v);                                                     // mancava nell'invio: resta
+      });
+    }
     sh.clearContents();
     sh.getRange(1,1,1,header.length).setValues([header]);
     var rows = body.data.map(function(r,i) {
@@ -271,8 +299,9 @@ function doPost(e) {
         r.n_sart||0,r.tariffa_sart||0,r.sub_sart||0,
         r.totale,r.note,r.fatturato,r.premontaggio||'NO',r.collab_json||'',r.replica_of||'',r.mails_json||'',r.contatti_json||'',r.accordi||'',r.prod_json||'',r.rifatt_json||''];
     });
+    rows = rows.concat(tenute);
     if(rows.length) sh.getRange(2,1,rows.length,header.length).setValues(rows);
-    return resp('ok: '+rows.length+' righe');
+    return ContentService.createTextOutput(JSON.stringify({ result: 'ok: ' + rows.length + ' righe', tenute: tenute.length - negate, eliminate: eliminate, negate: negate })).setMimeType(ContentService.MimeType.JSON);
 
   } catch(err) {
     return resp('error: '+err.message);
