@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v189</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v190</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -2677,15 +2677,15 @@ async function importaCalendarioWord(files){
   const col={terzi:'#34d399',amat:'#f59e0b',interno:'var(--text3)'}, lab={terzi:'TERZI',amat:'AMAT',interno:'INTERNO'};
   let h=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:11px;">
     <label>Manifestazione per gli eventi di terzi (se non scelta voce per voce): <input id="cal-manif" list="cal-manif-list" value="EVENTI TERZI" style="font-size:11px;padding:3px 6px;width:160px;"><datalist id="cal-manif-list">${manifs.map(m=>`<option value="${esc(m)}">`).join('')}</datalist></label>
-    <label style="display:block;margin-top:4px;" title="Stesso titolo nello stesso spazio per più giorni: i giorni con l'orario sono lo spettacolo (le altre date con orario diventano repliche), i giorni senza orario diventano giornate di residenza/allestimento"><input type="checkbox" id="cal-resid" checked> Raggruppa: giorni con orario = spettacolo, giorni senza orario = residenza</label>
-    <label style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" onchange="document.querySelectorAll('.cal-chk').forEach(c=>c.checked=this.checked)" style="width:14px;height:14px;"> tutte</label>
+    <label style="display:block;margin-top:4px;" title="Stesso titolo nello stesso spazio per più giorni: i giorni con l'orario sono lo spettacolo (le altre date con orario diventano repliche), i giorni senza orario diventano giornate di residenza/allestimento"><input type="checkbox" id="cal-resid" checked onchange="_calAnteprima()"> Raggruppa: giorni con orario = spettacolo, giorni senza orario = residenza</label>
+    <label style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" onchange="document.querySelectorAll('.cal-chk').forEach(c=>c.checked=this.checked);_calAnteprima()" style="width:14px;height:14px;"> tutte</label>
   </div>`;
   h+=mancanti.map(v=>{ const i=_calVoci.indexOf(v); const conf=v.stato==='spazio'&&v.tipo!=='interno'; return `<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border:1px solid ${conf?'rgba(239,68,68,.5)':'var(--border)'};border-radius:6px;margin-bottom:4px;font-size:11px;cursor:pointer;background:${conf?'rgba(239,68,68,.07)':'var(--bg)'};">
-      <input type="checkbox" class="cal-chk" data-i="${i}" ${v.tipo==='terzi'&&!conf?'checked':''} style="width:15px;height:15px;margin-top:2px;">
-      <div style="flex:1;"><div><span style="color:var(--gold);">${fd(v.data)}</span> · <b>${esc(v.citta)} · ${esc(v.teatro)}</b>${v.ora?' · '+v.ora:''} <span style="font-size:9px;padding:1px 6px;border-radius:10px;border:1px solid ${col[v.tipo]};color:${col[v.tipo]};margin-left:4px;">${lab[v.tipo]}</span></div>
+      <input type="checkbox" class="cal-chk" data-i="${i}" ${v.tipo==='terzi'&&!conf?'checked':''} onchange="_calAnteprima()" style="width:15px;height:15px;margin-top:2px;">
+      <div style="flex:1;"><div><span style="color:var(--gold);">${fd(v.data)}</span> · <b>${esc(v.citta)} · ${esc(v.teatro)}</b>${v.ora?' · '+v.ora:''} <span style="font-size:9px;padding:1px 6px;border-radius:10px;border:1px solid ${col[v.tipo]};color:${col[v.tipo]};margin-left:4px;">${lab[v.tipo]}</span><span class="cal-ruolo" data-i="${i}"></span></div>
       ${v.stato==='spazio'?`<div style="font-size:10px;color:${conf?'#ef4444':'var(--text3)'};margin-top:2px;">⚠ stesso giorno e spazio in archivio: ${esc(v.match.map(m=>m.spett+(m.manif?' ['+m.manif+']':'')).join(' · '))}</div>`:''}
       <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap;">
-        <input value="${esc(v.testo)}" oninput="_calVoci[${i}].titolo=this.value" onclick="event.preventDefault();this.focus()" style="flex:2;min-width:160px;font-size:11px;padding:3px 6px;box-sizing:border-box;" title="titolo con cui verrà inserito (modificabile)">
+        <input value="${esc(v.testo)}" oninput="_calVoci[${i}].titolo=this.value;_calAnteprima()" onclick="event.preventDefault();this.focus()" style="flex:2;min-width:160px;font-size:11px;padding:3px 6px;box-sizing:border-box;" title="titolo con cui verrà inserito (modificabile)">
         <select onchange="_calVoci[${i}].manif=this.value" onclick="event.preventDefault();event.stopPropagation()" style="flex:1;min-width:120px;font-size:11px;padding:3px 6px;" title="manifestazione per questa voce">
           <option value="">${v.tipo==='interno'?'GESTIONE - NO AMAT':v.tipo==='terzi'?'(eventi terzi)':'— manifestazione —'}</option>
           <option value="GESTIONE">GESTIONE - NO AMAT</option>
@@ -2693,8 +2693,22 @@ async function importaCalendarioWord(files){
         </select>
       </div></div></label>`; }).join('');
   if(presenti.length) h+=`<details style="margin-top:8px;font-size:11px;"><summary style="cursor:pointer;color:var(--text3);">✓ ${presenti.length} voci già in archivio (riconosciute per titolo)</summary><div style="margin-top:4px;color:var(--text3);">${presenti.map(v=>`${fd(v.data)} · ${esc(v.teatro)} · ${esc(v.testo.slice(0,50))} → <i>${esc(v.match[0].spett)}</i>`).join('<br>')}</div></details>`;
+  setTimeout(_calAnteprima, 0);
   h+=`<div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-p" style="flex:1;" onclick="confermaCalendarioWord()">✓ Inserisci le voci selezionate</button><button class="btn btn-o" onclick="document.getElementById('cal-word-box').innerHTML='';document.getElementById('cal-word-stato').textContent='';">Chiudi</button></div>`;
   box.innerHTML=h;
+}
+// anteprima del raggruppamento (stessa regola dell'inserimento): 🎭 spettacolo, 🔁 replica, 🏠 residenza
+function _calAnteprima(){
+  document.querySelectorAll('.cal-ruolo').forEach(e=>e.innerHTML='');
+  if(!document.getElementById('cal-resid')?.checked) return;
+  const sel=[...document.querySelectorAll('.cal-chk:checked')].map(c=>({i:+c.dataset.i, v:_calVoci[+c.dataset.i]})).filter(x=>x.v);
+  const gr={}; sel.forEach(x=>{ const t=(x.v.titolo||x.v.testo||'').trim().toUpperCase(); if(!t) return; const k=t+'|'+(x.v.citta||'PESARO')+'|'+_normTxt(x.v.teatro||''); (gr[k]=gr[k]||[]).push(x); });
+  const badge=(i,txt,col)=>{ const e=document.querySelector('.cal-ruolo[data-i="'+i+'"]'); if(e) e.innerHTML=`<span style="font-size:9px;padding:1px 6px;border-radius:10px;background:${col}22;border:1px solid ${col};color:${col};margin-left:4px;font-weight:700;">${txt}</span>`; };
+  Object.values(gr).forEach(g=>{
+    if(g.length<2) return; const sp=g.filter(x=>x.v.ora&&/\d/.test(x.v.ora)).sort((a,b)=>a.v.data.localeCompare(b.v.data)); if(!sp.length) return;
+    const deb=sp[0], dd=deb.v.data.split('-').reverse().slice(0,2).join('/');
+    g.forEach(x=>{ if(x===deb) badge(x.i,'🎭 SPETTACOLO','#f472b6'); else if(x.v.ora&&/\d/.test(x.v.ora)) badge(x.i,'🔁 REPLICA del '+dd,'#a78bfa'); else badge(x.i,'🏠 RESIDENZA → '+dd,'#60a5fa'); });
+  });
 }
 function confermaCalendarioWord(){
   const sel=[...document.querySelectorAll('.cal-chk:checked')].map(c=>_calVoci[+c.dataset.i]).filter(Boolean);
@@ -3951,7 +3965,7 @@ function _rigaFirma(r){
 }
 // ── Protezione cancellazioni: il foglio tiene ogni spettacolo che non arriva nell'invio,
 // tranne quelli eliminati di proposito qui (deletedIds) con il codice di cancellazione ──
-const APP_VER = +('GammaFucker v189'.match(/\d+/)[0]);
+const APP_VER = +('GammaFucker v190'.match(/\d+/)[0]);
 function _syncExtra(){ let el=[]; try{ el=JSON.parse(ld('deletedIds','[]'))||[]; }catch(e){} return { ver:APP_VER, elimina:el, codice:ld('codiceElimina',''), collab:IS_COLLAB?1:0 }; }
 function _chiediCodiceElimina(){
   const c=ld('codiceElimina',''); if(c) return c;
@@ -7418,7 +7432,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v189</span>
+    <span>Report generato da GammaFucker v190</span>
   </div>
   </body></html>`;
 
@@ -7524,7 +7538,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v189</span>
+    <span>Report generato da GammaFucker v190</span>
   </div>
   </body></html>`;
 
@@ -7623,7 +7637,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v189</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v190</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7696,7 +7710,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v189</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v190</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
