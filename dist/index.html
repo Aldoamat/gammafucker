@@ -246,7 +246,7 @@ input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;w
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v188</span></h1>
+    <h1 style="font-family:'Pirata One',cursive;font-size:26px;color:var(--text);line-height:1;margin:0;">Gamma<span style="color:var(--gold);">Fucker</span> <span style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;font-weight:normal;">v189</span></h1>
   </div>
   <div class="hdr-r">
     <button class="hbtn purple" onclick="openCalModal()">📅 Cal</button>
@@ -2677,6 +2677,7 @@ async function importaCalendarioWord(files){
   const col={terzi:'#34d399',amat:'#f59e0b',interno:'var(--text3)'}, lab={terzi:'TERZI',amat:'AMAT',interno:'INTERNO'};
   let h=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:11px;">
     <label>Manifestazione per gli eventi di terzi (se non scelta voce per voce): <input id="cal-manif" list="cal-manif-list" value="EVENTI TERZI" style="font-size:11px;padding:3px 6px;width:160px;"><datalist id="cal-manif-list">${manifs.map(m=>`<option value="${esc(m)}">`).join('')}</datalist></label>
+    <label style="display:block;margin-top:4px;" title="Stesso titolo nello stesso spazio per più giorni: i giorni con l'orario sono lo spettacolo (le altre date con orario diventano repliche), i giorni senza orario diventano giornate di residenza/allestimento"><input type="checkbox" id="cal-resid" checked> Raggruppa: giorni con orario = spettacolo, giorni senza orario = residenza</label>
     <label style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" onchange="document.querySelectorAll('.cal-chk').forEach(c=>c.checked=this.checked)" style="width:14px;height:14px;"> tutte</label>
   </div>`;
   h+=mancanti.map(v=>{ const i=_calVoci.indexOf(v); const conf=v.stato==='spazio'&&v.tipo!=='interno'; return `<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border:1px solid ${conf?'rgba(239,68,68,.5)':'var(--border)'};border-radius:6px;margin-bottom:4px;font-size:11px;cursor:pointer;background:${conf?'rgba(239,68,68,.07)':'var(--bg)'};">
@@ -2699,7 +2700,7 @@ function confermaCalendarioWord(){
   const sel=[...document.querySelectorAll('.cal-chk:checked')].map(c=>_calVoci[+c.dataset.i]).filter(Boolean);
   if(!sel.length){ toast('Nessuna voce selezionata', true); return; }
   const manifTerzi=(document.getElementById('cal-manif').value||'EVENTI TERZI').trim().toUpperCase();
-  let n=0;
+  let n=0, nRes=0, nRep=0; const nuovi=[];
   sel.forEach(v=>{
     const titolo=(v.titolo||v.testo).trim(); if(!titolo) return;
     const c=v.citta||'PESARO';
@@ -2710,15 +2711,28 @@ function confermaCalendarioWord(){
       nm:0,tm:tariffe.m,sm:0,ne:0,te:tariffe.e,se:0,nf:0,tf:tariffe.f,sf:0,totale:0,
       note:(v.ora?'Orari: '+v.ora+' | ':'')+(v.org?'Organizzatore: '+v.org+' | ':'')+'Da calendario '+v.file.replace(/\.(docx|xlsx?)$/i,'')+(v.tipo==='interno'?' (voce interna)':''),
       fatturato:false, fromCal:true, ts:new Date().toISOString()});
+    nuovi.push({rec:data[data.length-1], ora:!!(v.ora&&/\d/.test(v.ora))});
     n++;
   });
   if(!n) return;
+  // stesso titolo, stessa città e spazio su più giorni: con orario = spettacolo (+repliche), senza orario = residenza
+  if(document.getElementById('cal-resid')?.checked){
+    const gr={}; nuovi.forEach(x=>{ const k=x.rec.spett+'|'+x.rec.citta+'|'+_normTxt(x.rec.teatro||''); (gr[k]=gr[k]||[]).push(x); });
+    Object.values(gr).forEach(g=>{
+      if(g.length<2) return; const spett=g.filter(x=>x.ora); if(!spett.length) return;
+      g.sort((a,b)=>a.rec.data.localeCompare(b.rec.data)); const deb=spett.sort((a,b)=>a.rec.data.localeCompare(b.rec.data))[0].rec;
+      g.forEach(x=>{ const r=x.rec; if(r===deb) return;
+        if(x.ora){ r.replicaOf=deb.id; nRep++; }
+        else { r.premontaggio=true; r.residenza=true; r.replicaOf=null; r.note=(r.note||'').replace(/^Orari:[^|]*\| /,''); r.note='Residenza/allestimento per '+deb.spett+' ('+deb.data.split('-').reverse().slice(0,2).join('/')+') | '+r.note; nRes++; }
+      });
+    });
+  }
   sv('teatriDB',teatriDB); data.sort((a,b)=>a.data.localeCompare(b.data)); sv('spettacoli',data);
   window._pullBlockUntil=Date.now()+30000;
   try{ const c=JSON.parse(ld('manifCustom','[]')); if(sel.some(v=>v.tipo==='terzi') && ![...document.querySelectorAll('#f-manif option')].some(o=>o.value===manifTerzi) && !c.includes(manifTerzi)){ c.push(manifTerzi); sv('manifCustom', JSON.stringify(c)); loadManifCustom(); } }catch(e){}
   buildCityList(); buildCittaSel('f-citta'); buildCittaSel('fil-citta'); updateDatalist(); buildMesiFilter(); renderList();
   document.getElementById('cal-word-box').innerHTML=''; document.getElementById('cal-word-stato').textContent='✓ inseriti '+n+' eventi';
-  toast('✓ '+n+' eventi inseriti da calendario Word');
+  toast('✓ '+n+' eventi inseriti da calendario Word'+(nRes||nRep?' — '+(nRes?nRes+' giornate di residenza':'')+(nRes&&nRep?', ':'')+(nRep?nRep+' repliche':'')+' raggruppate':''));
   if(ld('sheetsUrl','')){ setTimeout(()=>pushSheets(true),300); setTimeout(()=>pushConfig(true),900); }
 }
 
@@ -3937,7 +3951,7 @@ function _rigaFirma(r){
 }
 // ── Protezione cancellazioni: il foglio tiene ogni spettacolo che non arriva nell'invio,
 // tranne quelli eliminati di proposito qui (deletedIds) con il codice di cancellazione ──
-const APP_VER = +('GammaFucker v188'.match(/\d+/)[0]);
+const APP_VER = +('GammaFucker v189'.match(/\d+/)[0]);
 function _syncExtra(){ let el=[]; try{ el=JSON.parse(ld('deletedIds','[]'))||[]; }catch(e){} return { ver:APP_VER, elimina:el, codice:ld('codiceElimina',''), collab:IS_COLLAB?1:0 }; }
 function _chiediCodiceElimina(){
   const c=ld('codiceElimina',''); if(c) return c;
@@ -7404,7 +7418,7 @@ function generaReportPDF(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v188</span>
+    <span>Report generato da GammaFucker v189</span>
   </div>
   </body></html>`;
 
@@ -7510,7 +7524,7 @@ function generaReportCitta(){
   ${cards}
   <div class="footer">
     <span>AMAT Associazione Marchigiana Attività Teatrali</span>
-    <span>Report generato da GammaFucker v188</span>
+    <span>Report generato da GammaFucker v189</span>
   </div>
   </body></html>`;
 
@@ -7609,7 +7623,7 @@ function _reportSpettacoli(lista, descrizione, opts){
     <div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati · ${fmt(totFat)}</div></div>
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v188</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attività Teatrali</span><span>GammaFucker v189</span></div>
   </body></html>`;
   if(opts.ritorna) return html;
   const w=window.open('','_blank','width=900,height=720'); w.document.write(html); w.document.close();
@@ -7682,7 +7696,7 @@ function generaReportStagione(){
     ${IS_COLLAB?'':`<div class="sum-item"><div class="sum-val" style="color:#d97706;">${fatturati}/${spett.length}</div><div class="sum-lbl">Fatturati</div></div>`}
   </div>
   ${sezioni}
-  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v188</span></div>
+  <div class="footer"><span>AMAT Associazione Marchigiana Attivit\u00e0 Teatrali</span><span>GammaFucker v189</span></div>
   </body></html>`;
 
   const w = window.open('','_blank','width=860,height=700');
